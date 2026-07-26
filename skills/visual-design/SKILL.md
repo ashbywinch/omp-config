@@ -8,10 +8,17 @@ description: |
 triggers: screenshot, wireframe, mockup, redesign, UI polish, visual fix, looks bad, make it pretty, design review, UX review, UI audit, improve the UI, make it look better
 ---
 
-# Visual Design Pipeline
+## Phase 2 — Capture Screenshots
 
-Designer subagent must be configured to a vision-capable model via `modelRoles.designer`. Screenshots passed as file mentions (`@/tmp/file.png`) resolve to inline images.
+Use `browser` at 375px and 1280px viewport widths.
 
+**Wait for the page to actually render before screenshotting.** Don't use fixed timeouts. Wait for specific content elements: the card list on the list page, the section content on the detail page. If the page loads data from an API, wait for that data to appear.
+
+For detail pages, navigate via the list page (click a card) rather than constructing URLs — this ensures the app state is properly initialized.
+
+Name descriptively: `/tmp/page-name-1280.png`
+
+**Critical: verify the screenshots are usable before proceeding.** A screenshot that's under 50KB for a desktop viewport is likely blank or mostly whitespace — the vision model won't be able to read it. Re-capture if needed.
 ## Phase 0 — Discovery Conversation
 
 Ask ONE question at a time. Start with: "What problem are you trying to solve?"
