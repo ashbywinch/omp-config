@@ -16,7 +16,7 @@ Uses the `designer` subagent (must be configured to a vision-capable model via `
 
 **Don't pre-bias the designer.** If you say "cards have too much info" the designer will remove everything. Frame neutrally.
 
-**Existing features are evidence of user needs, not a sacred list.** Each feature was built because someone needed it. The designer should understand the underlying need, then decide whether to keep, change, or replace the feature. The goal is to meet the need better, not to preserve specific UI.
+**Existing features are evidence of user needs, but don't guess what those needs are — ask the user.** The features were built for reasons, but only the user can tell you what those reasons are and which ones still matter.
 
 **The list vs detail split is about density, not removal.** Commute quality, school quality, and affordability badges belong on list cards — just condensed. The detail page gets full breakdowns.
 
@@ -28,19 +28,28 @@ Uses the `designer` subagent (must be configured to a vision-capable model via `
 
 Ask ONE question at a time. Start with: **"What problem are you trying to solve?"**
 
-Follow-ups:
+Follow-ups (one at a time):
 - "Who uses this?"
 - "Walk me through a typical session."
 - "What information do you need at each step to make a decision?"
 - "What's frustrating?"
 
+After you have a picture of their workflow, reference specific features from the code and ASK what they're for:
+- "I see the cards show commute times — how do you use those when scanning?"
+- "There are Save/Dismiss/Seen buttons — what does each one mean in your process?"
+- "There's a financial line with a monthly cost and a delta — what do you look for there?"
+- "I see comments per person — when do you use those?"
+
+Do NOT guess what features are for. Ask. The user knows their own needs.
+
 Write findings as a personas doc and check it in.
 
 ## Phase 1 — Gather Context & Catalog Existing Features
 
-Read every relevant source file. Build a feature inventory — for each feature, note what user need it likely serves.
-
-Include in the inventory: every data field, interaction, state, and navigation element. Note what user problem each one solves.
+Read every relevant source file. Build a feature inventory. For each feature, note:
+- What it does
+- What file it lives in
+- Your hypothesis about what need it serves (to be verified in Phase 0)
 
 ## Phase 2 — Capture Screenshots
 
@@ -50,10 +59,10 @@ Browser at 375px and 1280px. `/tmp/page-name-1280.png`
 
 The task MUST include:
 1. Screenshots as absolute file mentions (`@/tmp/...`)
-2. Personas & workflow from Phase 0
+2. Personas & workflow from Phase 0 (including what the user said each feature is for)
 3. Project context from Phase 1
-4. The feature inventory from Phase 1, framed as:
-   - "These features exist today and are evidence of user needs. For each one, consider what user need it serves."
+4. The feature inventory framed as:
+   - "These features exist today. Here's what the user told me each one is for: [user's own words]."
    - "You may redesign, replace, or remove any feature. If you remove something, explain what user need it was meeting and how your design addresses that need differently."
    - "The goal is to meet user needs better, not to preserve specific UI."
 5. Instruction that list cards need condensed indicators for rapid scanning
