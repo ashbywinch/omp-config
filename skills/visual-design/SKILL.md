@@ -14,15 +14,15 @@ Uses the `designer` subagent (must be configured to a vision-capable model via `
 
 ## Critical Lessons (read before every use)
 
-**Don't pre-bias the designer.** If you say "cards have too much info" the designer will remove everything. Frame neutrally: "what information belongs at each stage?" Let it discover the balance.
+**Don't pre-bias the designer.** If you say "cards have too much info" the designer will remove everything. Frame neutrally.
 
-**Catalog existing features from code, then tell the designer what to preserve.** Read every component file, list every data field, interaction, and state. Pass that list explicitly in the task. If you don't name a feature, the designer won't know it exists and will likely omit it.
+**Existing features are evidence of user needs, not a sacred list.** Each feature was built because someone needed it. The designer should understand the underlying need, then decide whether to keep, change, or replace the feature. The goal is to meet the need better, not to preserve specific UI.
 
 **The list vs detail split is about density, not removal.** Commute quality, school quality, and affordability badges belong on list cards — just condensed. The detail page gets full breakdowns.
 
 **Wireframes must have working navigation.** No hidden CSS pages.
 
-**Watch the thinking trace for fixation.** If the designer repeats the same sentence, it's stuck in a loop.
+**Watch the thinking trace for fixation.** If the designer repeats the same sentence, it's stuck.
 
 ## Phase 0 — Discovery Conversation (main agent + user)
 
@@ -32,22 +32,15 @@ Follow-ups:
 - "Who uses this?"
 - "Walk me through a typical session."
 - "What information do you need at each step to make a decision?"
-- "What existing features do you rely on?"
 - "What's frustrating?"
 
-Write the findings as a personas doc and check it in.
+Write findings as a personas doc and check it in.
 
 ## Phase 1 — Gather Context & Catalog Existing Features
 
-Read every relevant source file. Build a concrete feature inventory — do not guess.
+Read every relevant source file. Build a feature inventory — for each feature, note what user need it likely serves.
 
-For each component file, document:
-- Every data field displayed (badges, pills, icons, text values)
-- Every interaction (clicks, hovers, toggles, cycles, drills-down)
-- Every state (loading, empty, error, active, disabled)
-- Every navigation element
-
-Compile a section titled "Existing Features to Preserve" with the full list. This goes directly into the designer's task description.
+Include in the inventory: every data field, interaction, state, and navigation element. Note what user problem each one solves.
 
 ## Phase 2 — Capture Screenshots
 
@@ -59,15 +52,18 @@ The task MUST include:
 1. Screenshots as absolute file mentions (`@/tmp/...`)
 2. Personas & workflow from Phase 0
 3. Project context from Phase 1
-4. **The "Existing Features to Preserve" list from Phase 1**
-5. Explicit instruction that the list card needs condensed commute/school/affordability indicators
-6. Requirement for working navigation between pages
+4. The feature inventory from Phase 1, framed as:
+   - "These features exist today and are evidence of user needs. For each one, consider what user need it serves."
+   - "You may redesign, replace, or remove any feature. If you remove something, explain what user need it was meeting and how your design addresses that need differently."
+   - "The goal is to meet user needs better, not to preserve specific UI."
+5. Instruction that list cards need condensed indicators for rapid scanning
+6. Working navigation between pages
 
-Do NOT include statements like "cards have too much info" or "X belongs on the detail page." Let the designer decide where things go, guided by the personas and the preservation list.
+Do NOT include biased statements like "cards have too much info."
 
 ## Phase 4 — Present & Iterate
 
-Show analysis + wireframe to user. Get feedback. Iterate.
+Show analysis + wireframe. Get feedback. Iterate.
 
 ## Phase 5 — Implement
 
