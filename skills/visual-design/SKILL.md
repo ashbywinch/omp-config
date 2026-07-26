@@ -42,8 +42,18 @@ After you have a picture of their workflow, reference specific features from the
 
 Do NOT guess what features are for. Ask. The user knows their own needs.
 
-Write findings as a personas doc and check it in.
+**Write findings as a personas doc and check it in. The personas doc must contain ONLY:**
+- Who the users are and what they care about
+- What they need to accomplish at each stage
+- What they need to know to make decisions
+- What frustrates them
 
+**The personas doc must NEVER contain:**
+- Design decisions ("there should be a button for X")
+- Layout suggestions ("the list page should show Y")
+- UI patterns ("one tap to Z", "provenance on every value")
+
+If you catch yourself writing implementation details, stop and rephrase as a user need. "The user needs to understand how a number was calculated" not "there should be a provenance icon on every value."
 ## Phase 1 — Gather Context & Catalog Existing Features
 
 Read every relevant source file. Build a feature inventory. For each feature, note:
