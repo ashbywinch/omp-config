@@ -45,3 +45,15 @@ def test_column_headers_match_sheets(self):
 ```
 
 This ensures that when the production constant changes, the test fails and reminds the developer to update the test data. Without this assertion, tests can silently diverge from reality, leading to false passes.
+
+## Fakes Must Match Reality
+
+Fakes (hand-written test doubles injected via DI) must match the real implementation's observable contract. Before writing a fake:
+
+- Read the real function's code — what arguments does it accept? What does it return? What errors can it raise?
+- If the real function makes an API call, what headers, auth, and parameters does it send?
+- Write an integration test against the real implementation (with a controlled test environment) if the contract is complex or poorly documented.
+
+Never ship a fake whose behavior you haven't validated against the real code. A fake that returns "Test Town" while the real implementation needs an API key, specific headers, and handles 403 errors is not testing your wiring — it's hiding integration bugs.
+
+Fakes verify wiring and error-path coverage. Integration tests verify the real contract. Both are necessary.
