@@ -48,7 +48,7 @@ This ensures that when the production constant changes, the test fails and remin
 
 ## Fakes Must Match Reality
 
-Fakes (hand-written test doubles injected via DI) must match the real implementation's observable contract. Before writing a fake:
+Fakes (hand-written test doubles injected via DI) must match the real implementation's observable contract. Where the real code calls an external API, the fake should simulate that API's actual response structure, status codes, and error formats — not just return a hardcoded success value. Before writing a fake:
 
 - Read the real function's code — what arguments does it accept? What does it return? What errors can it raise?
 - If the real function makes an API call, what headers, auth, and parameters does it send?
