@@ -2,7 +2,7 @@
 name: notion-execute-task
 description: |
   Execute a Notion task with quality gates — dependency verification, status
-  tracking, deliverable creation, DQS validation, and handoff.
+  tracking, deliverable creation, validation against the task's quality standard, and handoff.
 ---
 
 # Execute Task
@@ -27,10 +27,10 @@ Check each dependency's Status property.
 Update Status to **"In Progress"** via PATCH (see `skill://notion-database-management`).
 
 ### 4. Create Deliverable
-Follow the referenced playbook or DQS.
+Follow any referenced skill/plan or quality standard.
 
 ### 5. Quality Validation
-- DQS compliance
+- Quality standard compliance
 - Success criteria met
 
 ### 6. Complete and Handoff
@@ -44,4 +44,4 @@ See `skill://notion-database-management` for PATCH syntax and query patterns.
 |---|---|
 | Scope needs clarification | Escalate to Epic owner |
 | Resource unavailable | Escalate to planning |
-| Can't meet DQS | Escalate before proceeding |
+| Can't meet quality standards | Escalate before proceeding |

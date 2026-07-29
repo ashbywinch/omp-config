@@ -2,7 +2,7 @@
 name: notion-create-task
 description: |
   Create properly structured Tasks in the Notion Tasks Database with parent
-  Epic linkage, dependency mapping, and DQS compliance.
+  Epic linkage, dependency mapping, and validation against `skill://task-quality-standard`.
 ---
 
 # Create Task
@@ -22,7 +22,7 @@ Review the parent Epic in Notion (see `skill://notion-database-management` for r
 
 ### 2. Define Task
 - **Name**: Action-oriented "Verb + Object" pattern (e.g., "Create Vision Document")
-- **Desired Outcome**: Specific deliverable with DQS conformance
+- **Desired Outcome**: Specific deliverable — reference the applicable quality standard in the task definition (e.g. `skill://vision-quality-standard`). For code deliverables, the desired outcome should be clearly documented within the task itself.
 - **Scope Boundaries**: Explicit inclusions and exclusions
 
 ### 3. Create in Notion
@@ -38,7 +38,7 @@ Set these properties:
 
 ### 4. Validate
 - [ ] Task appears in Epic's Related Tasks view
-- [ ] All required fields populated per Task DQS
+- [ ] All required fields populated per `skill://task-quality-standard`
 - [ ] Dependencies explicitly documented
 - [ ] Success criteria are objective and measurable
 - [ ] Task is immediately executable

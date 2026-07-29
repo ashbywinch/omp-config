@@ -21,7 +21,7 @@ Manage Task status transitions in Notion.
 | **Draft** | Created, not ready for execution |
 | **Ready** | All prerequisites satisfied |
 | **In Progress** | Active work |
-| **Completed** | Deliverable created, DQS-validated |
+| **Completed** | Deliverable created, validated against the task's quality standard |
 | **Superseded** | Replaced by alternative approach |
 
 ## Transition Logic
@@ -34,7 +34,7 @@ Use PATCH to update the Status property on the task page (see `skill://notion-da
 |---|---|---|
 | Draft | Ready | Dependencies completed, resources confirmed, scope clear |
 | Ready | In Progress | Owner actively working, environment set up |
-| In Progress | Completed | DQS compliance, all success criteria met, handoff done |
+| In Progress | Completed | All success criteria met, handoff done |
 | In Progress | Ready (pause) | Work state saved, resumption plan clear |
 | Any | Superseded | Business justification, replacement task created if needed |
 

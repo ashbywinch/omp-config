@@ -2,7 +2,7 @@
 name: notion-refine-epic
 description: |
   Refine a Draft Epic to development-ready (Refined) status with detailed
-  scope, binary dependencies, and DQS compliance.
+  scope, binary dependencies, and validation against `skill://epic-quality-standard`.
 ---
 
 # Refine Epic
@@ -18,7 +18,7 @@ Transform a Draft Epic into a Refined (development-ready) Epic.
 
 ### 1. Component Artifact Validation
 - Confirm the Epic maps to exactly **one** component with a primary artifact
-- Verify the component has a DQS
+- Verify the component has a quality standard
 - Ensure the artifact is significant enough for Epic-level planning
 
 ### 2. Load the Draft Epic
@@ -35,7 +35,7 @@ Use the **"Insights"** relation field (not the legacy "Key Insights" text field)
 See `skill://notion-database-management` for relation property syntax.
 
 ### 5. Validate
-- [ ] All required sections per Epic DQS
+- [ ] All required sections per `skill://epic-quality-standard`
 - [ ] Component artifact clearly specified
 - [ ] Business justification references actual business docs
 - [ ] Scope boundaries realistic

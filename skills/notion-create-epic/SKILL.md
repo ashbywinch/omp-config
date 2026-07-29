@@ -23,7 +23,7 @@ Creates a Draft Epic from a Top Level Epic.
 
 ### 2. Determine Component Mapping
 - Identify which component delivers the primary artifact
-- Verify component has DQS and playbooks
+- Verify the component has a quality standard and associated skills/plans
 
 ### 3. Define Epic Scope (User-Validated)
 - Convert strategic objectives into tactical work boundaries
