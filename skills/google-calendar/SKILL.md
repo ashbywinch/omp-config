@@ -28,6 +28,23 @@ Never schedule events in the past. If a proposed start time has already passed, 
 
 **Every calendar event must reference its Notion task ID or epic ID** in the event description. This keeps the calendar traceable back to the work items.
 
+## Rescheduling Flow
+
+When a schedule needs to change (user couldn't start on time, plan shifted):
+
+1. Check current time with `date '+%H:%M'`
+2. Present the revised schedule for user approval
+3. Once approved, delete the **old** events by search (use specific search text to avoid deleting correct events)
+4. Add the new events with task references
+
+## Common Pitfalls
+
+- **Delete is broad**: `gcalcli delete` by search text deletes ALL matching events in the date range. Use specific, unique search terms — not generic words like "Break" or "Lunch" that might hit other days' events.
+- **Duration is minutes**: `--duration 90` not `--duration "1:30"`.
+- **Calendar name required**: Always pass `--calendar "Home"`. Without it, gcalcli prompts interactively and fails.
+- **Task IDs in descriptions**: Every work block needs the Notion task/epic ID so the trace is clear.
+- **Check time first**: Never assume what time it is. Run `date`.
+
 ## Common Operations
 
 ### List calendars
