@@ -18,7 +18,8 @@ Standardised wrapper for all session execution. Must be used by `skill://pa-coor
 | Backlog Grooming | `skill://backlog-grooming` |
 | Day Planning | `skill://google-calendar` |
 | Create Artifact | Direct artifact creation |
-| PR Workflow | GitHub PR creation (playbook exists at Infrastructure & Support/GitHub Integration/) |
+| PR Workflow | `skill://pr-workflow` |
+| Process Improvement | `skill://process-improvement` |
 
 ## Parameters
 
@@ -50,10 +51,10 @@ Run the target skill/plan with full focus. Track progress and capture outputs.
 
 After the target skill finishes:
 
-1. **Change workflow**: If files were modified, commit changes and create a PR
+1. **Change workflow**: If files were modified, commit changes and run `skill://pr-workflow`
 2. **Session minutes**: Document what was accomplished, key decisions, insights
-3. **Action closures**: List any follow-up items with references to the skills/plans needed
-4. **Process improvements**: If the user corrected your approach, note what to fix in the skill
+3. **Action closures**: List any follow-up items with skill references
+4. **Process improvements**: If the user corrected your approach, run `skill://process-improvement`
 5. **Update coordination state**: Report completion
 
 ### 5. User Correction Protocol
