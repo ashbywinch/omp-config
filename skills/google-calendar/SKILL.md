@@ -24,6 +24,8 @@ date '+%H:%M'
 ```
 Never schedule events in the past. If a proposed start time has already passed, adjust the plan forward accordingly.
 
+**Never add events without user approval first.** Present the proposed schedule and get explicit confirmation before writing to the calendar.
+
 ## Common Operations
 
 ### List calendars
