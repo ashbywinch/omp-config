@@ -16,6 +16,14 @@ Calendar operations via `gcalcli` — usable from bash commands.
 
 Add `~/.local/bin` to PATH if needed.
 
+## Before Scheduling
+
+**Always check the current time first:**
+```bash
+date '+%H:%M'
+```
+Never schedule events in the past. If a proposed start time has already passed, adjust the plan forward accordingly.
+
 ## Common Operations
 
 ### List calendars
