@@ -12,59 +12,77 @@ Entry point for all coordination activities. Routes user triggers to the appropr
 
 ## Critical Rule
 
-ALL operations must go through this skill first. Never execute domain skills directly.
+ALL operations MUST go through a session wrapper. Never execute domain skills directly without a session context.
 
 ## User Profile Check
 
-Before any routing, check if a user profile exists. If missing, create one first before proceeding.
+Before any routing, check if a User Profile exists at `Operational Planning/PA Coordination/User Profile.md`. If missing, create one first.
 
-## Routing Table
+## Operational Triggers
 
-### Morning Check-in / Greetings
-User says "good morning", "good afternoon", "hey", "hi" — any session-starting greeting:
-1. Check the day plan / schedule
-2. Identify next session based on current time and completion status
-3. Coordinate session execution
+| When user says... | Route to... |
+|---|---|
+| "good morning" / greeting | Morning check-in |
+| "start scheduled session" | Session with type from day plan |
+| "inbox processing" | Session → `skill://notion-insights-processing` |
+| "backlog grooming" / work organization | Session → `skill://notion-work-backlog` |
+| "update the day plan" / "replan the day" | Session → `skill://google-calendar` (propose then confirm) |
+| "create a PR" | Session → PR workflow |
+| "create [artifact]" | Session → artifact creation skill/plan |
 
-### Inbox Processing
-User requests inbox/insights processing:
-- Route to `skill://notion-insights-processing`
+## Strategic Request Routing
 
-### Backlog Grooming
-User requests backlog grooming or work organization:
-- Route to `skill://notion-work-backlog`
+### Strategic Foundation (life direction, big picture)
+User expresses lack of direction, asks "what should I do?", lacks vision/mission:
+- Route to Vision → Mission → Strategy, then to `skill://notion-create-top-level-epic`
 
-### Strategic / Big Picture
-User expresses lack of direction, asks "what should I do?", wants to figure out goals:
-- Route to Strategic Foundation: Vision → Mission → Strategy
-- Then to `skill://notion-create-top-level-epic`
+### Subjective Evaluation (choose between options)
+User has options to compare, needs criteria to decide:
+- Route to subjective evaluation process
 
-### Tactical / Execution
-User has a strategy but needs next steps: "break this down", "what should I do first":
+### Business Development (what to work on next)
+User needs strategic guidance, completed a milestone, unsure of sequence:
+- Route to business development sequencing
+
+### Tactical Planning (break it down)
+User has strategy but needs next steps:
 - Route to `skill://notion-create-epic` and `skill://notion-create-task`
 
-### Create Artifact
-User wants to create any business artifact:
-- Route to the appropriate artifact creation skill/plan
+## Anti-Patterns (do NOT route here)
 
-### PR Creation
-User requests pull request creation:
-- Route to the PR workflow
+| Request type | Use instead |
+|---|---|
+| Simple lookup ("What is X?") | Knowledge/document lookup |
+| Procedural ("How do I configure Y?") | Instruction/guide lookup |
+| Binary decision with clear criteria | Direct analysis |
+| Already has defined criteria | Standard evaluation |
 
-### Schedule Changes
-User requests schedule changes, day replanning:
-- Route to `skill://google-calendar` for schedule management
+## Critical Lessons (NEVER REPEAT)
 
-## Session Coordination Flow
+- **Complete all scheduled sessions** — do not skip scheduled work
+- **Finish task splitting** — if breaking down work, finish ALL splitting before ending
+- **Capture incomplete items** — any unfinished work MUST go to the Notion inbox
+- **Process in order** — urgent items before grooming before planning
 
-1. Load the current day plan
-2. Identify next session from schedule
-3. Execute the session with the appropriate skill
-4. Track completion and update state
+## Session Flow
 
-## Success Criteria
+1. Check user profile exists
+2. Load the day plan from `Operational Planning/PA Coordination/Day plan.md`
+3. Identify next session based on current time and completion status
+4. Present plan to user for approval before executing
+5. Execute session using the appropriate skill
+6. Track completion and update state
+7. Capture any incomplete items to the inbox
 
-- User requests are properly routed to appropriate skills
-- Sessions execute in order
-- Incomplete items are captured for future planning
-- State is maintained across sessions
+## Subcomponents
+
+- **Work Preferences**: Check for work style preferences
+- **Daily Schedule**: Calendar management via `skill://google-calendar`
+- **Session**: Session tracking and state management
+- **Inbox**: Processing via `skill://notion-insights-processing`
+
+## State Management
+
+- Track current coordination state
+- Manage cross-session dependencies
+- Handle error recovery and state restoration

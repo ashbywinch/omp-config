@@ -26,6 +26,8 @@ Never schedule events in the past. If a proposed start time has already passed, 
 
 **Never add events without user approval first.** Present the proposed schedule and get explicit confirmation before writing to the calendar.
 
+**Every calendar event must reference its Notion task ID or epic ID** in the event description. This keeps the calendar traceable back to the work items.
+
 ## Common Operations
 
 ### List calendars
