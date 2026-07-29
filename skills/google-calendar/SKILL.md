@@ -50,6 +50,12 @@ gcalcli agenda "2026-07-28" "2026-07-30"
 gcalcli quick "Meeting with team tomorrow 3pm"
 ```
 
+### Delete events by search
+```bash
+gcalcli delete --calendar "Home" "Search Text" "2026-07-29" "2026-07-30" --iamaexpert
+```
+The `--iamaexpert` flag skips the confirmation prompt. Without it, delete is interactive.
+
 ### Add a detailed event
 ```bash
 gcalcli add --calendar "Home" --title "Session" \
