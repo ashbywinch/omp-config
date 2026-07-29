@@ -11,7 +11,7 @@ Creates a Draft Epic from a Top Level Epic.
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Top Level Epic exists in the Epics database
 - User approval before any Notion write
 
@@ -32,7 +32,7 @@ Creates a Draft Epic from a Top Level Epic.
 - **NO INVENTION**: Do not create fictional components
 
 ### 4. Create in Notion (Only After User Approval)
-Create a page in the Epics database with Status: Draft (see `skill://notion-workbook` for page creation syntax).
+Create a page in the Epics database with Status: Draft (see `skill://notion-database-management` for page creation syntax).
 
 Set the **Parent Epic** relation to link to the source Top Level Epic.
 

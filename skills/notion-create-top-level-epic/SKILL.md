@@ -11,7 +11,7 @@ High-level strategic work packages from business goals.
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Business goal or strategic objective
 - Epics database ID: `20d3122e-1a13-81a1-8388-de5cebd1acb2`
 
@@ -28,7 +28,7 @@ High-level strategic work packages from business goals.
 - Set priority level
 
 ### 3. Create in Notion
-Create a page in the Epics database with Status: Draft (see `skill://notion-workbook` for page creation syntax).
+Create a page in the Epics database with Status: Draft (see `skill://notion-database-management` for page creation syntax).
 
 Include these properties:
 - **Epic Name**: `Epic [N]: [Strategic Title]`
@@ -41,7 +41,7 @@ Include these properties:
 ```
 
 ### 4. Set Parent Epic (if hierarchical breakdown)
-Use the Parent Epic relation field. See `skill://notion-workbook` for relation syntax.
+Use the Parent Epic relation field. See `skill://notion-database-management` for relation syntax.
 
 ### 5. Validate
 - [ ] Connects to documented business goals

@@ -11,7 +11,7 @@ Execute a software development Epic by reading task details from Notion, impleme
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Epic or Task ID referencing a Notion record
 - Target codebase with development tools
 
@@ -30,7 +30,7 @@ For an Epic:
 ntn api v1/pages/<EPIC_ID> | jq '.properties'
 ```
 
-If searching by name, query the Epics database (see `skill://notion-workbook`).
+If searching by name, query the Epics database (see `skill://notion-database-management`).
 
 Focus on: description, acceptance criteria, architecture references, dependencies, technical specs.
 
@@ -62,7 +62,7 @@ Focus on: description, acceptance criteria, architecture references, dependencie
 - Link to original Epic/requirements
 
 ### 7. Update Task Status
-Mark the task as Completed in Notion (see `skill://notion-workbook` for PATCH syntax).
+Mark the task as Completed in Notion (see `skill://notion-database-management` for PATCH syntax).
 
 ## Key Rules
 

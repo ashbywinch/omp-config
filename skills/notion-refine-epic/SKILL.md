@@ -11,7 +11,7 @@ Transform a Draft Epic into a Refined (development-ready) Epic.
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Draft Epic exists in the Epics database
 
 ## Process
@@ -22,17 +22,17 @@ Transform a Draft Epic into a Refined (development-ready) Epic.
 - Ensure the artifact is significant enough for Epic-level planning
 
 ### 2. Load the Draft Epic
-See `skill://notion-workbook` for reading a page's properties.
+See `skill://notion-database-management` for reading a page's properties.
 
 ### 3. Update Epic Status and Properties
 Change Status to **Refined**. Set Desired Outcome, Scope boundaries.
 
-See `skill://notion-workbook` for PATCH syntax.
+See `skill://notion-database-management` for PATCH syntax.
 
 ### 4. Link Insights via Relation
 Use the **"Insights"** relation field (not the legacy "Key Insights" text field).
 
-See `skill://notion-workbook` for relation property syntax.
+See `skill://notion-database-management` for relation property syntax.
 
 ### 5. Validate
 - [ ] All required sections per Epic DQS

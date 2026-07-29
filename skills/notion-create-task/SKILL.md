@@ -11,14 +11,14 @@ Create a properly structured Task that is immediately executable.
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Epic exists in Notion (the task's parent)
 - Tasks Database ID: `20d3122e-1a13-813a-9231-e7e086b2b86f`
 
 ## Process
 
 ### 1. Epic Context Analysis
-Review the parent Epic in Notion (see `skill://notion-workbook` for reading pages). Identify the task's specific contribution to Epic completion.
+Review the parent Epic in Notion (see `skill://notion-database-management` for reading pages). Identify the task's specific contribution to Epic completion.
 
 ### 2. Define Task
 - **Name**: Action-oriented "Verb + Object" pattern (e.g., "Create Vision Document")
@@ -26,7 +26,7 @@ Review the parent Epic in Notion (see `skill://notion-workbook` for reading page
 - **Scope Boundaries**: Explicit inclusions and exclusions
 
 ### 3. Create in Notion
-Create a page in the Tasks database (see `skill://notion-workbook` for page creation syntax).
+Create a page in the Tasks database (see `skill://notion-database-management` for page creation syntax).
 
 Set these properties:
 - **Task (Title)**: Action-oriented name

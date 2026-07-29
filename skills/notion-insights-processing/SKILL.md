@@ -11,7 +11,7 @@ Transform raw inputs from the Notion Insights database into structured, actionab
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Insights DB ID: `20d3122e-1a13-8110-b1c2-fa15ecadde25`
 
 ## Critical Rules
@@ -39,14 +39,14 @@ Process insight items one by one, not in batch.
 ## Process
 
 ### 1. Fetch Unprocessed Insights
-Query the Insights DB for items where Status is empty and Date Deleted is empty (see `skill://notion-workbook` for query syntax).
+Query the Insights DB for items where Status is empty and Date Deleted is empty (see `skill://notion-database-management` for query syntax).
 
 ### 2. Process Each Insight (One by One)
 For each insight:
 1. Read the raw text
 2. Suggest a specific routing destination (Epic or Value Stream)
 3. Wait for user confirmation
-4. Link via relation (see `skill://notion-workbook` for relation PATCH syntax)
+4. Link via relation (see `skill://notion-database-management` for relation PATCH syntax)
 5. Update Status to "Processed"
 
 ### 3. Confirm

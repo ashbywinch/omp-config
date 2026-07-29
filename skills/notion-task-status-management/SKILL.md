@@ -11,7 +11,7 @@ Manage Task status transitions in Notion.
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-workbook`)
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Tasks Database ID: `20d3122e-1a13-813a-9231-e7e086b2b86f`
 
 ## Status Definitions
@@ -28,7 +28,7 @@ Manage Task status transitions in Notion.
 
 Each transition requires specific validation before updating.
 
-Use PATCH to update the Status property on the task page (see `skill://notion-workbook` for syntax).
+Use PATCH to update the Status property on the task page (see `skill://notion-database-management` for syntax).
 
 | From | To | Validate |
 |---|---|---|
@@ -40,7 +40,7 @@ Use PATCH to update the Status property on the task page (see `skill://notion-wo
 
 ## Epic Progress Calculation
 
-Query all tasks related to an Epic (see `skill://notion-workbook` for query patterns).
+Query all tasks related to an Epic (see `skill://notion-database-management` for query patterns).
 
 ```
 Completed % = (Completed Tasks / Total Required Tasks) × 100
