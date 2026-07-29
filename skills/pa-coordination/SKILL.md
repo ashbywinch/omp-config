@@ -53,7 +53,7 @@ User requests pull request creation:
 
 ### Schedule Changes
 User requests schedule changes, day replanning:
-- Route to Google Calendar coordination (`gcalcli`)
+- Route to `skill://google-calendar` for schedule management
 
 ## Session Coordination Flow
 
