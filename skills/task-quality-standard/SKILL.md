@@ -28,4 +28,5 @@ A Task is a single execution unit with a clear deliverable and success criteria,
 - [ ] Desired Outcome is specific and measurable
 - [ ] Dependencies are explicitly documented (or empty if none)
 - [ ] Success criteria are objective, not subjective
+- [ ] When scheduled on the calendar, the event description must include the task's Notion ID
 - [ ] Task is immediately executable without clarification

@@ -36,3 +36,4 @@ An Epic is a tactical work package that converts a Top Level Epic into actionabl
 - [ ] Scope is sized appropriately (Draft: quarters / Refined: weeks-months)
 - [ ] Parent Epic field is cleared for top-level epics
 - [ ] Insights use the "Insights" relation field (not legacy text field)
+- [ ] When an epic's work is scheduled on the calendar, event descriptions must reference the epic or task ID
