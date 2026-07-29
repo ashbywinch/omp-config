@@ -12,7 +12,7 @@ Entry point for all coordination activities. Routes user triggers to the appropr
 
 ## Critical Rule
 
-ALL operations MUST go through a session wrapper. Never execute domain skills directly without a session context.
+ALL operations MUST go through `skill://session`. Never execute domain skills directly. Route like this: `skill://session` with Session Type="Backlog Grooming" → session executes `skill://notion-work-backlog`.
 
 ## User Profile Check
 
@@ -20,15 +20,15 @@ Before any routing, check if a User Profile exists at `Operational Planning/PA C
 
 ## Operational Triggers
 
-| When user says... | Route to... |
+| When user says... | Route to `skill://session` with Session Type... |
 |---|---|
-| "good morning" / greeting | Morning check-in |
-| "start scheduled session" | Session with type from day plan |
-| "inbox processing" | Session → `skill://notion-insights-processing` |
-| "backlog grooming" / work organization | Session → `skill://notion-work-backlog` |
-| "update the day plan" / "replan the day" | Session → `skill://google-calendar` (propose then confirm) |
-| "create a PR" | Session → PR workflow |
-| "create [artifact]" | Session → artifact creation skill/plan |
+| "good morning" / greeting | `"Morning Check-in"` |
+| "start scheduled session" | Type from day plan |
+| "inbox processing" | `"Inbox Processing"` (which runs `skill://notion-insights-processing`) |
+| "backlog grooming" / work organization | `"Backlog Grooming"` (which runs `skill://notion-work-backlog`) |
+| "update the day plan" / "replan the day" | `"Day Planning"` (which runs `skill://google-calendar`) |
+| "create a PR" | `"PR Workflow"` |
+| "create [artifact]" | `"Artifact Creation"` |
 
 ## Strategic Request Routing
 
