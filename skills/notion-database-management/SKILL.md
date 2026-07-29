@@ -93,6 +93,11 @@ Notion properties have both a **display name** (e.g. `"Status"`) and an internal
 
 **Correct:** `{"Status": {"select": {"name": "Draft"}}}`
 
+**If a property name doesn't work**, the actual name may differ from what you expect (e.g. `"Related to Epics"` may actually be `"Related to Epics (Related Tasks)"`). Check the data source schema:
+```bash
+ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
+```
+
 ## Property Type Reference
 
 | Type | JSON Shape |

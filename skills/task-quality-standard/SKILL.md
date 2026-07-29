@@ -13,7 +13,7 @@ A Task is a single execution unit with a clear deliverable and success criteria,
 |---|---|---|
 | Task (Title) | title | Action-oriented "Verb + Object" pattern, e.g. "Create Vision Document" |
 | Status | select | Draft → Ready → In Progress → Completed → Superseded |
-| Related to Epics | relation | Links to the parent Epic |
+| Related to Epics (Related Tasks) | relation | Links to the parent Epic |
 | Desired Outcome | rich_text | Specific deliverable, e.g. "Execute [skill/plan] to create [artifact]" |
 | Dependencies | relation | Prerequisite task IDs |
 | Related Business Goal | rich_text | Strategic context from the Epic |
