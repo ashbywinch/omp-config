@@ -9,9 +9,20 @@ description: |
 
 Standardised wrapper for all session execution. Must be used by `skill://pa-coordination` for every operation — never execute domain skills directly.
 
+## Session Type Routing
+
+| Session Type | Routes to |
+|---|---|
+| Morning Check-in | `skill://morning-checkin` |
+| Inbox Processing | `skill://notion-insights-processing` |
+| Backlog Grooming | `skill://backlog-grooming` |
+| Day Planning | `skill://google-calendar` |
+| Create Artifact | Direct artifact creation |
+| PR Workflow | GitHub PR creation (playbook exists at Infrastructure & Support/GitHub Integration/) |
+
 ## Parameters
 
-- **Session Type** (required): The skill or plan to execute (e.g. "Morning check-in", "Inbox processing", "Backlog grooming")
+- **Session Type** (required): Maps to a skill from the table above
 - **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
 
 ## Process
