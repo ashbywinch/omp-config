@@ -40,9 +40,12 @@ gcalcli quick "Meeting with team tomorrow 3pm"
 
 ### Add a detailed event
 ```bash
-gcalcli add --title "Session" --where "Office" \
-  --when "2026-07-29 10:00" --duration "2:00"
+gcalcli add --calendar "Home" --title "Session" \
+  --when "2026-07-29 10:00" --duration 120 --noprompt
 ```
+`--duration` takes **minutes** as an integer (e.g. `60` for 1 hour, `30` for 30 minutes).
+`--calendar` specifies which calendar to use. Use `gcalcli list` to see available calendars.
+`--noprompt` skips interactive prompts for unfilled fields.
 
 ### Search for events
 ```bash
