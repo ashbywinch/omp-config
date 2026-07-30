@@ -26,7 +26,7 @@ Never schedule events in the past. If a proposed start time has already passed, 
 
 **Never add events without user approval first.** Present the proposed schedule and get explicit confirmation before writing to the calendar.
 
-**Every calendar event must reference its Notion task ID or epic ID** in the event description. This keeps the calendar traceable back to the work items.
+**REQUIRED: Notion task IDs in every calendar event.** Every work block event MUST include the relevant Notion task ID(s) or epic ID(s) in its description. Never create a work event without a Notion ID — it breaks traceability back to the work items in Notion.
 
 ## Rescheduling Flow
 

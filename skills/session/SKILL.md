@@ -31,7 +31,7 @@ Standardised wrapper for all session execution. Must be used by `skill://pa-coor
 ### 1. Session Setup
 
 - **Validate Session Type**: Confirm the target skill/plan exists
-- **User Profile Check**: Verify profile exists at `Operational Planning/PA Coordination/User Profile.md`. If missing, create one first.
+- **User Profile Check**: Verify profile exists at `~/.config/omp/profiles/User Profile.md`. If missing, create one first.
 - **Pre-Session Prep**: Gather any required context for the session
 
 ### 2. Role Adoption

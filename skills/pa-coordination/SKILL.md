@@ -16,7 +16,7 @@ ALL operations MUST go through `skill://session`. Never execute domain skills di
 
 ## User Profile Check
 
-Before any routing, check if a User Profile exists at `Operational Planning/PA Coordination/User Profile.md`. If missing, create one first.
+Before any routing, check if a User Profile exists at `~/.config/omp/profiles/User Profile.md`. If missing, create one first.
 
 ## Operational Triggers
 
@@ -66,8 +66,8 @@ User has strategy but needs next steps:
 
 ## Session Flow
 
-1. Check user profile exists
-2. Load the day plan from `Operational Planning/PA Coordination/Day plan.md`
+1. Check user profile exists at `~/.config/omp/profiles/User Profile.md`
+2. Load the day plan from `~/.config/omp/dayplans/Day plan.md`
 3. Identify next session based on current time and completion status
 4. Present plan to user for approval before executing
 5. Execute session using the appropriate skill
