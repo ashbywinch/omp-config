@@ -68,6 +68,90 @@ Use this to evaluate whether a doc follows Context Efficiency:
 - [ ] Title and first paragraph make the purpose clear
 - [ ] Links to related docs where readers might need them
 
+## Density & Concision
+
+Docs are read inside a limited AI context window. Every sentence costs
+context. Write for density: the smallest set of words that preserves every
+fact and decision.
+
+### Rules as explicit negatives
+
+State constraints as prohibitions, not preferences. "Never X" reads
+faster and is followed more reliably than "be careful about X".
+
+```markdown
+# Low-density (vague preference)
+Avoid swallowing errors silently when catching exceptions.
+
+# High-density (explicit rule)
+**Never swallow errors.** Every `except` block must log, re-raise, or
+handle observably. Bare `except: pass` is forbidden.
+```
+
+### Commands over prose
+
+Prefer executable commands to descriptive sentences. `make test` beats
+"run the test suite to verify everything works".
+
+```markdown
+# Low-density
+To start the development environment, use the make run command.
+
+# High-density
+make run    # backend :8080 + frontend :5173, auto-reload
+```
+
+### Tables over prose
+
+A rule per row beats a paragraph per rule. Use a table when a fact has
+consistent fields (state, meaning; layer, rule, files; fake, default).
+
+### Canonical code examples over exhaustive enumeration
+
+One right/wrong code pair teaches more than a list of edge cases. Mark
+them ✗/✓ or Wrong/Right. Never enumerate every failure mode — show the
+pattern.
+
+### One-line contracts
+
+A contract that fits one line is easier to hold in context:
+`compute()` MUST return an `Attempt`. Prefer that over three sentences
+of explanation.
+
+### Decision-relevant context only
+
+Keep only background that changes a decision. Cut filler ("Every node's
+value is…"), motivation the reader already has, and restated rules.
+
+### Size ceilings
+
+Always-loaded files (AGENTS.md, CLAUDE.md, skill bodies) target ~150–200
+lines / <32 KiB — loaded in full every session, so bloat is paid every
+session. Referenced docs (pulled in only when relevant) can be longer,
+but still densify prose first; density matters less for them than for
+always-loaded files.
+
+### Link, don't paste
+
+A fact lives in exactly one place; other docs link to it. References one
+level deep — a doc points to another doc, not through a chain.
+
+### Section structure for tasks
+
+When a doc describes how to do something, use the task-card shape: goal
+(one verb), scope (exact paths), constraints (must / never), acceptance
+(verifiable command).
+
+### Density checklist
+
+- [ ] Every sentence carries a fact, a decision, or a constraint
+- [ ] Rules are explicit negatives ("Never X"), not vague preferences
+- [ ] Commands replace descriptions where executable
+- [ ] Tables replace paragraphs where fields are consistent
+- [ ] Code shows a canonical ✗/✓ pair, not exhaustive cases
+- [ ] No filler, no restated motivation
+- [ ] Always-loaded files within the ~150–200 line ceiling
+
 ## How to Update Documentation
 
 1. Identify the audience for your content
