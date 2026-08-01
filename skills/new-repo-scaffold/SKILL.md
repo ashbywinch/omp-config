@@ -85,8 +85,8 @@ lint: setup
 lint-github: setup   # CI only: findings surface as PR annotations
 	@$(RUFF) check <pkg>/ tests/ --output-format=github
 
-typecheck: setup     # --level=error: bare basedpyright exits 1 on warnings (0 errors is not enough)
-	@$(BASEDPYRIGHT) --level=error
+typecheck: setup     # gate on errorCount from --outputjson: basedpyright's --level is honored
+	@$(BASEDPYRIGHT) --outputjson | $(PYTHON) -c "import json,sys; d=json.load(sys.stdin); sys.exit(1 if d['summary']['errorCount'] else 0)"
 
 test: setup lint typecheck
 	@$(PYTHON) -m pytest
@@ -302,7 +302,7 @@ Rules:
 - Layout: flat package at repo root `<pkg>/` (newer repos) with `[tool.setuptools.packages.find] include = ["<pkg>*"]`; use `src/` layout only when distributing on PyPI (books_to_anki — it forces `pip install -e .` before tests, catching packaging bugs). Flat is the converged house style for internal tools. A CLI needs `<pkg>/__main__.py` — the run target (`python -m <pkg>`) fails with "No module named <pkg>.__main__" without it.
 - Type checker: **basedpyright** (houses, chat-workflow) or **mypy** (books_to_anki); gated via `make typecheck` inside `make test`. Invocation is the BARE command — `basedpyright` is config-driven and has NO `check` subcommand (`basedpyright check` exits 4 treating `check` as a path).
 
-  **basedpyright exits 1 on WARNINGS by default** — "0 errors, 500 warnings" still fails the gate and the pre-commit hook. Always pass `--level=error` in the make target AND as hook args. Scope analysis with `include` — an `exclude` key REPLACES the implicit `.venv`/cache exclusions and the scan explodes into site-packages (observed: 11k+ errors, 170k warnings).
+  **basedpyright exits 1 on WARNINGS by default** — "0 errors, 500 warnings" fails the gate and the pre-commit hook. Gate on the ERROR COUNT, not the exit code or `--level`: `basedpyright --outputjson | python -c "import json,sys; sys.exit(1 if json.load(sys.stdin)['summary']['errorCount'] else 0)"` — `--level=error` is honored inconsistently across environments (same binary 1.39.9, same command: suppressed warnings locally, printed them + exit 1 on a GitHub runner). Keep `--level error` only as pre-commit hook args (hooks run locally). Scope analysis with `include` — an `exclude` key REPLACES the implicit `.venv`/cache exclusions and the scan explodes into site-packages (observed: 11k+ errors, 170k warnings).
 
   **Bringing an existing repo into house shape** (not greenfield): bare `dict` annotations fail basedpyright — use `dict[str, Any]`; pytest fixture params need explicit annotations (`tmp_path: Path`); DI fakes must SUBCLASS the real classes — plain `cast` fails with `reportInvalidCast` when the types don't overlap.
 - Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell.
