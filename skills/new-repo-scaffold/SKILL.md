@@ -46,6 +46,28 @@ Rules:
 - Colored output via `GREEN/YELLOW/RED/NC` ANSI variables and `@echo`.
 - `clean` removes exactly: `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc`.
 
+**Pre-commit runs the SAME make target as CI.** One make target is the single source of truth for a check: whatever CI's lint step runs (`make lint-github`, `make lint`, …), the pre-commit hook runs exactly that target — never a separate tool invocation that can drift from the build. The test target may join the hook too, but only if it is fast: a `make test` that finishes in seconds makes a fine hook; a suite taking tens of seconds gets bypassed (`--no-verify`) and belongs in CI alone. Either way the hook and CI invoke the same targets — the difference is only which targets the hook includes. Canonical config:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: check
+        name: check
+        entry: make lint-github   # the exact target CI's lint step runs
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: test                 # include only if make test is fast (seconds)
+        name: test
+        entry: make test         # the exact target CI's test step runs
+        language: system
+        pass_filenames: false
+        always_run: true
+```
+
+`make setup` must run `uv run pre-commit install` (see below) so the hook is live from day one.
+
 Python flavor (adapt `<pkg>` and `tests/` per project):
 
 ```makefile
