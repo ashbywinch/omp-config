@@ -85,8 +85,8 @@ lint: setup
 lint-github: setup   # CI only: findings surface as PR annotations
 	@$(RUFF) check <pkg>/ tests/ --output-format=github
 
-typecheck: setup     # basedpyright is config-driven: bare invocation, NO `check` subcommand
-	@$(BASEDPYRIGHT)
+typecheck: setup     # --level=error: bare basedpyright exits 1 on warnings (0 errors is not enough)
+	@$(BASEDPYRIGHT) --level=error
 
 test: setup lint typecheck
 	@$(PYTHON) -m pytest
@@ -223,7 +223,7 @@ handle_push_trigger = true
 push_commands = ["/review", "/improve"]
 ```
 
-The workflow file, compact (pin the action tag in practice; books_to_anki adds an elaborate gh-api attribution check):
+The workflow file, compact (books_to_anki adds an elaborate gh-api attribution check; **pin a real release tag — `@latest` does not resolve**):
 
 ```yaml
 name: AI Code Review
@@ -239,7 +239,7 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
-      - uses: the-pr-agent/pr-agent@latest
+      - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
         id: pr-agent
         env:
           OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
@@ -290,6 +290,7 @@ gh api repos/<owner>/<name>/branches/main/protection -X PUT \
 Rules:
 - Never push to main; the first commit is `main`, everything after is branches + PRs (rule://session-start).
 - `--private` is the default for personal repos; go public only deliberately.
+- **Set `<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s).
 
 ## Language layers
 
@@ -300,6 +301,10 @@ Rules:
 - **pytest**: `testpaths = ["tests"]`, tests mirror package layout; `pytest-cov` for coverage. Default for everything — fixtures, `parametrize`, plugins. Deviation is justified only for eval/API harnesses that need module-level discovery with a custom runner: chat-workflow runs `python -m unittest discover tests/evals/` under a timeout wrapper for exactly that. That's a niche — before choosing unittest, check whether a thin wrapper around pytest gives the same control.
 - Layout: flat package at repo root `<pkg>/` (newer repos) with `[tool.setuptools.packages.find] include = ["<pkg>*"]`; use `src/` layout only when distributing on PyPI (books_to_anki — it forces `pip install -e .` before tests, catching packaging bugs). Flat is the converged house style for internal tools. A CLI needs `<pkg>/__main__.py` — the run target (`python -m <pkg>`) fails with "No module named <pkg>.__main__" without it.
 - Type checker: **basedpyright** (houses, chat-workflow) or **mypy** (books_to_anki); gated via `make typecheck` inside `make test`. Invocation is the BARE command — `basedpyright` is config-driven and has NO `check` subcommand (`basedpyright check` exits 4 treating `check` as a path).
+
+  **basedpyright exits 1 on WARNINGS by default** — "0 errors, 500 warnings" still fails the gate and the pre-commit hook. Always pass `--level=error` in the make target AND as hook args. Scope analysis with `include` — an `exclude` key REPLACES the implicit `.venv`/cache exclusions and the scan explodes into site-packages (observed: 11k+ errors, 170k warnings).
+
+  **Bringing an existing repo into house shape** (not greenfield): bare `dict` annotations fail basedpyright — use `dict[str, Any]`; pytest fixture params need explicit annotations (`tmp_path: Path`); DI fakes must SUBCLASS the real classes — plain `cast` fails with `reportInvalidCast` when the types don't overlap.
 - Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell.
 - Git hooks: `pre-commit` framework, installed by `make setup` (`uv run pre-commit install`). Ship this exact config — the basedpyright hook lives in the MIRROR repo `DetachHead/basedpyright-prek-mirror` (unprefixed tags); `DetachHead/basedpyright` itself fails with InvalidManifestError:
 
@@ -310,13 +315,15 @@ repos:
     hooks: [id: ruff, id: ruff-format]
   - repo: https://github.com/DetachHead/basedpyright-prek-mirror
     rev: 1.39.9    # UNPREFIXED tag; the mirror, not the main repo
-    hooks: [id: basedpyright]
+    hooks:
+      - id: basedpyright
+        args: ["--level", "error"]   # warnings fail by default; errors gate the commit
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1   # pin a recent tag
     hooks: [id: gitleaks]
 ```
 
-Fast checks only, never a test hook. `.gitleaksignore` whitelists intentional test fixtures (kilocode's pattern).
+Fast checks only, never a test hook. `.gitleaksignore` whitelists intentional test fixtures (kilocode's pattern). Hooks run on ALL staged files — pyproject `include` scope does not apply, so scratch/legacy dirs need per-hook `exclude: ^dir/`. The ruff hook runs with `--fix`: it edits staged files and pre-commit aborts the commit — expect a re-add + recommit cycle (and `pre-commit run --all-files` skips everything until the first commit exists).
 
 ```toml
 [project]
@@ -357,7 +364,10 @@ testpaths = ["tests"]
 omit = ["*/__main__.py"]  # entry points are never imported by tests — omit them or the 80% CI gate fails
 
 [tool.basedpyright]
-# bare `basedpyright` is config-driven (no subcommand); defaults are fine
+# config-driven (no subcommand). Scope with `include`, NOT `exclude` — an
+# `exclude` key replaces the implicit .venv/cache exclusions and the scan
+# explodes into site-packages. --level=error lives in the Makefile + hook.
+include = ["<pkg>", "tests"]
 ```
 
 ### JS/TS (side-by-side, houses/frontend, kilocode)
@@ -383,7 +393,7 @@ Run in order; the checklist below is the final gate, not documentation.
 2. **Coverage and clean loop** — `make coverage` (emits `coverage.xml` for the CI gate), then `make clean`, then re-run `make test` — proves the clean target doesn't break the loop.
 3. **Hooks actually fire** — `uv run pre-commit run --all-files` passes (pre-commit lives in the venv; the bare command is not on PATH). Then prove gitleaks with a REALISTIC key: plain `sk-` + 24 chars matches no default rule (empirically passes); use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes.
 4. **Gitignore honesty** — after setup, `git status --porcelain` is empty: `.venv/`, `.env`, caches, and agent state never appear.
-5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute.
+5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute. Local fresh-clone smoke ≠ CI: the same make recipe passed locally (and in a local clone) but failed on the GitHub runner — budget one CI debug iteration (print `--version`, `--help`, raw exit codes) when standing up a new repo.
 6. **Walk the checklist** — every box checked against the actual repo, not from memory.
 
 ## Checklist
@@ -394,14 +404,14 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
-- [ ] Coverage emitted as XML for CI (`coverage.xml` / `coverage/clover.xml`); CI fails below floor (~80%), posts PR comment, tracks 90%
+- [ ] Coverage emitted as XML for CI (`coverage.xml` / `coverage/clover.xml`); CI fails below floor (~80%), posts PR comment, tracks 90%. For an EXISTING codebase, set the floor below the measured number first (e.g. 65 floor / 80 goal at 71% measured) and raise it as coverage lands — a hard 80 gate on day one is a broken CI
 - [ ] `.gitignore` covers env, venv/node_modules, IDE, caches, agent state, logs, recreatable data
 - [ ] `.env.example` committed, all vars documented, values blank; `.env` gitignored; `make setup` ensures `.env` exists (copy from example); run targets load via `--env-file` (real env wins), lint/test never touch it
 - [ ] `.editorconfig` (utf-8, lf, final newline) and `.gitattributes` (`* text=auto eol=lf`)
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules
 - [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation)
-- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs in `repo_context_files`
+- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
 - [ ] Git hooks run only fast checks (lint, typecheck), installed by `make setup`; never the full test suite
@@ -413,7 +423,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] pyproject.toml: ruff `select E,F,I,UP,B,SIM,N`, `line-length 120`, double quotes, no ignore list
 - [ ] pytest with `testpaths = ["tests"]`; dev deps in `[dependency-groups] dev` (PEP 735)
 - [ ] pytest is the runner; unittest only for eval harnesses needing module-level discovery (documented deviation, not default)
-- [ ] Type checker (basedpyright or mypy) configured and gated inside `make test`
+- [ ] Type checker (basedpyright or mypy) configured and gated inside `make test` (`--level=error` in make target AND hook args; scope via `include`, never `exclude`)
 - [ ] Flat `<pkg>/` layout with `packages.find` include
 - [ ] pre-commit config: ruff + basedpyright + gitleaks hooks, installed by `make setup`
 
