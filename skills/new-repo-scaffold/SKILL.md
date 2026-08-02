@@ -105,6 +105,9 @@ lint: setup
 	@$(RUFF) check <pkg>/ tests/
 
 lint-github: setup   # CI only: findings surface as PR annotations
+	# MUST run exactly what `lint` runs, only with the github output format —
+	# silently dropping a step (e.g. a stylelint pass) when adding the CI
+	# variant weakens CI without anyone noticing (observed regression).
 	@$(RUFF) check <pkg>/ tests/ --output-format=github
 
 typecheck: setup     # gate on errorCount from --outputjson: basedpyright's --level is honored
@@ -154,7 +157,10 @@ jobs:
       - run: make test
       - run: make coverage
       - name: Coverage summary
-        uses: irongut/CodeCoverageSummary@v1.3.0
+        # Pin to a commit SHA, not the mutable tag — resolve the SHA for
+        # v1.3.0 at scaffold time (observed: mutable-tag pins flagged as a
+        # supply-chain risk in review).
+        uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95
         with:
           filename: coverage.xml
           badge: true
@@ -163,7 +169,8 @@ jobs:
           format: markdown
           output: both
       - name: Post coverage comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        # SHA for v3.0.5; same interface as v2 (recreate/path).
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88
         if: github.event_name == 'pull_request'
         with:
           recreate: true
@@ -175,6 +182,7 @@ Rules:
 - `concurrency` group per ref with `cancel-in-progress: true` — every active repo does this.
 - CI steps are exactly the make targets; never inline `pip install`/`npm test` logic into the workflow.
 - Lint in CI via `make lint-github` (`ruff check --output-format=github`) so findings surface as PR annotations; plain `make lint` stays for local use. The template reflects this.
+- **Pin every third-party action to an immutable ref — a commit SHA, or a version tag verified current at scaffold time. Never a mutable ref** (`@latest`, major-only `@v2`), which can be re-pointed (supply chain). Resolve coverage-action SHAs at scaffold time and note the tag they came from in a comment; the pr-agent pin follows the same rule (a recent SHA or a current release tag, see §2b).
 - API-key-dependent suites: pass `${{ secrets.* }}` as env, run under a timeout wrapper, upload outputs with `if: always()` so failures are diagnosable (chat-workflow evals).
 
 ### 2b. AI code review bot (PR-Agent)
@@ -182,6 +190,8 @@ Rules:
 Wired via `the-pr-agent/pr-agent` + a fail-loud gate step. Get it right first time with these rules (all observed failing in production):
 
 - **NEVER set `PR_AGENT_CONFIG_BRANCH: ${{ github.head_ref }}`.** Any same-repo branch can then ship its own `.pr_agent.toml` pointing `[openai] api_base` at an attacker endpoint; the API-key secret is sent there as the Bearer token. Pin it to a maintainer-controlled branch (`pr-agent-config`) that carries the `.pr_agent.toml`. The repo working-tree copy is a convenience; the bot reads the pinned branch.
+- **NO `actions/checkout` in the pr-agent job.** PR-Agent's config loader ALSO merges `[tool.pr-agent]` from `pyproject.toml` found in the working tree — with a PR-head checkout, an attacker branch can override `[openai] api_base` via pyproject.toml and receive the key, bypassing the config-branch pin entirely. The action fetches the diff, the pinned config branch, and the repo-context files via the GitHub API; a checkout is not needed (source-verified: `.pr_agent.toml` is fetched via `repo_obj.get_contents(..., ref=config_branch)`; a 404 falls back to the DEFAULT branch, never the working tree). Remove the checkout step and leave a comment saying why.
+- **Audit the project's API-cache layer for "never cache non-OK responses"** (coding-standards rule the bot enforces). A transport or client that caches error bodies (429/5xx) poisons routes permanently: the cached error is returned as plain data on every later call, retries never fire again, and the failure is permanent even on forced re-runs (observed: 2368 poisoned entries purged). Cache only successful responses; read old wrapped-error entries for back-compat only.
 - **Standards docs must be reachable where the bot reads them.** `repo_context_from_default_branch = true` (the default) reads `repo_context_files` from the default branch — new repos must merge the docs before the Compliance checks are grounded; `false` reads from the PR head branch. Logs say "Repo context file is empty or missing" when ungrounded — check the branch, don't trust the flag.
 - **Pin the action version AND keep it current.** Old pins (Feb-2025 era) silently discard an entire review when a finding cites `{...}` JSON in a plain YAML scalar ("mapping values are not allowed here"), swallow the exception, and exit 0 — the gate fails with no visible error. Current versions (v0.41+) fix the YAML robustly. `gh run view --log` truncates mid-step; use the raw `gh api repos/{owner}/{repo}/actions/jobs/{id}/logs` to see the real failure tail.
 - **`ai_timeout` default (120s) is too low for real PRs.** Review generation on large diffs takes minutes (8–40 min observed on an 89K-token diff through opencode.ai). Set `ai_timeout = 1800`; expect slow reviews; NEVER conclude rate limiting from slow/failed review runs — read the run logs first.
@@ -275,13 +285,18 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: actions/checkout@v4
+      # NO actions/checkout — see §2b: the config loader merges [tool.pr-agent]
+      # from a pyproject.toml in the working tree; a PR-head checkout would let
+      # an attacker branch override openai.api_base from pyproject.toml.
       - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
         id: pr-agent
         env:
           OPENAI_KEY: ${{ secrets.OPENCODE_GO_<PROJECT>_API_KEY }}
           OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Config MUST come from a maintainer-controlled branch (never
+          # ${{ github.head_ref }}) — see §2b.
+          PR_AGENT_CONFIG_BRANCH: pr-agent-config
       # Fail loud: fail the PR when no "PR Reviewer Guide" comment covers the
       # head commit. Match the FULL and SHORT sha (the bot posts the short
       # one), token-bounded so unrelated hex strings can't false-positive.
@@ -296,6 +311,14 @@ jobs:
             exit 1
           fi
 ```
+
+Gate extensions (failure-detection branches, richer diagnosis): scope EVERY
+branch to comments referencing the current head commit — scanning all bot
+comments misdiagnoses stale failures and is defeated by other bots posting on
+the same PR (e.g. a coverage bot). If you filter with jq, test array predicates
+as `[.[] | select(.body | test("..."))] | length > 0` — `any(.body; test(...))`
+errors on array input ("Cannot index array with string") and the swallowed
+`>/dev/null 2>&1` error silently fails the gate (observed).
 
 - `.github/dependabot.yml` — for uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`):
 
@@ -452,14 +475,14 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
-- [ ] Coverage emitted as XML for CI (`coverage.xml` / `coverage/clover.xml`); CI fails below floor (~80%), posts PR comment, tracks 90%. For an EXISTING codebase, set the floor below the measured number first (e.g. 65 floor / 80 goal at 71% measured) and raise it as coverage lands — a hard 80 gate on day one is a broken CI
+- [ ] Coverage emitted as XML for CI (`coverage.xml` / `coverage/clover.xml`); CI fails below floor (~80%), posts PR comment, tracks 90%. For an EXISTING codebase, set the floor below the measured number first (e.g. 65 floor / 80 goal at 71% measured) and raise it as coverage lands — a hard 80 gate on day one is a broken CI; coverage actions pinned to SHAs (never mutable tags)
 - [ ] `.gitignore` covers env, venv/node_modules, IDE, caches, agent state, logs, recreatable data
 - [ ] `.env.example` committed, all vars documented, values blank; `.env` gitignored; `make setup` ensures `.env` exists (copy from example); run targets load via `--env-file` (real env wins), lint/test never touch it
 - [ ] `.editorconfig` (utf-8, lf, final newline) and `.gitattributes` (`* text=auto eol=lf`)
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules
 - [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation)
-- [ ] PR review wired: `.pr_agent.toml` on a maintainer-controlled `pr-agent-config` branch (never `${{ github.head_ref }}`), pr-agent workflow pinned to a CURRENT action version, **requirements doc + standards docs** in `repo_context_files` reachable at the read location, fail-loud "review posted for this commit" gate matching the short sha token-bounded, `ai_timeout` ≥ 1800, `num_max_findings` ≥ 10, `verbosity_level` ≥ 3; `OPENCODE_GO_<PROJECT>_API_KEY` secret set BEFORE the first PR
+- [ ] PR review wired: `.pr_agent.toml` on a maintainer-controlled `pr-agent-config` branch (never `${{ github.head_ref }}`), **no `actions/checkout` in the pr-agent job** (pyproject.toml `[tool.pr-agent]` attack vector), pr-agent workflow pinned to a CURRENT action version, **requirements doc + standards docs** in `repo_context_files` reachable at the read location, fail-loud "review posted for this commit" gate matching the short sha token-bounded, `ai_timeout` ≥ 1800, `num_max_findings` ≥ 10, `verbosity_level` ≥ 3; `OPENCODE_GO_<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
 - [ ] Git hooks run only fast checks (lint, typecheck), installed by `make setup`; never the full test suite
