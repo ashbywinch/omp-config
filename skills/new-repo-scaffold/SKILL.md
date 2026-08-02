@@ -188,6 +188,7 @@ Wired via `the-pr-agent/pr-agent` + a fail-loud gate step. Get it right first ti
 - **Fail-loud gate**: after the bot step, a check step verifies the persistent "PR Reviewer Guide" comment covers the commit SHA (or was created after the run started) and exits 1 otherwise. Without it, a silently-failed review reads as a green check.
 - v0.41 config: `[openai] api_base` still works; `custom_llm_provider` is obsolete (provider comes from the `openai/<model>` prefix). `[pr_reviewer]` keys (`extra_instructions`, `num_max_findings`, `require_*`) unchanged.
 - **Docs must match code or the bot flags them.** The Compliance checks treat `repo_context_files` as ground truth; a doc whose contract lags the code (e.g. a response shape missing a required field) gets cited verbatim and the finding is correct — fix the doc, don't dismiss the bot.
+- **The reviewer enforces only what it reads.** `repo_context_files` is the whole world to the bot — a rule absent from the materialised docs cannot be enforced. The scaffold's `docs/coding-standards.md` must carry the FULL semantic rules (names communicate intent, separation of concerns, cohesive modules, anti-fragile/correct-by-construction, never swallow errors with the observable pattern, two-tier failure messages, docs rules), not a condensation: one repo shipped a condensed version and the bot never commented on style until the full rules were materialised.
 
 ### 3. Code coverage is gated, not decorative
 
@@ -219,7 +220,7 @@ Wired via `the-pr-agent/pr-agent` + a fail-loud gate step. Get it right first ti
 - `README.md` (humans): one-line purpose, Quick Start via `make`, usage examples, docs table.
 - `AGENTS.md` (agents): quick start (`make setup` / `make test`), a Testing Rules section mandating make targets ("ALWAYS use `make` targets; NEVER construct ad-hoc test commands"), a decision tree routing tasks to `docs/`, tool-selection table, git workflow, secrets rule (`test -n "$VAR"` never `echo $VAR`).
 - `docs/` standards triplet, checked by PR-Agent:
-  - `docs/coding-standards.md` — design principles, semantic types over primitives, class-per-module, fail fast, never swallow errors, no backward-compat shims, DI over patching.
+  - `docs/coding-standards.md` — design principles, semantic types over primitives, class-per-module, fail fast, never swallow errors, no backward-compat shims, DI over patching, **names communicate intent, separation of concerns, cohesive modules, anti-fragile, two-tier failure messages, docs rules** (the full set — the reviewer enforces only what's in this file).
   - `docs/testing-standards.md` — tests mirror module paths, deterministic (no wall-clock, network, or order dependence; seeded randoms), assert behavior not implementation, DI fakes over `unittest.mock.patch`.
   - `docs/writing-documentation.md` — content = skill://write-documentation (context efficiency, density, ~150–200 line ceiling). Link, don't copy.
 - Wire the standards into review: `.pr_agent.toml` `repo_context_files` lists them; `extra_instructions` demands a per-doc Compliance section in every review (houses, books_to_anki).
@@ -237,10 +238,12 @@ api_base = "https://opencode.ai/zen/go/v1"
 model = "openai/deepseek-v4-flash"
 custom_model_max_tokens = 128000
 max_model_tokens = 128000
-ai_timeout = 600
+ai_timeout = 1800
 fallback_models = []
+verbosity_level = 3
 repo_context_from_default_branch = false
 repo_context_files = [
+    "docs/PRD.md",               # the requirements doc — the reviewer enforces product law only if it reads it
     "docs/coding-standards.md",
     "docs/testing-standards.md",
     "docs/writing-documentation.md",
@@ -249,8 +252,8 @@ repo_context_files = [
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
-num_max_findings = 5
-extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'."
+num_max_findings = 10
+extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations, and product-law deviations from the requirements doc."
 
 [github_action_config]
 handle_push_trigger = true
@@ -276,11 +279,22 @@ jobs:
       - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
         id: pr-agent
         env:
-          OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
+          OPENAI_KEY: ${{ secrets.OPENCODE_GO_<PROJECT>_API_KEY }}
           OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Check step: fail the PR when no "PR Reviewer Guide" comment covers the
-      # head commit (gh-api attribution; see books_to_anki for the full logic).
+      # Fail loud: fail the PR when no "PR Reviewer Guide" comment covers the
+      # head commit. Match the FULL and SHORT sha (the bot posts the short
+      # one), token-bounded so unrelated hex strings can't false-positive.
+      - name: Fail loud if no review covers the head commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ github.event.pull_request.head.sha }}"
+          if ! gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              --jq '.[].body' | grep -qE "(^|[^0-9a-f])($SHA|${SHA:0:7})([^0-9a-f]|$)"; then
+            echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
+            exit 1
+          fi
 ```
 
 - `.github/dependabot.yml` — for uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`):
@@ -324,7 +338,7 @@ gh api repos/<owner>/<name>/branches/main/protection -X PUT \
 Rules:
 - Never push to main; the first commit is `main`, everything after is branches + PRs (rule://session-start).
 - `--private` is the default for personal repos; go public only deliberately.
-- **Set `<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s).
+- **Set `OPENCODE_GO_<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s). The key for sibling projects is already in the shell environment (`OPENCODE_GO_<SIBLING>_API_KEY`); copy it secret-to-secret without ever printing it: `printf '%s' "$OPENCODE_GO_<SIBLING>_API_KEY" | gh secret set OPENCODE_GO_<PROJECT>_API_KEY --repo <owner>/<repo>` (older gh lacks `secret get`, and the API never returns secret values).
 
 ## Language layers
 
@@ -445,7 +459,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules
 - [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation)
-- [ ] PR review wired: `.pr_agent.toml` on a maintainer-controlled `pr-agent-config` branch (never `${{ github.head_ref }}`), pr-agent workflow pinned to a CURRENT action version, standards docs in `repo_context_files` reachable at the read location, fail-loud "review posted for this commit" gate, `ai_timeout` ≥ 1800; `<PROJECT>_API_KEY` secret set BEFORE the first PR
+- [ ] PR review wired: `.pr_agent.toml` on a maintainer-controlled `pr-agent-config` branch (never `${{ github.head_ref }}`), pr-agent workflow pinned to a CURRENT action version, **requirements doc + standards docs** in `repo_context_files` reachable at the read location, fail-loud "review posted for this commit" gate matching the short sha token-bounded, `ai_timeout` ≥ 1800, `num_max_findings` ≥ 10, `verbosity_level` ≥ 3; `OPENCODE_GO_<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
 - [ ] Git hooks run only fast checks (lint, typecheck), installed by `make setup`; never the full test suite
