@@ -1,11 +1,12 @@
 # Global Coding Standards
 
-The canonical house coding standard, materialised into every scaffolded repo
-at `docs/coding-standards.md` (copy this file, then add project-specific
-rules). The PR-Agent reviewer's enforcement is **scoped to the files it
-reads** (`repo_context_files`), so the full standard must be materialised for
-every rule to be in force. When this file changes, refresh the materialised
-copies.
+The canonical house coding standard. The scaffold copies this file into
+**every scaffolded repo** as `docs/coding-standards.md`; each repo then adds
+its own project-specific rules, and the repo's copy is what the PR-Agent
+reviewer reads (its enforcement is **scoped to the files in
+`repo_context_files`**). Because the reviewer can only enforce rules present
+in that copy, the scaffold copies the full standard in — never a condensed
+version. When this file changes, refresh the copies in the repos.
 
 Language-agnostic by design; per-language toolchain conventions (ruff/eslint
 configs, formatters, type checkers) live in the scaffold skill's language
