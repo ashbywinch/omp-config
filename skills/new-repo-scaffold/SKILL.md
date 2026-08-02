@@ -177,6 +177,18 @@ Rules:
 - Lint in CI via `make lint-github` (`ruff check --output-format=github`) so findings surface as PR annotations; plain `make lint` stays for local use. The template reflects this.
 - API-key-dependent suites: pass `${{ secrets.* }}` as env, run under a timeout wrapper, upload outputs with `if: always()` so failures are diagnosable (chat-workflow evals).
 
+### 2b. AI code review bot (PR-Agent)
+
+Wired via `the-pr-agent/pr-agent` + a fail-loud gate step. Get it right first time with these rules (all observed failing in production):
+
+- **NEVER set `PR_AGENT_CONFIG_BRANCH: ${{ github.head_ref }}`.** Any same-repo branch can then ship its own `.pr_agent.toml` pointing `[openai] api_base` at an attacker endpoint; the API-key secret is sent there as the Bearer token. Pin it to a maintainer-controlled branch (`pr-agent-config`) that carries the `.pr_agent.toml`. The repo working-tree copy is a convenience; the bot reads the pinned branch.
+- **Standards docs must be reachable where the bot reads them.** `repo_context_from_default_branch = true` (the default) reads `repo_context_files` from the default branch — new repos must merge the docs before the Compliance checks are grounded; `false` reads from the PR head branch. Logs say "Repo context file is empty or missing" when ungrounded — check the branch, don't trust the flag.
+- **Pin the action version AND keep it current.** Old pins (Feb-2025 era) silently discard an entire review when a finding cites `{...}` JSON in a plain YAML scalar ("mapping values are not allowed here"), swallow the exception, and exit 0 — the gate fails with no visible error. Current versions (v0.41+) fix the YAML robustly. `gh run view --log` truncates mid-step; use the raw `gh api repos/{owner}/{repo}/actions/jobs/{id}/logs` to see the real failure tail.
+- **`ai_timeout` default (120s) is too low for real PRs.** Review generation on large diffs takes minutes (8–40 min observed on an 89K-token diff through opencode.ai). Set `ai_timeout = 1800`; expect slow reviews; NEVER conclude rate limiting from slow/failed review runs — read the run logs first.
+- **Fail-loud gate**: after the bot step, a check step verifies the persistent "PR Reviewer Guide" comment covers the commit SHA (or was created after the run started) and exits 1 otherwise. Without it, a silently-failed review reads as a green check.
+- v0.41 config: `[openai] api_base` still works; `custom_llm_provider` is obsolete (provider comes from the `openai/<model>` prefix). `[pr_reviewer]` keys (`extra_instructions`, `num_max_findings`, `require_*`) unchanged.
+- **Docs must match code or the bot flags them.** The Compliance checks treat `repo_context_files` as ground truth; a doc whose contract lags the code (e.g. a response shape missing a required field) gets cited verbatim and the finding is correct — fix the doc, don't dismiss the bot.
+
 ### 3. Code coverage is gated, not decorative
 
 - `make coverage` emits an XML report for CI (`coverage.xml` Python, `coverage/clover.xml` JS) plus a human report.
@@ -433,7 +445,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules
 - [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation)
-- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
+- [ ] PR review wired: `.pr_agent.toml` on a maintainer-controlled `pr-agent-config` branch (never `${{ github.head_ref }}`), pr-agent workflow pinned to a CURRENT action version, standards docs in `repo_context_files` reachable at the read location, fail-loud "review posted for this commit" gate, `ai_timeout` ≥ 1800; `<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
 - [ ] Git hooks run only fast checks (lint, typecheck), installed by `make setup`; never the full test suite
