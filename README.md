@@ -22,11 +22,15 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 |---|---|
 | `skills/<name>/SKILL.md` | Skills — loaded on demand via `skill://<name>`; one folder per skill |
 | `rules/*.md` | Trigger rules (greeting, session-start, fail-fast, …) |
+| `docs/PRD.md` | Requirements — JTBD, personas, constraints, the overarching goal |
 | `docs/coding-standards.md` | The canonical global coding standard (copied into every repo) |
 | `docs/ux-standards.md` | The canonical UX standard (copied into every repo) |
+| `docs/writing-documentation.md` | The documentation standard (materialized from `skill://write-documentation`) |
+| `docs/testing-standards.md` | The repo's testing standard (the self-check) |
 | `profiles/` | User profile |
 | `APPEND_SYSTEM.md` | The system-prompt append |
 | `tools/check_docs_links.py` | The repo self-check (`make test`) |
+| `.pr_agent.toml` | The review bot's context (`repo_context_files`) and instructions |
 
 ## Updating a skill or rule
 

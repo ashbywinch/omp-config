@@ -1,0 +1,45 @@
+name: AI Code Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+jobs:
+  pr-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
+        id: pr-agent
+        env:
+          OPENAI_KEY: ${{ secrets.OPENCODE_GO_OMP_CONFIG_API_KEY }}
+          OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Fail loud if no review covers the head commit
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # The bot posts a persistent comment; without one for THIS commit the
+          # review may have failed silently — fail the PR instead of merging unreviewed.
+          python3 - <<'EOF'
+          import json, os, urllib.request
+          sha = os.environ["SHA"]
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{os.environ['PR_NUMBER']}/comments",
+              headers={"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}", "Accept": "application/vnd.github+json"},
+          )
+          comments = json.load(urllib.request.urlopen(req))
+          covered = any(
+              c.get("body", "").startswith("## PR Reviewer Guide")
+              and sha in c.get("body", "")
+              for c in comments
+          )
+          if not covered:
+              print(f"::error::AI review did not post for commit {sha} — the review may have failed silently.")
+              raise SystemExit(1)
+          EOF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}

@@ -16,10 +16,13 @@ links to.
 
 | Task | Route to |
 |---|---|
+| What this repo is for — JTBD, personas, constraints | `docs/PRD.md` |
 | Load/understand a skill | `skill://<name>` → `skills/<name>/SKILL.md` |
 | Update a skill, or turn a lesson into one | `skill://update-skills` (edit here → `make install` → restart omp → branch + PR) |
 | Global coding standard (the reviewer-enforced rule set) | `docs/coding-standards.md` |
 | Global UX standard | `docs/ux-standards.md` |
+| Documentation standard | `docs/writing-documentation.md` (source: `skill://write-documentation`) |
+| Testing standard | `docs/testing-standards.md` |
 | Trigger rules | `rules/*.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
 | The repo scaffold (how new repos are built) | `skills/new-repo-scaffold/SKILL.md` |
