@@ -7,6 +7,21 @@ description: |
 
 When asked to write or update documentation, follow these principles.
 
+## AGENTS.md is a bootloader, not an operating system
+
+AGENTS.md loads everything else and gets out of the way. It holds the quick
+start, the decision tree that routes every task to the right doc, and the
+rules that apply to **every** agent in the repo — nothing more. Content that
+only some agents need (a subsystem's internals, a rare workflow, a surface
+standard) belongs in the doc the tree links to, never in AGENTS.md itself.
+Test: is this genuinely relevant to 100% of agents working in this repo? If
+not, it does not belong in the bootloader.
+
+**Every doc must be discoverable from AGENTS.md** — directly or by following
+links (one level deep is the norm). A doc that AGENTS.md cannot lead to is
+undiscoverable, and undiscoverable documentation is a finding: it does not
+exist for the reader who starts where all readers start.
+
 ## Context Efficiency Principle
 
 Every documentation file must only contain information that is relevant to its topic and audience. For each document, be clear about exactly what the (single) topic and intended audience is.

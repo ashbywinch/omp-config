@@ -20,8 +20,13 @@ skill would be invisible to review.
 
 - **Separation of concerns.** One reason to change per module/class/function.
   HTTP vs business vs persistence live in different modules with one-way
-  dependency chains. An urge to import from a sibling layer or mix I/O with
-  computation means split, not shortcut.
+  dependency chains; importing a sibling layer directly is a finding.
+  **Never mix I/O with computation** — a function that fetches, reads, or
+  parses and then decides or computes in the same body is a finding; the
+  split is I/O in, decision out. **God functions are a finding** — one body
+  that reads, transforms, persists, and formats does four jobs and changes
+  for four reasons. A PR that touches a module for two unrelated reasons is
+  the module having two reasons to change.
 - **Cohesive modules and classes.** Data + behaviour together. A module/class
   owns its invariants; external code never reaches into structures to compute
   derived values. Public-field classes that others manipulate are
