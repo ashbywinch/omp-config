@@ -107,6 +107,20 @@ clean:
 
 Non-Python: same targets, different toolchain lines (see language layers).
 
+### 1b. One formatter per artifact, decided at scaffold time
+
+The scaffold decides each artifact's one formatter, and the decision is
+recorded (in the scaffolded Makefile/ignore files and this skill's language
+layers). Machine-generated files (a derived projection, a regenerated index,
+build output) are formatted **by their generator** — a second formatter run
+over generated output churns the diff on every regeneration. Two formatters
+fighting over the same file is the failure mode: prettier reformatting JSON
+that a Python writer emits with a different indent, so every publish rewrites
+the file. Formatters for hand-written code are excluded from generated
+directories at scaffold time — ignore files (`.prettierignore`, `exclude`),
+not discipline. A "nicer" formatter for generated files is a standards
+change, never a local revert.
+
 ### 2. CI delegates to make
 
 One workflow per project; subprojects get path-filtered jobs (energy_envelope splits `android/**` from the Python root via `paths: ['!android/**']`).
@@ -161,6 +175,29 @@ Rules:
 - CI fails below a hard floor and tracks a higher goal: books_to_anki uses `irongut/CodeCoverageSummary` with `thresholds: '80 90'`, `fail_below_min: true`, posting a sticky PR comment via `marocchino/sticky-pull-request-comment`; side-by-side uses `slavcodev/coverage-monitor-action` on clover.xml.
 - `htmlcov/`, `.coverage`, `coverage.xml` are gitignored; reports are generated on demand.
 
+### 3b. The repo tests itself: docs links + architecture layers
+
+Every repo carries tests that guard the repo's own invariants — the docs
+stay coherent and the architecture layers (as currently imagined) don't
+erode. Both patterns ship in houses (`tests/unit/test_docs_links.py`,
+`tests/unit/dag/test_architecture.py`):
+
+- **Broken doc links are a test failure.** A small runner scans `AGENTS.md`
+  + `docs/**/*.md` for markdown links, resolves the relative ones, and fails
+  on a target that doesn't exist (or escapes the repo). Skip external URLs,
+  anchors (`#…`), and template variables; strip `#fragment` before
+  resolving. One regex, one test, no deps — a doc renamed without its links
+  updated fails CI instead of 404ing for a reader.
+- **Architecture layers are enforced, not hoped.** Define the current
+  layering (e.g. `dag/` may only depend on itself; the HTTP layer may not
+  import the sheets module directly) and assert it in a test: Python repos
+  use **archunitpython** (`project_layers().layer(...).defined_by(...)` +
+  `may_only_depend_on_layers()` / `may_not_depend_on_layers()`). Layer globs
+  need the `./` prefix — bare `dag/*.py` also matches `tests/unit/dag/*.py`
+  via fnmatch (`*` matches `/`) — see `skill://archunitpython-glob-rules`.
+  Encode the layers *as they are designed now*; when a deliberate layering
+  change lands, the test changes with it (git log records the old rule).
+
 ### 4. Git hygiene
 
 - Never commit to main; branch off main, PR required, protected origin/main (rule://session-start; chat-workflow/houses AGENTS.md).
@@ -185,7 +222,7 @@ Rules:
 - `README.md` (humans): one-line purpose, Quick Start via `make`, usage examples, docs table.
 - `AGENTS.md` (agents): quick start (`make setup` / `make test`), a Testing Rules section mandating make targets ("ALWAYS use `make` targets; NEVER construct ad-hoc test commands"), a decision tree routing tasks to `docs/`, tool-selection table, git workflow, secrets rule (`test -n "$VAR"` never `echo $VAR`).
 - `docs/` standards triplet, checked by PR-Agent:
-  - `docs/coding-standards.md` — design principles, semantic types over primitives, class-per-module, fail fast, never swallow errors, no backward-compat shims, DI over patching.
+  - `docs/coding-standards.md` — copy the **canonical global standard** (`docs/coding-standards.md` in the omp-config repo, where this skill lives) **in full**, then add project rules. The reviewer enforces exactly the rules present in the file, so the copy must carry the full set: design principles (separation of concerns, cohesion, types over primitives, quantities carry units, Money not float, no over-abstraction, anti-fragile, fail fast with user-visible errors, two-tier messages, no shims, no mystery code, one-way invariants, imports, UTC datetimes, cache hygiene, batch APIs, resume-not-accident, real content never in code, derived data regenerated, established practice, argv forwarding, AI output as proposed), DI, testing, documentation.
   - `docs/testing-standards.md` — tests mirror module paths, deterministic (no wall-clock, network, or order dependence; seeded randoms), assert behavior not implementation, DI fakes over `unittest.mock.patch`.
   - `docs/writing-documentation.md` — content = skill://write-documentation (context efficiency, density, ~150–200 line ceiling). Link, don't copy.
 - Wire the standards into review: `.pr_agent.toml` `repo_context_files` lists them; `extra_instructions` demands a per-doc Compliance section in every review (houses, books_to_anki).
@@ -299,13 +336,14 @@ Rules:
 - Toolchain: **uv** (`uv sync`), `.python-version` pinned to the **current stable** at scaffold time — find it via `uv python list` (cross-check python.org); never guess from training data, never a beta. Pin the newest stable the project's critical deps support (books_to_anki pins `==3.9.*` for spacy — the cautionary tale). Metadata `requires-python` is `>=X.Y` unbounded; ruff `target-version` tracks the pin.
 - **ruff** (lint + format): `select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, `quote-style = "double"` — the converged chat-workflow/energy_envelope config, minus one deviation: those repos add `ignore = ["UP046","UP047"]` (PEP 695 type-parameter syntax, for runtime-reflection compat). The scaffold does NOT carry that ignore — it's a constraint inherited from chat-workflow's code, not a general practice, and energy_envelope cargo-culted it. If a new repo hits a real reflection incompatibility, fix the reflection, don't ignore the rule.
 - **pytest**: `testpaths = ["tests"]`, tests mirror package layout; `pytest-cov` for coverage. Default for everything — fixtures, `parametrize`, plugins. Deviation is justified only for eval/API harnesses that need module-level discovery with a custom runner: chat-workflow runs `python -m unittest discover tests/evals/` under a timeout wrapper for exactly that. That's a niche — before choosing unittest, check whether a thin wrapper around pytest gives the same control.
+- **Semantic types, the library choices** (the generic rules are in the global standard — `docs/coding-standards.md`): **pint** for quantities (`pint.Quantity`, never bare `float`/`int` for distances, durations, speeds), and a **Money type with currency** for money (houses uses `money.Money`; never bare `float`, never bare `Decimal` in signatures). Houses' conventions: turn numeric literals into quantities by *multiplying by a one-unit `Quantity` constant* (`KM = 1.0 * ureg.km; radius = 4.0 * KM`), never by calling the `Quantity` constructor with a literal unit string; define the constants once per package from a single `UnitRegistry` (pint forbids mixing registries); wire formats stay unit-named bare numbers (pint has no JSON representation).
 - Layout: flat package at repo root `<pkg>/` (newer repos) with `[tool.setuptools.packages.find] include = ["<pkg>*"]`; use `src/` layout only when distributing on PyPI (books_to_anki — it forces `pip install -e .` before tests, catching packaging bugs). Flat is the converged house style for internal tools. A CLI needs `<pkg>/__main__.py` — the run target (`python -m <pkg>`) fails with "No module named <pkg>.__main__" without it.
 - Type checker: **basedpyright** (houses, chat-workflow) or **mypy** (books_to_anki); gated via `make typecheck` inside `make test`. Invocation is the BARE command — `basedpyright` is config-driven and has NO `check` subcommand (`basedpyright check` exits 4 treating `check` as a path).
 
   **basedpyright exits 1 on WARNINGS by default** — "0 errors, 500 warnings" fails the gate and the pre-commit hook. Gate on the ERROR COUNT, not the exit code or `--level`: `basedpyright --outputjson | python -c "import json,sys; sys.exit(1 if json.load(sys.stdin)['summary']['errorCount'] else 0)"` — `--level=error` is ignored in CI because basedpyright has an "actions mode" (triggered by the `GITHUB_ACTIONS` env var) where the `--level` filter does not apply to the exit code: same binary 1.39.9, same command, warnings suppressed + exit 0 locally, warnings printed + exit 1 with `GITHUB_ACTIONS=true`. Known open bug: DetachHead/basedpyright#1481 (also #1351, #1319); the JSON-summary parse is the community-standard fix (see delfianto/the-bannered-mare 0de005b, Foxerine/sqlmodel-ext d3d0bcb). Keep `--level error` only as pre-commit hook args (hooks run locally). Scope analysis with `include` — an `exclude` key REPLACES the implicit `.venv`/cache exclusions and the scan explodes into site-packages (observed: 11k+ errors, 170k warnings).
 
   **Bringing an existing repo into house shape** (not greenfield): bare `dict` annotations fail basedpyright — use `dict[str, Any]`; pytest fixture params need explicit annotations (`tmp_path: Path`); DI fakes must SUBCLASS the real classes — plain `cast` fails with `reportInvalidCast` when the types don't overlap.
-- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell.
+- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell.
 - Git hooks: `pre-commit` framework, installed by `make setup` (`uv run pre-commit install`). Ship this exact config — the basedpyright hook lives in the MIRROR repo `DetachHead/basedpyright-prek-mirror` (unprefixed tags); `DetachHead/basedpyright` itself fails with InvalidManifestError:
 
 ```yaml
@@ -411,6 +449,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules
 - [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation)
+- [ ] Repo self-checks: a docs-links test (every relative markdown link resolves) and an architecture-layer test (current layers, archunitpython for Python) — houses' `test_docs_links.py` / `test_architecture.py` are the patterns
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
@@ -421,7 +460,8 @@ Run in order; the checklist below is the final gate, not documentation.
 ### Python
 - [ ] uv + `.python-version` = current stable at scaffold time (via `uv python list`, subject to dep support); ruff `target-version` matches
 - [ ] pyproject.toml: ruff `select E,F,I,UP,B,SIM,N`, `line-length 120`, double quotes, no ignore list
-- [ ] pytest with `testpaths = ["tests"]`; dev deps in `[dependency-groups] dev` (PEP 735)
+- [ ] pytest with `testpaths = ["tests"]`; dev deps in `[dependency-groups] dev` (PEP 735) incl. archunitpython
+- [ ] Semantic types wired: pint for quantities, a Money type for currency (the generic rules are in the global standard; the library choices are here)
 - [ ] pytest is the runner; unittest only for eval harnesses needing module-level discovery (documented deviation, not default)
 - [ ] Type checker (basedpyright or mypy) configured and gated inside `make test` (`--level=error` in make target AND hook args; scope via `include`, never `exclude`)
 - [ ] Flat `<pkg>/` layout with `packages.find` include
