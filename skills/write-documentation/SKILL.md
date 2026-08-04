@@ -43,17 +43,23 @@ All documentation must be usable by humans or by AI agents. Both must be able to
 - A reader has to skip large sections to find what they need
 - Content is duplicated or concepts are explained twice
 
-## Single Source of Truth
+## Single Source of Truth — Never Duplicate
 
-Each piece of information lives in exactly one place. Other docs link to it. They don't repeat it.
+Each piece of information lives in exactly one place. Other docs link to it. They don't repeat it. A duplicated fact is a finding: the two copies drift, and the reader cannot tell which is current. When you are tempted to copy content into a second doc, link instead — the link is the duplication-free way to reuse.
 
 **Good:** The development guide says "See the column reference for details" and links to column-reference.md.
 
-**Bad:** The development guide repeats the column layout inline.
+**Bad:** The development guide repeats the column layout inline — two copies, one of which will go stale.
 
-## One Topic Per File
+## One Topic Per File — the Docs' Separation of Concerns
 
-Each doc file covers one topic for one audience. If you need to cover a subtopic for a different audience, create a separate file and link to it.
+One reason to change per doc file, exactly as one reason to change per module
+(docs/coding-standards.md 'Separation of concerns'): each doc covers one
+topic for one audience. A doc with two audiences or two unrelated topics is a
+finding — split it and link. If you need to cover a subtopic for a different
+audience, create a separate file and link to it. The question before writing
+or editing: "what single question does this doc answer?" — a second question
+means a second file.
 
 ## Avoid Redundancy
 

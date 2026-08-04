@@ -297,7 +297,10 @@ single concrete implementation.
 - **Delete, don't archive.** Obsolete content is a liability; remove it. No
   archive dirs, no deprecation notices.
 - **Single source of truth.** Each fact in exactly one place; other docs
-  link, never repeat.
+  link, never repeat. A duplicated fact is a finding — the copies drift.
+- **One topic per file — the docs' separation of concerns.** Each doc has
+  one audience and one question; a doc with two audiences or two unrelated
+  topics is a finding (split and link), mirroring the code rule.
 - **Docs must match code.** Rename a function/module → update the docs in the
   same change. The reviewer's compliance checks treat docs as ground truth
   and will cite them verbatim when they lag.
