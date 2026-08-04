@@ -152,6 +152,58 @@ When a doc describes how to do something, use the task-card shape: goal
 - [ ] No filler, no restated motivation
 - [ ] Always-loaded files within the ~150–200 line ceiling
 
+## The Required Doc Set
+
+Every project's `docs/` folder carries three documents, and the review bot
+checks PRs against them (they are listed in `.pr_agent.toml`
+`repo_context_files`). They follow the density and context-efficiency rules
+below like any other doc.
+
+### Requirements — `docs/PRD.md` (or `docs/PRD/` with subsections when big)
+
+The product requirements document. Sections, in order:
+
+- **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
+  the opening section. May include emotional JTBD ("feel the family is
+  remembered"), not only functional ones.
+- **Personas** — a small group, specific enough to drive decisions. A
+  persona is decision-useful when two plausible product choices differ
+  under it; a persona that cannot change a decision is filler.
+- **Constraints that shape everything**: cost to run, longevity of the
+  system, backups, monitoring and tracing once in production, access and
+  auth, likely scale at different phases (data size, number of users, …),
+  and hosting limitations — internal or external — stated explicitly when
+  either is off the table.
+- Big PRDs split into subsections (`docs/PRD/`) instead of one wall; each
+  subsection keeps the density rules.
+
+### Technical spec — `docs/TECHSPEC.md`
+
+How it will all be done:
+
+- **Technology choices**, with the alternatives considered and why they
+  lost.
+- **Spikes required to confirm** — named, with what each must prove before
+  the choice is locked.
+- **Strategic technical decisions** that follow from requirements —
+  reference the requirement by name and content, not only by number
+  (numbers change).
+- **Architecture layers as a mermaid diagram** — plus anything else
+  important about the architecture: data flows, physical architecture.
+  Multiple diagrams are fine, one per concern.
+
+### Plan — `docs/PLAN.md`
+
+The intended phases:
+
+- Each phase states its **inputs, outputs, operations, and the quality
+  gates of the app after that phase** — a phase is complete when the app
+  passes its gates, not when the code "looks done".
+- **Phases never depend on outputs of later phases** — every phase ships
+  in order.
+- **Phases are ordered for earliest user value** — each phase is the
+  minimum possible addition that drives real value.
+
 ## How to Update Documentation
 
 1. Identify the audience for your content

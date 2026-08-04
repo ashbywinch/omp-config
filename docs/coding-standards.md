@@ -262,6 +262,17 @@ single concrete implementation.
 
 ## Documentation
 
+- **The required doc set.** Every project's `docs/` carries a requirements
+  doc (`docs/PRD.md`, or `docs/PRD/` with subsections when big — JTBD first,
+  a small decision-useful persona set, and the constraints: cost to run,
+  longevity, backups, monitoring/tracing in production, access/auth, scale
+  at different phases, hosting limits), a technical spec (`docs/TECHSPEC.md`
+  — technology choices, spikes required to confirm, strategic decisions
+  referencing requirements by name not number, architecture layers as a
+  mermaid diagram, data flows and physical architecture), and a plan
+  (`docs/PLAN.md` — phases with inputs/outputs/operations/quality gates,
+  no later-phase dependencies, earliest user value). The review bot checks
+  PRs against them (`repo_context_files`).
 - **Delete, don't archive.** Obsolete content is a liability; remove it. No
   archive dirs, no deprecation notices.
 - **Single source of truth.** Each fact in exactly one place; other docs
