@@ -227,6 +227,7 @@ erode. Both patterns ship in houses (`tests/unit/test_docs_links.py`,
   - `docs/coding-standards.md` — copy the **canonical global standard** (`docs/coding-standards.md` in the omp-config repo, where this skill lives) **in full**, then append the **language layer's conventions for the repo's stack** (the Python or JS/TS section below — semantic-type libraries, toolchain gates, test-runner conventions), then project rules. The reviewer enforces exactly the rules present in the file — and it reads only `repo_context_files`, so a rule that lives only in this skill is **invisible to review**: language-specific standards must be materialized into the repo copy, never left here alone. The copy must carry the full set: design principles (separation of concerns, cohesion, types over primitives, quantities carry units, Money not float, no over-abstraction, anti-fragile, fail fast with user-visible errors, two-tier messages, no shims, no mystery code, one-way invariants, imports, UTC datetimes, cache hygiene, batch APIs, resume-not-accident, real content never in code, derived data regenerated, established practice, argv forwarding, AI output as proposed), DI, testing, documentation, language conventions.
   - `docs/testing-standards.md` — tests mirror module paths, deterministic (no wall-clock, network, or order dependence; seeded randoms), assert behavior not implementation, DI fakes over `unittest.mock.patch`.
   - `docs/writing-documentation.md` — content = skill://write-documentation (context efficiency, density, ~150–200 line ceiling). Link, don't copy. The skill also mandates the **required doc set**, and the docs themselves are held to the skill's quality checklist: `docs/PRD.md` (or `docs/PRD/` — JTBD first, personas, cost/longevity/backups/monitoring/auth/scale/hosting constraints), `docs/TECHSPEC.md` (technology choices, spikes, requirement-referencing decisions, architecture-layers mermaid diagram), `docs/PLAN.md` (phases with the **software's** inputs/outputs — what the app consumes and produces — operations and quality gates; never the phase's project artifacts; no later-phase dependencies; earliest user value).
+  - `docs/ux-standards.md` — copy the **canonical UX standard** (`docs/ux-standards.md` in the omp-config repo) **in full**, then add repo-specific UX baselines alongside it (a usability-requirements baseline and a UX decisions doc, per skill://ux-process). The walkthrough instrument and the interview skill reference it; they do not restate it.
 - Wire the standards into review: `.pr_agent.toml` `repo_context_files` lists them; `extra_instructions` demands a per-doc Compliance section in every review (houses, books_to_anki).
 
 ### 6. PR review & dependency automation
@@ -252,13 +253,14 @@ repo_context_files = [
     "docs/coding-standards.md",
     "docs/testing-standards.md",
     "docs/writing-documentation.md",
+    "docs/ux-standards.md",
 ]
 
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
 num_max_findings = 50
-extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), and documentation-standard deviations from docs/writing-documentation.md (missing or malformed required docs — PRD with JTBD/personas/constraints, TECHSPEC with choices/spikes/diagrams, PLAN with the software's phase inputs/outputs and quality gates — and the required docs failing the documentation-quality checklist)."
+extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (missing or malformed required docs — PRD with JTBD/personas/constraints, TECHSPEC with choices/spikes/diagrams, PLAN with the software's phase inputs/outputs and quality gates — and the required docs failing the documentation-quality checklist), and UX deviations from docs/ux-standards.md (a change that violates a UX principle or the repo's usability baseline is a finding)."
 
 [github_action_config]
 handle_push_trigger = true
@@ -470,10 +472,10 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] `.editorconfig` (utf-8, lf, final newline) and `.gitattributes` (`* text=auto eol=lf`)
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules
-- [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation)
-- [ ] Required doc set present: `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` with phase inputs/outputs/operations/quality gates and no later-phase dependencies
+- [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation) + `docs/ux-standards.md` (copied from omp-config, per skill://ux-process)
+- [ ] Required doc set present: `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies
 - [ ] Repo self-checks: a docs-links test (every relative markdown link resolves) and an architecture-layer test (current layers, archunitpython for Python) — houses' `test_docs_links.py` / `test_architecture.py` are the patterns
-- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN** in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
+- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
 - [ ] Git hooks run the fast checks — lint, typecheck, secrets scan (gitleaks) — installed by `make setup`; never the full test suite
