@@ -1,8 +1,11 @@
 ---
 name: write-documentation
 description: |
-  Principles and conventions for writing maintainable, context-efficient
-  documentation for human and agent readers.
+  Documentation standards and conventions — the required doc set and folder
+  structure (docs/PRD.md or docs/PRD/, docs/TECHSPEC.md, docs/PLAN.md with
+  mandated content), AGENTS.md as bootloader with every doc discoverable
+  from it, context efficiency, density, no-duplication, one topic per file,
+  and the documentation-quality checklist.
 ---
 
 When asked to write or update documentation, follow these principles.
