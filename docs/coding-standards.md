@@ -26,8 +26,13 @@ skill would be invisible to review.
   owns its invariants; external code never reaches into structures to compute
   derived values. Public-field classes that others manipulate are
   poorly-organised dicts; accessor chains feeding procedural code are missed
-  abstractions. **No module-level mutable state and no `global`** — put state
-  in a class named for the domain concept it represents (`_APIState`,
+  abstractions. **Function strewing is a missed class** — when several
+  functions share the same data (the same record, the same fields), they are
+  methods on that class: three or more free functions taking the same
+  leading parameter are a class waiting to happen. A module that is a pile
+  of functions over one structure is a finding, not a style preference.
+  **No module-level mutable state and no `global`** — put state in a class
+  named for the domain concept it represents (`_APIState`,
   `_GeocodeRateLimit`), never the pattern name (`_MutableState`).
 - **Groups that travel together are a type — never repeated parallel
   parameters.** The same set of fields passed to several functions is one
@@ -38,11 +43,17 @@ skill would be invisible to review.
   methods.
 - **Names communicate intent.** Domain names, not shapes: `monthlyPayment`
   not `calculateValue3`. A name needing a comment is a failed name. Classes
-  are domain nouns; functions are verbs; variables hold what they name
-  (`price`, not `x`); booleans read in `if` (`hasSchool`, not `schoolFlag`);
-  an id is never a label. **Avoid vague suffixes** — Manager, Orchestrator,
-  Handler, Controller, Utils, Info — unless a framework convention demands
-  them. **The docstring test:** a docstring that merely rephrases the name
+  are **domain nouns** — a concept from the domain the app is built for, the
+  world the users/customers live in, that a domain expert would recognize —
+  never a noun from the technology under the hood. Turning a verb into a
+  noun (`GraphBuilder`, `FileReader`, `DataFetcher`) is cheating: the real
+  class is the domain concept the verb operates on (`RelationshipGraph`,
+  `Letter`, `Feed`) — "geocoder" is a smell, the geocoded *place* is the
+  noun. Functions are verbs; variables hold what they name (`price`, not
+  `x`); booleans read in `if` (`hasSchool`, not `schoolFlag`); an id is
+  never a label. **Avoid vague suffixes** — Manager, Orchestrator, Handler,
+  Controller, Utils, Info — unless a framework convention demands them.
+  **The docstring test:** a docstring that merely rephrases the name
   (`TransitOrchestrator` → "orchestrates transit") means the name or the
   concept boundary is wrong — fix the name or split the concept. **The
   stress test:** would someone who knows the domain but not the code
