@@ -14,6 +14,7 @@ repo_context_files = [
     "docs/coding-standards.md",
     "docs/testing-standards.md",
     "docs/writing-documentation.md",
+    "docs/documentation-structure.md",
     "docs/ux-standards.md",
 ]
 
