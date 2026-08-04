@@ -1,12 +1,10 @@
 # Documentation Folder Structure — the required doc set
 
-The canonical house standard for what every project's `docs/` folder must
-contain and how it is organised. The scaffold copies this file into
-**every scaffolded repo** as `docs/documentation-structure.md`; the review
-bot checks PRs against it (`repo_context_files`). It is separate from
-`docs/writing-documentation.md` (what good documentation is) — this file
-is the structure: which docs exist, where, and what each must contain.
-The `skill://write-documentation` skill is the process that applies both.
+Standards for what every project's `docs/` folder must contain and how it is
+organised. Separate from `docs/writing-documentation.md` (what good
+documentation is) — this doc is the structure: which docs exist, where, and
+what each must contain. The `skill://write-documentation` skill is the
+process that applies both.
 
 ## The required doc set
 
@@ -20,7 +18,10 @@ path.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
 
-The product requirements document. Sections, in order:
+The product requirements document. A PRD that needs splitting into
+subsections should have one main PRD for the whole product and sub-PRDs for
+phases, features, or user stories — slices of the product that will be
+delivered together. Sections, in order:
 
 - **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
   the opening section. May include emotional JTBD ("feel the family is
@@ -38,18 +39,21 @@ The product requirements document. Sections, in order:
 
 ### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big)
 
-How it will all be done:
+How it will all be done. Sections, in order:
 
-- **Technology choices**, with the alternatives considered and why they
-  lost.
+- **Architecture first** — the architecture layers as a mermaid diagram, plus
+  data flows and physical architecture. Reference the non-functional
+  requirements from the PRD (cost to run, longevity, backups, monitoring,
+  auth, scale, hosting) to explain why the architecture is shaped the way
+  it is. Multiple diagrams are fine, one per concern.
+- **Technology choices** next, with the alternatives considered and why they
+  lost. The architecture determines what choices make sense, not the other
+  way around.
 - **Spikes required to confirm** — named, with what each must prove before
   the choice is locked.
 - **Strategic technical decisions** that follow from requirements —
   reference the requirement by name and content, not only by number
   (numbers change).
-- **Architecture layers as a mermaid diagram** — plus anything else
-  important about the architecture: data flows, physical architecture.
-  Multiple diagrams are fine, one per concern.
 
 ### Plan — `docs/PLAN.md` (or `docs/PLAN/` when big)
 

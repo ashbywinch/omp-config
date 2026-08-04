@@ -1,12 +1,12 @@
 # UX Standards
 
-The canonical house standard for the user experience of an app. Like the
-coding standard, the scaffold copies this file into **every scaffolded repo**
-as `docs/ux-standards.md`; the repo then adds its surface-specific standards
-(chat surfaces, capture flows) alongside it, and the review bot checks PRs
-against it (`repo_context_files`). The skills that run UX work —
-`skill://user-interviews` (primary research) and `skill://ux-process`
-(test-and-loop) — reference this document; they do not restate it.
+Standards for the user experience of an app. Principles are stated as user
+outcomes and behaviours — deliberately NOT as UI specifics (labels, buttons,
+placements). Implementation detail and the record of UX decisions live in the
+repo's own UX documents. Surface-specific standards (chat surfaces, capture
+flows) live in the repo alongside this standard. The skills that run UX work
+(`skill://user-interviews`, `skill://ux-process`) reference this document;
+they do not restate it.
 
 Principles are stated as **user outcomes and behaviours — deliberately NOT
 as UI specifics** (labels, buttons, placements). Implementation detail and
@@ -61,9 +61,13 @@ served by exactly one reused, standardised component across the app.
 Consistent affordances are learnable; per-screen variants are invisible
 until discovered.
 
-**P9 — Navigate like the web.** Identity, settings, and navigation use
-standard web conventions (header menus, drop-downs), so a first-time user's
-web knowledge transfers instead of learning an app-specific scheme.
+**P9 — Use standard UX patterns.** Authentication, navigation, chat, and
+other well-trodden surfaces use standard conventions (header menus,
+drop-downs, established chat patterns) that a first-time user already
+understands from the web. Research the convention carefully and document it;
+deviate only when there is a concrete reason. A bespoke navigation scheme
+or an original authentication flow is a finding unless the standard pattern
+cannot solve the problem.
 
 **P10 — Model only distinctions that change behaviour or display.** Every
 user-facing category, toggle, or field must change what the app does or
@@ -75,7 +79,10 @@ identity-claiming path or a guaranteed first-run flow.
 
 **P12 — User-entered data is never silently lost.** Updates merge into
 existing records; a partial edit never resets unrelated fields; writes from
-outside the app are guarded and explicit.
+outside the app are guarded and explicit. Prefer append-only patterns (a new
+record supersedes, never overwrites) and always use soft deletes (a deleted
+record is hidden, not removed) — the same principle as the append-only store
+rule in the coding standard.
 
 **P13 — UX work is accepted by re-walking the scenarios.** A repeatable
 walkthrough instrument (`skill://ux-process`) is a living test: usability

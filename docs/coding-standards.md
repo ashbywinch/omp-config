@@ -1,22 +1,10 @@
 # Global Coding Standards
 
-The canonical house coding standard. The scaffold copies this file into
-**every scaffolded repo** as `docs/coding-standards.md`; each repo then adds
-its own project-specific rules, and the repo's copy is what the PR-Agent
-reviewer reads (its enforcement is **scoped to the files in
-`repo_context_files`**). Because the reviewer can only enforce rules present
-in that copy, the scaffold copies the full standard in — never a condensed
-version. When this file changes, refresh the copies in the repos.
-
-Language-agnostic by design; per-language toolchain conventions (ruff/eslint
-configs, formatters, type checkers, semantic-type libraries) live in the
-scaffold skill's language layers, not here. When the scaffold copies this
-file into a repo it **materializes the relevant language layer's conventions
-into the copy as a "Python conventions" / "JS/TS conventions" section** — the
-reviewer reads only `repo_context_files`, so a rule that lives only in the
-skill would be invisible to review.
+Language-agnostic by design; per-language toolchain conventions (ruff, eslint, formatters, type checkers, semantic-type libraries) live in the scaffold skill's language layers, not here.
 
 ## Design principles
+
+### Structure & Organisation
 
 - **Separation of concerns.** One reason to change per module/class/function.
   HTTP vs business vs persistence live in different modules with one-way
@@ -46,6 +34,22 @@ skill would be invisible to review.
   Data clumps in signatures become domain classes (`GeoPoint`, not
   `LatLngPair`), and the functions that operate on the clump become its
   methods.
+- **Each class in its own module.** Named after the class; exception for a
+  module grouping closely related handful-of-fields models that share one
+  reason to change. Extract once a class grows non-trivial behaviour.
+- **No over-abstraction.** No abstract base classes with a single concrete
+  implementation, no plugin systems, pipeline frameworks, or service buses —
+  write straightforward functions that call each other. Protocols or
+  `Callable` aliases are fine for defining a seam; a hierarchy with one leaf
+  is ceremony.
+- **Imports.** Every import at the top of the file — never inside a function
+  body (inline imports hide dependencies from static analysis). Never import
+  private (underscore) symbols from another module — make the logic public
+  and documented, or extract it to a shared module. Circular imports are fixed
+  by restructuring modules, never bodged with lazy imports.
+
+### Naming & Types
+
 - **Names communicate intent.** Domain names, not shapes: `monthlyPayment`
   not `calculateValue3`. A name needing a comment is a failed name. Classes
   are **domain nouns** — a concept from the domain the app is built for, the
@@ -92,14 +96,9 @@ skill would be invisible to review.
   asserts what a value is, the library parses it" is the anti-pattern.
   Dates, numbers, formats: let a validated library parse; the code asserts,
   never invents.
-- **Each class in its own module.** Named after the class; exception for a
-  module grouping closely related handful-of-fields models that share one
-  reason to change. Extract once a class grows non-trivial behaviour.
-- **No over-abstraction.** No abstract base classes with a single concrete
-  implementation, no plugin systems, pipeline frameworks, or service buses —
-  write straightforward functions that call each other. Protocols or
-  `Callable` aliases are fine for defining a seam; a hierarchy with one leaf
-  is ceremony.
+
+### Robustness
+
 - **Anti-fragile: correct by construction.** Types make invalid states
   unrepresentable; pure functions preferred; error paths explicit — in the
   type system where possible (discriminated unions, not `None`); never cast
@@ -163,45 +162,9 @@ skill would be invisible to review.
   ✗ every caller writing the append-only store directly, hoping they
   remember not to overwrite. ✓ one `Archive.save_item` that supersedes, with
   a `MemoryStore` that raises on any write to an existing file.
-- **Dev is the environment, not the quality bar.** Code written during
-  development is the code that ships — production standard from day one,
-  including spikes and prototypes. There is no "throwaway" quality tier: a
-  spike that survives is the production code, so it is written as such. The
-  only thing dev changes is where data lives and which external services are
-  real.
-- **Imports.** Every import at the top of the file — never inside a function
-  body (inline imports hide dependencies from static analysis). Never import
-  private (underscore) symbols from another module — make the logic public
-  and documented, or extract it to a shared module. Circular imports are fixed
-  by restructuring modules, never bodged with lazy imports.
-- **UTC datetimes: aware, explicit boundaries.** Store and process UTC —
-  never `datetime.now()` without a timezone. Display local time only at the
-  presentation boundary (template, API response). Document an external
-  source's timezone and convert explicitly to UTC before storing. After
-  parsing from a DB or file (`fromisoformat` may return naive), check
-  `tzinfo is None` and fix it. Naive↔aware comparisons raise; arithmetic is
-  wrong across DST.
-- **Cache key hygiene.** Never include API keys or tokens in cache key
-  parameters (rotation must not invalidate the cache). Never cache non-OK API
-  responses — a transient failure (rate limit, bad key) must not poison the
-  cache.
-- **Batch external API calls wherever possible.** A loop that calls an
-  external API once per element is the anti-pattern — batch where the API
-  allows it (bound the batches, map responses back in order), and where it
-  does not, cache and reuse within the run instead of repeating the same
-  call.
-- **Partial output is a resume strategy, never an accident.** Broken partial
-  output — a truncated file, a half-written store, a run that silently stops
-  mid-way — is a bug. Intentional partial output, written as part of a
-  resumable checkpointing design, is fine: **long operations are resumable if
-  they crash** (idempotent, checkpointed, re-runnable from the last
-  committed point) **and troubleshootable after a crash or a long run**
-  (the state shows exactly where it got to; logs cover the failed stretch).
-  Derived or canonical outputs are still written atomically (temp + rename)
-  or gated behind success — a failed run never publishes a partial result
-  *over a good one*. Never bulk-clear or regenerate a surface holding manual,
-  user-entered, or curated data; destructive writes are scoped to exactly
-  what is known better.
+
+### Data & State
+
 - **Real content never lives in code.** Data a user provides or states, and
   configuration values, live in data/config files — not hardcoded in source.
   Code is the pipeline that reads and transforms them. A hardcoded real
@@ -217,6 +180,43 @@ skill would be invisible to review.
   instead of silently diverging. A derived cache is never a migration source:
   bootstrap scripts read the source of truth, never a regenerable file a
   previous run may have polluted.
+- **Dev is the environment, not the quality bar.** Code written during
+  development is the code that ships — production standard from day one,
+  including spikes and prototypes. There is no "throwaway" quality tier: a
+  spike that survives is the production code, so it is written as such. The
+  only thing dev changes is where data lives and which external services are
+  real.
+- **Partial output is a resume strategy, never an accident.** Broken partial
+  output — a truncated file, a half-written store, a run that silently stops
+  mid-way — is a bug. Intentional partial output, written as part of a
+  resumable checkpointing design, is fine: **long operations are resumable if
+  they crash** (idempotent, checkpointed, re-runnable from the last
+  committed point) **and troubleshootable after a crash or a long run**
+  (the state shows exactly where it got to; logs cover the failed stretch).
+  Derived or canonical outputs are still written atomically (temp + rename)
+  or gated behind success — a failed run never publishes a partial result
+  *over a good one*. Never bulk-clear or regenerate a surface holding manual,
+  user-entered, or curated data; destructive writes are scoped to exactly
+  what is known better.
+- **UTC datetimes: aware, explicit boundaries.** Store and process UTC —
+  never `datetime.now()` without a timezone. Display local time only at the
+  presentation boundary (template, API response). Document an external
+  source's timezone and convert explicitly to UTC before storing. After
+  parsing from a DB or file (`fromisoformat` may return naive), check
+  `tzinfo is None` and fix it. Naive↔aware comparisons raise; arithmetic is
+  wrong across DST.
+- **Cache key hygiene.** Never include API keys or tokens in cache key
+  parameters (rotation must not invalidate the cache). Never cache non-OK API
+  responses — a transient failure (rate limit, bad key) must not poison the
+  cache.
+
+### External Interactions
+
+- **Batch external API calls wherever possible.** A loop that calls an
+  external API once per element is the anti-pattern — batch where the API
+  allows it (bound the batches, map responses back in order), and where it
+  does not, cache and reuse within the run instead of repeating the same
+  call.
 - **Follow established practice for well-trodden surfaces.** Chat,
   autocomplete, forms, REST APIs — solved problems with documented
   conventions (REST: nouns for resources, plural collections, query params
@@ -224,6 +224,9 @@ skill would be invisible to review.
   When a surface has been done before, research the convention first and
   follow it; record the research and any deviation with a named reason and
   date. ✗ inventing a novel layout for a standard widget.
+
+### Process & Tooling
+
 - **Every `python -m` entry point forwards its argv.** A module whose
   `main(out=None)` defaults to a real path but whose `__main__` ignores
   `sys.argv` writes to the default silently — a "dry run" into a temp dir
@@ -239,63 +242,3 @@ skill would be invisible to review.
   Prefer libraries over reinvention — a library call that replaces 30 lines
   of well-known computation is worth it; one that adds more complexity than
   the code it replaces is not.
-
-## Dependency injection
-
-DI over patching. Inject the dependency (service, output path, fake) — never
-`monkeypatch`/`patch` global state. If something isn't reachable through DI,
-refactor the code to accept a dependency. Fakes subclass the real protocol so
-the type checker still holds at edit time.
-
-Injection patterns, in order: **parameter injection** for leaf-level
-dependencies (underscore-prefixed optional param falling back to the real
-implementation), a **services container** for deep call chains, **ContextVars**
-for request-scoped singletons. Forbidden: `monkeypatch`/`unittest.mock.patch`,
-module-level mutable state, lazy imports, and abstract base classes with a
-single concrete implementation.
-
-## Testing
-
-- **Type checking is a first-class gate.** The language's type checker is
-  configured (strict where the toolchain allows) and runs in the test gate —
-  errors fail the build, never suppressed (`# type: ignore` requires a
-  comment explaining why, and a suppression is itself a finding).
-- **Write the test before the code** (TDD — the rule is
-  `rule://test-first`); LLM behaviour gets evals (real AND fictional
-  fixtures, running the production path exactly once).
-- Tests mirror module paths; deterministic (no wall-clock, network, or order
-  dependence; seeded randoms); assert behaviour not implementation.
-  **Sort file listings** before processing — `glob` order is
-  filesystem-dependent, and a test or output that depends on it is a bug.
-- A test that cannot fail on a plausible bug is not a test (no tautological
-  fixtures — validate real artifacts).
-- **Organization:** unit tests (one function/module in isolation), integration
-  (full pipeline with fakes), and e2e (real external APIs, one consolidated
-  suite per API, skipped by default). Shared test infrastructure (fixtures,
-  fakes) is extracted once, not copy-pasted per file.
-- Pure functions need no mocking; function-param injection next; containers
-  after that; global patching is a last resort and a smell.
-
-## Documentation
-
-- **The required doc set.** Every project's `docs/` carries a requirements
-  doc, a technical spec, and a plan — `docs/PRD.md`, `docs/TECHSPEC.md`,
-  `docs/PLAN.md`, each possibly a subfolder when big — with the mandated
-  content, the discoverability rule, and the phase quality gates per
-  `docs/documentation-structure.md` (the canonical folder-structure
-  standard). The review bot checks PRs against them (`repo_context_files`),
-  and the required docs are themselves held to these documentation rules
-  and the repo's `docs/writing-documentation.md` quality checklist — a
-  PRD or TECHSPEC that fails context efficiency is a finding.
-- **Delete, don't archive.** Obsolete content is a liability; remove it. No
-  archive dirs, no deprecation notices.
-- **Single source of truth.** Each fact in exactly one place; other docs
-  link, never repeat. A duplicated fact is a finding — the copies drift.
-- **One topic per file — the docs' separation of concerns.** Each doc has
-  one audience and one question; a doc with two audiences or two unrelated
-  topics is a finding (split and link), mirroring the code rule.
-- **Docs must match code.** Rename a function/module → update the docs in the
-  same change. The reviewer's compliance checks treat docs as ground truth
-  and will cite them verbatim when they lag.
-- **Docs are anti-fragile.** Don't restate what the code says (signatures,
-  defaults, file lists); reference the code instead.

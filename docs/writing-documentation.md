@@ -1,12 +1,9 @@
 # Documentation Standard — what good documentation is
 
-The canonical house standard for documentation quality. Like the coding
-standard, the scaffold copies this file into **every scaffolded repo** as
-`docs/writing-documentation.md`; the review bot checks PRs against it
-(`repo_context_files`). The companion standard —
-`docs/documentation-structure.md` — mandates the required doc set and
-folder structure; this file is the rules for the writing itself. The
-`skill://write-documentation` skill is the process that applies both.
+Standards for documentation quality — what good documentation looks like.
+Separate from `docs/documentation-structure.md` (which mandates what docs
+must exist and their folder structure). The `skill://write-documentation`
+skill is the process that applies both.
 
 ## Skills are documentation
 
@@ -40,11 +37,17 @@ working in this repo? If not, it does not belong in the bootloader.
 
 ## Single source of truth — never duplicate
 
-Each piece of information lives in exactly one place. Other docs link to
-it; they do not repeat it. A duplicated fact is a finding: the copies
-drift, and the reader cannot tell which is current. When tempted to copy
-content into a second doc, link instead — the link is the
-duplication-free way to reuse.
+Each piece of information — whether documentation or code — lives in exactly
+one place. Other docs link to it; they do not repeat it. A duplicated fact is
+a finding: the copies drift, and the reader cannot tell which is current.
+
+**Do not duplicate the code's job.** A doc that restates a function signature,
+a default value, or a class structure is waste — the code is the source of
+truth for those. Reference the code instead ("call `compute()`; see the
+function docstring for the `Attempt` contract").
+
+When tempted to copy content into a second doc, link instead — the link is
+the duplication-free way to reuse.
 
 **Good:** the development guide says "See the column reference for
 details" and links to column-reference.md.
@@ -77,8 +80,27 @@ it's wrong, remove it.
 ## Docs must match the code
 
 When you rename a function, module, or tab, update the docs in the same
-commit. When you add a feature, document it before moving on. Outdated
-docs are noise.
+commit. Outdated docs are noise. Not every feature needs its own doc — a
+well-named function with a clear signature and a readable implementation
+is often its own best documentation. If the code is easy to read and the
+interface helps users get it right, a separate doc may be redundant.
+
+## Prefer automated tests and readable code over documentation
+
+Where possible, write an automated test that proves the behaviour instead
+of a doc that describes it. Prefer interfaces that make it easy to get right
+(intuitive names, strict types, sensible defaults) over documenting how to
+use them. The test is a living doc that fails when it lies; a written doc
+stays green when it goes stale.
+
+## No lectures on history
+
+Never explain why a decision was made by describing the alternative that
+failed and the person who made it. "It's a constraint inherited from X's
+code" is a lecture. The reason is what matters; the history is noise. If
+a reader needs to know why, state the constraint: "this message format is
+required by the upstream API" — not "Bob chose this format in 2022 because
+the old parser couldn't handle".
 
 ## API keys never go in docs
 
