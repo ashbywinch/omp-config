@@ -181,8 +181,10 @@ Rules:
 
 Every repo carries tests that guard the repo's own invariants — the docs
 stay coherent and the architecture layers (as currently imagined) don't
-erode. Both patterns ship in houses (`tests/unit/test_docs_links.py`,
-`tests/unit/dag/test_architecture.py`):
+erode. The docs-links pattern ships in houses (`tests/unit/test_docs_links.py`);
+the architecture-layer test uses archunitpython — pattern semantics are
+`skill://archunitpython-glob-rules` (the vacuous-pass trap made the ./-style
+layer test worthless, so follow the skill, not any repo's existing test):
 
 - **Broken doc links are a test failure.** A small runner scans `AGENTS.md`
   + `docs/**/*.md` for markdown links, resolves the relative ones, and fails
@@ -194,9 +196,9 @@ erode. Both patterns ship in houses (`tests/unit/test_docs_links.py`,
   layering (e.g. `dag/` may only depend on itself; the HTTP layer may not
   import the sheets module directly) and assert it in a test: Python repos
   use **archunitpython** (`project_layers().layer(...).defined_by(...)` +
-  `may_only_depend_on_layers()` / `may_not_depend_on_layers()`). Layer globs
-  need the `./` prefix — bare `dag/*.py` also matches `tests/unit/dag/*.py`
-  via fnmatch (`*` matches `/`) — see `skill://archunitpython-glob-rules`.
+  `may_only_depend_on_layers()` / `may_not_depend_on_layers()`). Layer
+  pattern semantics — including the vacuous-pass trap — are
+  `skill://archunitpython-glob-rules`; reference it, never copy it.
   Encode the layers *as they are designed now*; when a deliberate layering
   change lands, the test changes with it (git log records the old rule).
 
@@ -474,7 +476,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules — **bootloader not OS: only 100%-relevant content, and every doc reachable from it**
 - [ ] `docs/` triplet: coding-standards.md, testing-standards.md, writing-documentation.md (per skill://write-documentation) + `docs/ux-standards.md` (copied from omp-config, per skill://ux-process)
 - [ ] Required doc set present: `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` (or `docs/PLAN/`) with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies
-- [ ] Repo self-checks: a docs-links test (every relative markdown link resolves) and an architecture-layer test (current layers, archunitpython for Python) — houses' `test_docs_links.py` / `test_architecture.py` are the patterns
+- [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern) and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
