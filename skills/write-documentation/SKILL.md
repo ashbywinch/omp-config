@@ -18,7 +18,10 @@ standards first:
   structure: PRD / TECHSPEC / PLAN and their mandated content, and the
   discoverability rule (every doc reachable from AGENTS.md).
 
-This skill is the process around them.
+This skill is the process around them. Writing a skill is writing
+documentation: SKILL.md is subject to both standards like any doc — a skill
+covers one procedure, stays within the always-loaded size ceilings, and is
+discoverable through the harness's skill list.
 
 ## Before writing, answer these questions
 

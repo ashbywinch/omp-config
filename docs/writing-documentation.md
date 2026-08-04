@@ -8,6 +8,17 @@ standard, the scaffold copies this file into **every scaffolded repo** as
 folder structure; this file is the rules for the writing itself. The
 `skill://write-documentation` skill is the process that applies both.
 
+## Skills are documentation
+
+A skill (`skills/<name>/SKILL.md`) is documentation: it is a doc written
+for the agent that loads it, and it is subject to every rule in this
+standard — context efficiency, density, no-duplication, one topic per file
+(a skill covers one task or procedure; a second task means a second skill),
+the quality checklist, and the always-loaded size ceilings (a skill body is
+loaded in full when used, so the 150–200 line / 32 KiB targets apply to it
+directly). The review bot checks skill changes against this standard like
+any other doc.
+
 ## Context efficiency
 
 Every documentation file contains only information relevant to its topic
