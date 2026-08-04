@@ -240,6 +240,10 @@ single concrete implementation.
 
 ## Testing
 
+- **Type checking is a first-class gate.** The language's type checker is
+  configured (strict where the toolchain allows) and runs in the test gate —
+  errors fail the build, never suppressed (`# type: ignore` requires a
+  comment explaining why, and a suppression is itself a finding).
 - **Write the test before the code** (TDD — the rule is
   `rule://test-first`); LLM behaviour gets evals (real AND fictional
   fixtures, running the production path exactly once).

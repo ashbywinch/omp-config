@@ -45,6 +45,8 @@ Rules:
 - Tool paths as variables at top: `PYTHON := .venv/bin/python`, `RUFF := .venv/bin/ruff`.
 - Colored output via `GREEN/YELLOW/RED/NC` ANSI variables and `@echo`.
 - `clean` removes exactly: `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc`.
+- **Pin the language runtime.** CI (`setup-node`/`setup-python` action) and local dev (`.nvmrc`, `.python-version`) use the **same** version; local dev must match CI — pinning CI only is the smell (side-by-side/houses pin CI only, kilocode pins bun via `packageManager`).
+- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment).
 
 Python flavor (adapt `<pkg>` and `tests/` per project):
 
@@ -215,7 +217,7 @@ erode. Both patterns ship in houses (`tests/unit/test_docs_links.py`,
 - `.editorconfig`: `root = true`, `utf-8`, `insert_final_newline = true`, `eol = lf`, 2-space indent default, per-language overrides (kilocode). `max_line_length` must match the formatter (120 for ruff/prettier) — kilocode's editorconfig 80-vs-prettier-120 mismatch is a smell to avoid.
 - `.env.example` committed with every env var documented (values blank); `.env` itself is gitignored. The app reads values from the real environment (`os.environ`) — never from a file — so `.env` is not a runtime artifact and never needs distributing. Dev scenario: `make setup` guarantees `.env` exists (`[ -f .env ] || cp .env.example .env`), and env loading is scoped to run-type targets only — `uv run --env-file .env python -m <pkg>` — never on lint/test/coverage, so CI and fresh clones are unaffected. `--env-file` has the correct precedence (real env wins over file values); shell sourcing does NOT (`set -a; . ./.env` clobbers real vars with blank file values, which would blank a real secret). The guarantee lives in the Makefile, not the one-time scaffold — the repo gets cloned forever without re-running the skill. Real secrets live in the shell environment only — never in code, docs, logs, or the example file (chat-workflow AGENTS.md; houses coding-standards). No env vars at all? Ship a comment-only `.env.example` — the setup copy line stays harmless.
 - `.vscode/extensions.json` with recommended extensions — only if you want editor parity; it requires the `!.vscode/extensions.json` negation above (side-by-side ships one with `Vue.volar`; kilocode ships eslint/esbuild/direnv). Otherwise `.vscode/` is fully ignored.
-- Git hooks (stack-appropriate mechanism, see language layers) run ONLY fast checks — lint and typecheck — never the full test suite; tests stay gated in `make test` + CI. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky.
+- Git hooks (stack-appropriate mechanism, see language layers) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky.
 
 ### 5. Entry docs: README for humans, AGENTS.md for agents
 
@@ -331,6 +333,19 @@ Rules:
 
 ## Language layers
 
+Every language layer fills in the toolchain for the **generic rules** — it never
+creates a rule with no generic equivalent. The pattern each layer covers:
+runtime pin (CI + local same version), lint + formatter wired into make
+(§1, §1b), **type checker configured and gated** (§1), test runner + coverage
+wired into make test/coverage (§1), fast commit hooks with **lint + typecheck
++ secrets scan** (§4), semantic-type library choices (quantities, Money —
+the generic rules are in the global standard), repo self-checks (§3b:
+docs links + architecture layers), and materialization of the layer's
+conventions into the repo's `docs/coding-standards.md` copy. A new language
+layer is complete only when every generic rule has its toolchain filled in —
+and every toolchain-specific rule it introduces points back at a generic
+equivalent.
+
 ### Python (books_to_anki, chat-workflow, energy_envelope, houses)
 
 - Toolchain: **uv** (`uv sync`), `.python-version` pinned to the **current stable** at scaffold time — find it via `uv python list` (cross-check python.org); never guess from training data, never a beta. Pin the newest stable the project's critical deps support (books_to_anki pins `==3.9.*` for spacy — the cautionary tale). Metadata `requires-python` is `>=X.Y` unbounded; ruff `target-version` tracks the pin.
@@ -441,6 +456,8 @@ Run in order; the checklist below is the final gate, not documentation.
 ### General (every repo)
 - [ ] Makefile with `help setup lint test coverage format clean` (+ `run`/`stop` for services, `dist` for artifacts); `.PHONY` on all targets
 - [ ] `make test` depends on `make lint`; CI runs only make targets
+- [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
+- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
@@ -455,7 +472,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs in `repo_context_files`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
-- [ ] Git hooks run only fast checks (lint, typecheck), installed by `make setup`; never the full test suite
+- [ ] Git hooks run the fast checks — lint, typecheck, secrets scan (gitleaks) — installed by `make setup`; never the full test suite
 - [ ] End-to-end green: `make setup && make lint && make test` locally and CI green on push
 - [ ] Repo created via `gh repo create --source --push --private`; branch protection applied after first CI run (PR + status check required)
 
