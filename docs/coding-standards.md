@@ -270,9 +270,14 @@ single concrete implementation.
   — technology choices, spikes required to confirm, strategic decisions
   referencing requirements by name not number, architecture layers as a
   mermaid diagram, data flows and physical architecture), and a plan
-  (`docs/PLAN.md` — phases with inputs/outputs/operations/quality gates,
-  no later-phase dependencies, earliest user value). The review bot checks
-  PRs against them (`repo_context_files`).
+  (`docs/PLAN.md` — phases with the **software's** inputs and outputs — what
+  the app consumes and produces at that phase, never the phase's project
+  artifacts — plus operations and quality gates; no later-phase
+  dependencies; earliest user value). The review bot checks PRs against them
+  (`repo_context_files`). The required docs are themselves held to these
+  documentation rules and the repo's `docs/writing-documentation.md`
+  quality checklist — a PRD or TECHSPEC that fails context efficiency is a
+  finding.
 - **Delete, don't archive.** Obsolete content is a liability; remove it. No
   archive dirs, no deprecation notices.
 - **Single source of truth.** Each fact in exactly one place; other docs

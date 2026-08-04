@@ -156,8 +156,10 @@ When a doc describes how to do something, use the task-card shape: goal
 
 Every project's `docs/` folder carries three documents, and the review bot
 checks PRs against them (they are listed in `.pr_agent.toml`
-`repo_context_files`). They follow the density and context-efficiency rules
-below like any other doc.
+`repo_context_files`). Each of the three is **itself held to the quality
+rules of this skill** — the Documentation Checklist and the density rules
+below; a PRD, TECHSPEC, or PLAN that fails context efficiency is a finding,
+not a formatting preference. They follow those rules like any other doc.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` with subsections when big)
 
@@ -197,8 +199,13 @@ How it will all be done:
 The intended phases:
 
 - Each phase states its **inputs, outputs, operations, and the quality
-  gates of the app after that phase** — a phase is complete when the app
-  passes its gates, not when the code "looks done".
+  gates of the app after that phase**. The inputs and outputs are the
+  **software's** at that phase, not the project phase's: inputs are what the
+  app consumes (data, users, artifacts it reads), outputs are what the app
+  produces (capabilities, results, artifacts it writes) — never the phase's
+  project-management artifacts ("docs written", "code landed"). The quality
+  gate is the app behaving correctly at that point, not a project deliverable
+  being "done". A phase is complete when the app passes its gates.
 - **Phases never depend on outputs of later phases** — every phase ships
   in order.
 - **Phases are ordered for earliest user value** — each phase is the
