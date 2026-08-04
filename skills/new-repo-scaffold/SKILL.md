@@ -26,7 +26,7 @@ Scaffold in this order: Makefile → CI → coverage → git hygiene → entry d
 
 ### 1. Makefile is the single dev entry point
 
-Every dev action goes through `make`; CI runs make targets, never raw tool commands. energy_envelope states the contract explicitly: "CI runs exactly: `make setup && make lint && make test`".
+Every dev action goes through `make`; CI runs make targets, never raw tool commands (see §2 for the exact boundary: tool bootstrap and CI I/O plumbing are exempt, pipeline logic is not). energy_envelope states the contract explicitly: "CI runs exactly: `make setup && make lint && make test`".
 
 | Target | Meaning | Notes |
 |---|---|---|
@@ -180,7 +180,27 @@ jobs:
 Rules:
 - `permissions: contents: read` + `pull-requests: write` — the coverage comment step in the template needs the latter; drop both together if you drop the step.
 - `concurrency` group per ref with `cancel-in-progress: true` — every active repo does this.
-- CI steps are exactly the make targets; never inline `pip install`/`npm test` logic into the workflow.
+- **CI steps are the make targets — pipeline logic never lives in the workflow.**
+  Classify every step before writing it (this is the boundary, not "no shell"):
+  - *Pipeline logic* (make-only, no exceptions): anything that determines what
+    ships or what the run decides — build, test, lint, deploy, state sync,
+    generation. If the shell line can change the artifact or the outcome, it
+    is a make target, full stop.
+  - *Tool bootstrap* (exempt): installing the binaries make targets invoke
+    (uv, rclone, node, …) — the same category as `actions/checkout`, not
+    pipeline logic. Pin the version, keep it to one step, comment why. Never
+    smuggle logic into the install line.
+  - *CI plumbing* (exempt): GITHUB_OUTPUT capture, `secrets.*`/`vars.*` env
+    wiring, `if:` conditionals. Prefer make targets that print plain data and
+    a one-line labeled capture (`make rotation | sed 's/^/topics=/' >> "$GITHUB_OUTPUT"`);
+    never put decision logic in the pipe.
+  Decision test: "Does this step change what gets deployed or what the run
+  decides?" → make target. "Does it only fetch a tool or move bytes between
+  steps?" → exempt, but minimal, pinned, and commented.
+  (Observed drift this rule prevents: a deploy step inlined as raw shell in
+  the workflow instead of `make deploy`, and — the other direction — a make
+  target contorted into printing CI output format. Both confuse the next
+  agent; the make target prints plain data and the workflow does the capture.)
 - Lint in CI via `make lint-github` (`ruff check --output-format=github`) so findings surface as PR annotations; plain `make lint` stays for local use. The template reflects this.
 - **Pin every third-party action to an immutable ref — a commit SHA, or a version tag verified current at scaffold time. Never a mutable ref** (`@latest`, major-only `@v2`), which can be re-pointed (supply chain). Resolve coverage-action SHAs at scaffold time and note the tag they came from in a comment; the pr-agent pin follows the same rule (a recent SHA or a current release tag, see §2b).
 - API-key-dependent suites: pass `${{ secrets.* }}` as env, run under a timeout wrapper, upload outputs with `if: always()` so failures are diagnosable (chat-workflow evals).
