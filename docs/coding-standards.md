@@ -9,8 +9,12 @@ in that copy, the scaffold copies the full standard in — never a condensed
 version. When this file changes, refresh the copies in the repos.
 
 Language-agnostic by design; per-language toolchain conventions (ruff/eslint
-configs, formatters, type checkers) live in the scaffold skill's language
-layers, not here.
+configs, formatters, type checkers, semantic-type libraries) live in the
+scaffold skill's language layers, not here. When the scaffold copies this
+file into a repo it **materializes the relevant language layer's conventions
+into the copy as a "Python conventions" / "JS/TS conventions" section** — the
+reviewer reads only `repo_context_files`, so a rule that lives only in the
+skill would be invisible to review.
 
 ## Design principles
 
