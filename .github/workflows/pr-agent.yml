@@ -20,26 +20,5 @@ jobs:
       - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          # The bot posts a persistent comment; without one for THIS commit the
-          # review may have failed silently — fail the PR instead of merging unreviewed.
-          python3 - <<'EOF'
-          import json, os, urllib.request
-          sha = os.environ["SHA"]
-          req = urllib.request.Request(
-              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{os.environ['PR_NUMBER']}/comments",
-              headers={"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}", "Accept": "application/vnd.github+json"},
-          )
-          comments = json.load(urllib.request.urlopen(req))
-          covered = any(
-              c.get("body", "").startswith("## PR Reviewer Guide")
-              and sha in c.get("body", "")
-              for c in comments
-          )
-          if not covered:
-              print(f"::error::AI review did not post for commit {sha} — the review may have failed silently.")
-              raise SystemExit(1)
-          EOF
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 tools/check_review_posted.py
