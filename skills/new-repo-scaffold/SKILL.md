@@ -252,7 +252,7 @@ repo_context_files = [
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
-num_max_findings = 5
+num_max_findings = 50
 extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'."
 
 [github_action_config]
