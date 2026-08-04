@@ -185,7 +185,6 @@ not a formatting preference. They follow those rules like any other doc.
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` with subsections when big)
 
 The product requirements document. Sections, in order:
-
 - **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
   the opening section. May include emotional JTBD ("feel the family is
   remembered"), not only functional ones.
@@ -200,7 +199,7 @@ The product requirements document. Sections, in order:
 - Big PRDs split into subsections (`docs/PRD/`) instead of one wall; each
   subsection keeps the density rules.
 
-### Technical spec — `docs/TECHSPEC.md`
+### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` with subsections when big)
 
 How it will all be done:
 
@@ -215,7 +214,7 @@ How it will all be done:
   important about the architecture: data flows, physical architecture.
   Multiple diagrams are fine, one per concern.
 
-### Plan — `docs/PLAN.md`
+### Plan — `docs/PLAN.md` (or `docs/PLAN/` with subsections when big)
 
 The intended phases:
 
