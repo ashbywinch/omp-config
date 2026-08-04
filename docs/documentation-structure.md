@@ -1,0 +1,84 @@
+# Documentation Folder Structure — the required doc set
+
+The canonical house standard for what every project's `docs/` folder must
+contain and how it is organised. The scaffold copies this file into
+**every scaffolded repo** as `docs/documentation-structure.md`; the review
+bot checks PRs against it (`repo_context_files`). It is separate from
+`docs/writing-documentation.md` (what good documentation is) — this file
+is the structure: which docs exist, where, and what each must contain.
+The `skill://write-documentation` skill is the process that applies both.
+
+## The required doc set
+
+Every project's `docs/` folder carries three documents, and the review bot
+checks PRs against them. Each is **itself held to the documentation-quality
+checklist** (`docs/writing-documentation.md`) — a PRD, TECHSPEC, or PLAN
+that fails context efficiency is a finding, not a formatting preference.
+Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`,
+`docs/PLAN/`) with subsections when big; the index doc keeps the canonical
+path.
+
+### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
+
+The product requirements document. Sections, in order:
+
+- **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
+  the opening section. May include emotional JTBD ("feel the family is
+  remembered"), not only functional ones.
+- **Personas** — a small group, specific enough to drive decisions. A
+  persona is decision-useful when two plausible product choices differ
+  under it; a persona that cannot change a decision is filler.
+- **Constraints that shape everything**: cost to run, longevity of the
+  system, backups, monitoring and tracing once in production, access and
+  auth, likely scale at different phases (data size, number of users, …),
+  and hosting limitations — internal or external — stated explicitly when
+  either is off the table.
+- Big PRDs split into subsections (`docs/PRD/`) instead of one wall; each
+  subsection keeps the density rules.
+
+### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big)
+
+How it will all be done:
+
+- **Technology choices**, with the alternatives considered and why they
+  lost.
+- **Spikes required to confirm** — named, with what each must prove before
+  the choice is locked.
+- **Strategic technical decisions** that follow from requirements —
+  reference the requirement by name and content, not only by number
+  (numbers change).
+- **Architecture layers as a mermaid diagram** — plus anything else
+  important about the architecture: data flows, physical architecture.
+  Multiple diagrams are fine, one per concern.
+
+### Plan — `docs/PLAN.md` (or `docs/PLAN/` when big)
+
+The intended phases:
+
+- Each phase states its **inputs, outputs, operations, and the quality
+  gates of the app after that phase**. The inputs and outputs are the
+  **software's** at that phase, not the project phase's: inputs are what
+  the app consumes (data, users, artifacts it reads), outputs are what the
+  app produces (capabilities, results, artifacts it writes) — never the
+  phase's project-management artifacts ("docs written", "code landed").
+  The quality gate is the app behaving correctly at that point, not a
+  project deliverable being "done". A phase is complete when the app
+  passes its gates.
+- **Phases never depend on outputs of later phases** — every phase ships
+  in order.
+- **Phases are ordered for earliest user value** — each phase is the
+  minimum possible addition that drives real value.
+
+## Discoverability
+
+**Every doc must be discoverable from AGENTS.md** — directly or by
+following links (one level deep is the norm). A doc that AGENTS.md cannot
+lead to is undiscoverable, and undiscoverable documentation is a finding:
+it does not exist for the reader who starts where all readers start.
+
+## The standards the folder carries
+
+The repo's `docs/` also carries the copied standards the review bot
+enforces — `coding-standards.md`, `testing-standards.md`,
+`writing-documentation.md`, `ux-standards.md` — per the repo-scaffold
+skill. This file is about the project docs they mandate.

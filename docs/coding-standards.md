@@ -279,22 +279,14 @@ single concrete implementation.
 ## Documentation
 
 - **The required doc set.** Every project's `docs/` carries a requirements
-  doc (`docs/PRD.md`, or `docs/PRD/` with subsections when big — JTBD first,
-  a small decision-useful persona set, and the constraints: cost to run,
-  longevity, backups, monitoring/tracing in production, access/auth, scale
-  at different phases, hosting limits), a technical spec (`docs/TECHSPEC.md`,
-  or `docs/TECHSPEC/` with subsections when big — technology choices, spikes
-  required to confirm, strategic decisions referencing requirements by name
-  not number, architecture layers as a mermaid diagram, data flows and
-  physical architecture), and a plan (`docs/PLAN.md`, or `docs/PLAN/` with
-  subsections when big — phases with the **software's** inputs and outputs —
-  what the app consumes and produces at that phase, never the phase's
-  project artifacts — plus operations and quality gates; no later-phase
-  dependencies; earliest user value). The review bot checks PRs against them
-  (`repo_context_files`). The required docs are themselves held to these
-  documentation rules and the repo's `docs/writing-documentation.md`
-  quality checklist — a PRD or TECHSPEC that fails context efficiency is a
-  finding.
+  doc, a technical spec, and a plan — `docs/PRD.md`, `docs/TECHSPEC.md`,
+  `docs/PLAN.md`, each possibly a subfolder when big — with the mandated
+  content, the discoverability rule, and the phase quality gates per
+  `docs/documentation-structure.md` (the canonical folder-structure
+  standard). The review bot checks PRs against them (`repo_context_files`),
+  and the required docs are themselves held to these documentation rules
+  and the repo's `docs/writing-documentation.md` quality checklist — a
+  PRD or TECHSPEC that fails context efficiency is a finding.
 - **Delete, don't archive.** Obsolete content is a liability; remove it. No
   archive dirs, no deprecation notices.
 - **Single source of truth.** Each fact in exactly one place; other docs
