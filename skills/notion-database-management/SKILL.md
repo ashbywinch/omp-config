@@ -115,6 +115,18 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 "Parent Epic": {"relation": []}
 ```
 
+## Known workspace quirks
+
+- **The Epics DB's `Parent Epic` relation mirrors both ways (2026-08-04).**
+  The property is a self-referencing relation configured with *itself* as both
+  ends: setting a child epic's `Parent Epic` also sets the parent epic's
+  `Parent Epic`, and clearing either side clears both. One-way hierarchy
+  through the API is impossible. The workspace's working convention is to
+  leave `Parent Epic` **empty on every epic** (top-level and child) and encode
+  the tree in the dotted names (`Epic 6` → `Epic 6.1`) — the existing 2.1/3.1/
+  4.1/5.1 epics all follow this. The relation that actually links work is
+  Tasks → `Related to Epics (Related Tasks)`.
+
 ## Error Recovery
 
 | Problem | Fix |

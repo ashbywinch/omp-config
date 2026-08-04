@@ -13,6 +13,8 @@ Take a moment to reflect on what happened in this session.
 
 **Translate lessons into generic principles.** Strip out codebase-specific details (file names, module names, project jargon). A lesson about "rename `_KNOWN_COUNTIES` → `KNOWN_COUNTIES`" should become "renaming a private constant is cosmetic, prefer structural extractions." A lesson about "enricher.py is 1650 lines" should become "long files are a signal to extract modules."
 
-Discuss your thoughts with the user and see if they agree. When you've reached consensus:
-
-Create or update the relevant rule, SKILL.md, or APPEND_SYSTEM.md to codify the improvement.
+Discuss your thoughts with the user and see if they agree. When you've reached
+consensus, codify the improvement via `skill://update-skills` — that skill
+knows where rules, skills and APPEND_SYSTEM.md live, how to edit them
+correctly, and how to install the changes (`make install` in the omp-config
+repo + omp restart).
