@@ -17,8 +17,14 @@ jobs:
           OPENAI_KEY: ${{ secrets.OPENCODE_GO_OMP_CONFIG_API_KEY }}
           OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # SECURITY: pin the config to a maintainer-controlled branch. Using
+          # ${{ github.head_ref }} lets any same-repo branch ship its own
+          # .pr_agent.toml (e.g. api_base pointing at an attacker endpoint)
+          # and exfiltrate OPENCODE_GO_OMP_CONFIG_API_KEY.
+          PR_AGENT_CONFIG_BRANCH: pr-agent-config
       - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 tools/check_review_posted.py
