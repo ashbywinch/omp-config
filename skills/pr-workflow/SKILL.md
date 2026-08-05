@@ -90,22 +90,20 @@ gh run view <run-id> --log 2>&1 | head -30
 
 ### 5b. Never Push While a Review Is in Flight
 
-A push re-triggers the AI review (`synchronize` event). Pushing while a run is
-still going discards that run's output — it already burned a full generation
-(minutes + tokens) — and splits the review of your fixes from the review of
-the findings it would have posted.
+A push re-triggers the AI review (`synchronize`). Pushing mid-run discards the
+in-flight run's review — a full generation already burned — and splits the
+review of its findings from the review of your fixes.
 
-The token-efficient loop:
+The loop, one push per pass:
 
 1. Push once, then **wait for the run to finish** (poll step-level status).
-2. Read the review it posts — the run you pushed before finishing will
-   probably have comments.
-3. Fix those findings **together with your local changes**, run the
-   self-check (lint + tests), commit once.
+2. Read the review it posts — it will probably have comments.
+3. Fix those findings **together with your local changes**, run lint + tests,
+   commit once.
 4. Push once — the next review covers the whole change in one pass.
 
-Never push while a pr-review check is in flight. Every push costs a full
-review generation; batch fixes so each review pass covers everything.
+Never push while a pr-review check is in flight: every push costs a full
+review generation, so batch fixes.
 
 ### 6. When Checks Fail
 
@@ -242,7 +240,7 @@ Checks take 3-5+ minutes. The GitHub API `updatedAt` can lag. Never cancel witho
 Each CI cycle is 3-5 minutes. A lint error wastes that entire cycle. Always run `ruff check .` and `pytest -x` locally.
 
 ### Pushing while a review is in flight
-Each push costs a full review generation. Pushing mid-run discards the in-flight run's review and reviews your fixes separately from its findings. Wait for the run to finish, read its comments, fix everything together, push once.
+Never push mid-run — the wait-read-fix-push loop is in §5b.
 
 ### Assuming all suggestions are from the current run
 PR Code Suggestions accumulate across multiple runs and may contain stale suggestions. Always check the PR Reviewer Guide for the current assessment — it's updated on each push.
