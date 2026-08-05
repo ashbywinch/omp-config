@@ -24,4 +24,3 @@ extra_instructions = "Check the PR against each file in repo_context_files. Add 
 [github_action_config]
 handle_push_trigger = true
 push_commands = ["/review", "/improve"]
-push_trigger_ignore_merge_commits = false   # TEMPORARY — lets the bot review PR6's merge-commit head; revert before merge
