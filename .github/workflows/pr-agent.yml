@@ -27,9 +27,4 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Shared tool, fetched from the pinned build-tools tag (never main —
-          # a later change must not silently alter what CI runs).
-          curl -fsSL -o check_review_posted.py \
-            https://raw.githubusercontent.com/ashbywinch/build-tools/v1/check_review_posted.py
-          python3 check_review_posted.py
+        run: python3 tools/check_review_posted.py
