@@ -3,18 +3,18 @@
 Four checks, wired into `make test`:
 
 1. **Every relative markdown link resolves** — in README, AGENTS, APPEND_SYSTEM,
-   docs/, skills/*/SKILL.md, rules/, profiles/. Skips http(s), #anchors,
-   harness URIs (skill://, rule://), template variables, and links inside
-   fenced code blocks (the scaffold's .pr_agent.toml template cites repo
-   paths in a ```toml fence). A doc that links nowhere is a finding.
+   docs/, standards/, skills/*/SKILL.md, rules/, profiles/. Skips http(s),
+   #anchors, harness URIs (skill://, rule://), template variables, and links
+   inside fenced code blocks (the scaffold's .pr_agent.toml template cites
+   repo paths in a ```toml fence). A doc that links nowhere is a finding.
 2. **Every skill folder has a well-formed SKILL.md** — name frontmatter
    matches the folder, and a description exists (the harness loads skills by
    that name; a mismatch silently breaks skill:// resolution).
 3. **Every doc is discoverable from AGENTS.md** (docs/documentation-structure.md
-   rule) — each file in docs/ and rules/ is reachable from AGENTS.md
-   directly or one link deep (markdown links and backtick-quoted .md paths).
-   An undiscoverable doc is a finding: it does not exist for the reader who
-   starts where all readers start.
+   rule) — each file in docs/, standards/ and rules/ is reachable from
+   AGENTS.md directly or one link deep (markdown links and backtick-quoted
+   .md paths). An undiscoverable doc is a finding: it does not exist for the
+   reader who starts where all readers start.
 4. **Always-loaded size ceilings** (docs/writing-documentation.md) — AGENTS.md
    and skill bodies: hard fail above 32 KiB (the stated ceiling), warn above
    200 lines (the target). Skills are documentation; the ceilings apply to
@@ -37,7 +37,8 @@ SOFT_LINES = 200
 
 
 def _doc_files() -> list[Path]:
-    files = [p for p in (REPO / "docs").rglob("*.md")] + [p for p in (REPO / "rules").glob("*.md")]
+    files = [p for p in (REPO / "docs").rglob("*.md")]
+    files += [p for p in (REPO / "standards").glob("*.md")] + [p for p in (REPO / "rules").glob("*.md")]
     files += [p for p in (REPO / "skills").rglob("SKILL.md")] + [p for p in (REPO / "profiles").glob("*.md")]
     for name in ("README.md", "AGENTS.md", "APPEND_SYSTEM.md"):
         if (REPO / name).exists():
@@ -159,7 +160,10 @@ def _check_discoverability() -> list[str]:
             text = doc.read_text(encoding="utf-8")
             next_frontier.extend(t for t in _link_targets(doc, text) if t not in reachable)
         frontier = next_frontier
-    required = sorted(p for p in _doc_files() if p.is_relative_to(REPO / "docs") or p.is_relative_to(REPO / "rules"))
+    required = sorted(
+        p for p in _doc_files()
+        if p.is_relative_to(REPO / "docs") or p.is_relative_to(REPO / "standards") or p.is_relative_to(REPO / "rules")
+    )
     return [
         f"{p.relative_to(REPO)}: not reachable from AGENTS.md (directly or one link deep)"
         for p in required

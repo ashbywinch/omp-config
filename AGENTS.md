@@ -19,19 +19,20 @@ links to.
 | What this repo is for — JTBD, personas, constraints | `docs/PRD.md` |
 | Load/understand a skill | `skill://<name>` → `skills/<name>/SKILL.md` |
 | Update a skill, or turn a lesson into one | `skill://update-skills` (edit here → `make install` → restart omp → branch + PR) |
-| Global coding standard (the reviewer-enforced rule set) | `docs/coding-standards.md` |
-| Global UX standard | `docs/ux-standards.md` |
+| Canonical coding standard (scaffolded into code repos) | `standards/coding-standards.md` |
+| Canonical testing standard (scaffolded into code repos) | `standards/testing-standards.md` |
+| Canonical UX standard (scaffolded into code repos) | `standards/ux-standards.md` |
 | Documentation standard (what good documentation is) | `docs/writing-documentation.md` |
 | Doc folder structure (the required doc set) | `docs/documentation-structure.md` |
-| Testing standard | `docs/testing-standards.md` |
 | How the standards deploy to new repos | `docs/standards-deployment.md` |
 | Trigger rules | `rules/*.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
 | The repo scaffold (how new repos are built) | `skills/new-repo-scaffold/SKILL.md` |
 
-Read the relevant doc before changing behavior. The standards here are the
-source — a repo's `docs/coding-standards.md` is a copy that must be refreshed
-when this one changes (the scaffold skill says so).
+Read the relevant doc before changing behavior. The canonical standards are
+the source — a repo's `docs/coding-standards.md` is a copy of
+`standards/coding-standards.md` that must be refreshed when the canonical
+changes (the scaffold skill says so).
 
 ## Testing rules
 

@@ -2,10 +2,11 @@
 
 The canonical configuration for the OpenCode/omp agent harness: **skills**
 (the specialised-knowledge files loaded via `skill://<name>`), **rules** (the
-trigger rules), the **global standards** (`docs/`), and the system prompt
-append (`APPEND_SYSTEM.md`). It is the source repo for the house's
-conventions — `make install` symlinks everything into `~/.omp/agent/` (and
-rules into `~/.agent/rules/`), and the repo-scaffold skill copies the
+trigger rules), the **standards** (`standards/` — the canonical code-repo
+standards — and `docs/` — the standards that govern omp-config itself), and
+the system prompt append (`APPEND_SYSTEM.md`). It is the source repo for the
+house's conventions — `make install` symlinks everything into `~/.omp/agent/`
+(and rules into `~/.agent/rules/`), and the repo-scaffold skill copies the
 standards into every new project repo.
 
 ## Quick start
@@ -23,11 +24,12 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 | `skills/<name>/SKILL.md` | Skills — loaded on demand via `skill://<name>`; one folder per skill |
 | `rules/*.md` | Trigger rules (greeting, session-start, fail-fast, …) |
 | `docs/PRD.md` | Requirements — JTBD, personas, constraints, the overarching goal |
-| `docs/coding-standards.md` | The canonical global coding standard (copied into every repo) |
-| `docs/ux-standards.md` | The canonical UX standard (copied into every repo) |
 | `docs/writing-documentation.md` | The documentation standard — what good documentation is (from `skill://write-documentation`) |
 | `docs/documentation-structure.md` | The doc folder-structure standard — the required doc set (PRD/TECHSPEC/PLAN) |
-| `docs/testing-standards.md` | The repo's testing standard (the self-check) |
+| `docs/standards-deployment.md` | How the standards reach new repos |
+| `standards/coding-standards.md` | The canonical coding standard — scaffolded into code repos, not applicable to omp-config itself |
+| `standards/testing-standards.md` | The canonical testing standard — scaffolded into code repos, not applicable to omp-config itself |
+| `standards/ux-standards.md` | The canonical UX standard — scaffolded into code repos, not applicable to omp-config itself |
 | `profiles/` | User profile |
 | `APPEND_SYSTEM.md` | The system-prompt append |
 | `tools/check_docs_links.py` | The repo self-check (`make test`) |

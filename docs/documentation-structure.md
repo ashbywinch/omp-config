@@ -82,7 +82,11 @@ it does not exist for the reader who starts where all readers start.
 
 ## The standards the folder carries
 
-The repo's `docs/` also carries the copied standards the review bot
-enforces — `coding-standards.md`, `testing-standards.md`,
-`writing-documentation.md`, `ux-standards.md` — per the repo-scaffold
-skill. This file is about the project docs they mandate.
+A project repo's `docs/` also carries the standards the review bot enforces —
+`coding-standards.md`, `testing-standards.md`, `writing-documentation.md`,
+`ux-standards.md` (and this file) — copied from omp-config's `standards/`
+(coding, testing, UX) and `docs/` (writing-documentation,
+documentation-structure) per the repo-scaffold skill. In omp-config itself,
+`docs/` carries only what governs it — this file, `writing-documentation.md`,
+`PRD.md`, `standards-deployment.md`. This file is about the project docs they
+mandate.
