@@ -1,10 +1,9 @@
 ---
 name: user-interviews
 description: |
-  Run user interviews and observation sessions for a product — prepare,
-  conduct, and record primary research, and fold the findings into the PRD
-  with the user's agreement. References docs/ux-standards.md; does not
-  restate it.
+  Run user interviews — prepare, conduct, and record primary research, and
+  fold the findings into the PRD with the user's agreement. References
+  docs/ux-standards.md; does not restate it.
 ---
 
 # User Interviews
@@ -16,23 +15,26 @@ you get there).
 
 ## Prepare — research first, then ask
 
-- **Observe before interviewing.** Discovery instruments (inventory, effort
-  math, walkthroughs) answer what people *do*; an interview answers *why*.
-  Do the observation first — "watch, don't ask" — so the interview asks
-  about observed behaviour, not abstractions.
 - **Know what you don't know.** Read the existing artifacts (the collection,
   the logs, prior research) before the session; a question answerable from
   artifacts is not an interview question.
-- **Know the narrator's world.** One narrator, one session, conversational —
-  ten questions at most, one at a time.
+- **Know the narrator's world.** One narrator, one session, conversational.
 
 ## Conduct
 
 - **One question at a time**, conversational, in the narrator's language.
+- **As many questions as are necessary, and no more.** Ask until the JTBD
+  and personas are grounded; stop when the answers stop changing the
+  picture. Don't pad an interview to a fixed length, and don't cut it short
+  while a JTBD is still vague.
 - **Open-ended → closure → targeted.** Start open ("tell me about…"), let
   the account run, then close gaps with bounded, specific follow-ups.
-- **Why, always.** Every concrete answer gets its "why" — the reason is the
-  requirement; the anecdote is the colour.
+- **Why, always — and know what good looks like.** Every concrete answer
+  gets its "why": ask the narrator what outcomes they are hoping for from a
+  specific JTBD, and what would characterise a really excellent outcome.
+  Their answer is the "why" — the requirement is the outcome they want, not
+  just the task they do. Push until you can picture the difference between a
+  mediocre and an excellent result in their terms.
 - **Questions are skippable and never interrogations.** A question the
   narrator doesn't want to answer is dropped, not pushed.
 - **Preserve the voice.** Verbatim quotes matter — they are the raw material
