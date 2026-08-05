@@ -15,6 +15,19 @@ Creates a Draft Epic from a Top Level Epic.
 - Top Level Epic exists in the Epics database
 - User approval before any Notion write
 
+## First: Epic or Value Stream?
+
+Before creating anything, decide which it is (see `skill://epic-quality-standard`):
+
+- **Has a done point** (finishable work) → Epic, in the **Epics** database
+- **No done point** (ongoing area of activity) → **Value Stream**, in the **Value Streams** database (`20d3122e-1a13-81be-8412-e536c02f77d4`) — NOT the Epics database. A value stream cannot contain scoped work itself; it hosts finishable work as **child epics** (linked via the epic's Parent Value Stream).
+
+When converting an existing epic into a value stream (it was misclassified, or its nature is ongoing):
+1. Create the Value Stream page (same name, Value Stream ID next free)
+2. Re-point the old epic's children: each child epic gets **Parent Value Stream** = the new VS (and its Parent Epic cleared, unless it also has an epic parent)
+3. Move the old epic's Insights to the VS's **Key Insights 2** relation
+4. Mark the old epic **Superseded** (never delete — traceability)
+
 ## Process
 
 ### 1. Validate Input
@@ -34,11 +47,21 @@ Creates a Draft Epic from a Top Level Epic.
 ### 4. Create in Notion (Only After User Approval)
 Create a page in the Epics database with Status: Draft (see `skill://notion-database-management` for page creation syntax).
 
-Set the **Parent Epic** relation to link to the source Top Level Epic.
+Set **exactly one** parent field on the child page:
+
+- Parent is a value stream → `Parent Value Stream`
+- Parent is an epic → `Parent Epic`
 
 ```json
-"Parent Epic": {"relation": [{"id": "<TOP_LEVEL_EPIC_ID>"}]}
+"Parent Epic": {"relation": [{"id": "<PARENT_EPIC_ID>"}]}
 ```
+```json
+"Parent Value Stream": {"relation": [{"id": "<VALUE_STREAM_ID>"}]}
+```
+
+**Never set both.** The parent is always written on the CHILD page (the child points up).
+
+> Note: the backend mirrors child entries into the parent page's Parent Epic field. If a parent page's Parent Epic field shows pages that point back at it, those are its children, not its parent — ignore them when reading the hierarchy.
 
 ### 5. Validate
 - [ ] Traceable from Top Level Epic to Draft Epic
@@ -46,13 +69,17 @@ Set the **Parent Epic** relation to link to the source Top Level Epic.
 - [ ] Scope sized for strategic planning
 - [ ] Dependencies are blocking, not hierarchical
 - [ ] User approved before Notion write
+- [ ] Exactly one of Parent Epic / Parent Value Stream set (never both)
 
 ## Hierarchy Rules
 
 | Field | Use Case |
 |---|---|
-| **Parent Epic** | Hierarchical breakdown |
+| **Parent Epic** | Hierarchical breakdown under another epic |
+| **Parent Value Stream** | This epic is hosted under a value stream |
 | **Dependencies** | Blocking relationships |
-| **Both** | An epic can have both |
+| **Both** | An epic can have a parent AND dependencies, but NEVER both parent fields |
 
-Each child epic maps to exactly one component.
+## Relation Write Rule (CRITICAL)
+
+**A relation PATCH replaces the whole array — it does not append.** To add a relation to a page that already has entries: read first, build the full array (existing + new), PATCH the complete array. PATCHing only the new ID silently drops existing links (e.g. linking a second insight to an epic drops the first).

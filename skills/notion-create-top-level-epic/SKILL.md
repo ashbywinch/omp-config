@@ -14,6 +14,16 @@ High-level strategic work packages from business goals.
 - `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Business goal or strategic objective
 - Epics database ID: `20d3122e-1a13-81a1-8388-de5cebd1acb2`
+- Value Streams database ID: `20d3122e-1a13-81be-8412-e536c02f77d4`
+
+## Epic or Value Stream?
+
+**Check for a done point first** (see `skill://epic-quality-standard`):
+
+- Finishable work → Epic (Epics database)
+- **No done point** — an ongoing area of activity (e.g. Lifelong Learning, Marketing, Personal News & Trends, Standards, Accessibility) → **Value Stream** in the Value Streams database, not an epic. It can host finishable work as **child epics** (linked from the child epic via Parent Value Stream).
+
+A "top level" ongoing goal is a value stream (optionally under a parent value stream), not a top-level epic.
 
 ## Process
 
@@ -40,22 +50,34 @@ Include these properties:
 "Parent Epic": {"relation": []}
 ```
 
-### 4. Set Parent Epic (if hierarchical breakdown)
-Use the Parent Epic relation field. See `skill://notion-database-management` for relation syntax.
+### 4. Set Parent (if hierarchical breakdown)
+Set **exactly one** of these on the child page — never both:
+
+- Parent is an epic → `Parent Epic` relation
+- Parent is a value stream → `Parent Value Stream` relation
+
+See `skill://notion-database-management` for relation syntax.
 
 ### 5. Validate
 - [ ] Connects to documented business goals
 - [ ] Scope sized for quarterly/annual planning
 - [ ] Created as database entry (not sub-page)
 - [ ] Parent-child relationships correctly set
+- [ ] Exactly one of Parent Epic / Parent Value Stream set (never both)
+- [ ] If no done point → this should be a Value Stream, not an epic
 
 ## Hierarchy Rules
 
 | Field | Purpose |
 |---|---|
-| **Parent Epic** | Hierarchical breakdown (Y is part of X) |
+| **Parent Epic** | Hierarchical breakdown (Y is part of X, X is an epic) |
+| **Parent Value Stream** | Epic hosted under a value stream |
 | **Dependencies** | Blocking relationships (X must finish before Y) |
 
 - Child epics are database entries, not sub-pages
 - Unique IDs per child (e.g., Epic 1.1, 1.2)
-- An epic can have both a parent and dependencies
+- An epic can have both a parent and dependencies, but never both parent fields
+
+## Relation Write Rule (CRITICAL)
+
+**A relation PATCH replaces the whole array — it does not append.** Read first, build the full array (existing + new), PATCH the complete array. PATCHing only the new ID silently drops existing links.
