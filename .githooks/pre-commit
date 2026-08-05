@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fast pre-commit check for omp-config: the repo's self-check must pass.
+# Tests stay in `make test` + CI — the hook is the fast gate, never the gate.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+python3 tools/check_docs_links.py
