@@ -1,32 +1,55 @@
-# Testing Standards — omp-config
+# Testing Standards
 
-omp-config has no code, so the house testing standard reduces to the repo
-self-check — but the rules that apply apply fully.
+Standards for testing: what to test, how to write tests, and how the test
+suite is organised.
 
-## The repo self-check (`make test`)
+## Type checking is a first-class gate
 
-`tools/check_docs_links.py` is the test suite, run via `make test` (never
-ad-hoc). Two checks:
+The language's type checker is configured (strict where the toolchain allows)
+and runs in the test gate — errors fail the build, never suppressed.
+A `# type: ignore` requires a comment explaining why, and a suppression is
+itself a finding.
 
-1. **Every relative markdown link resolves** — across README, AGENTS,
-   APPEND_SYSTEM, `docs/`, `skills/*/SKILL.md`, `rules/`, `profiles/`.
-   Harness URIs (`skill://`, `rule://`), anchors, external URLs, template
-   variables, and links inside code fences are skipped; everything else must
-   point at an existing file inside the repo. A doc that links nowhere is a
-   finding.
-2. **Every skill is well-formed** — `skills/<name>/SKILL.md` exists with
-   frontmatter `name` matching the folder and a `description`. A mismatch
-   silently breaks `skill://` resolution.
+## Write the test before the code
 
-## Rules
+Follow test-driven development: a failing test first, then the code that
+makes it pass (`rule://test-first`). For LLM behaviour, write evals instead
+(real AND fictional fixtures, running the production path exactly once).
 
-- **Deterministic.** No wall-clock, network, or order dependence — the
-  check is pure file scanning.
-- **Gated through make.** `make test` is the gate; CI runs `make test`;
-  the pre-commit hook runs the same check (fast). Never construct ad-hoc
-  test commands.
-- **A test that cannot fail on a plausible bug is not a test.** The link
-  check fails when a link breaks; the skills check fails when frontmatter
-  drifts — both fail on real, observable breakage.
-- **The self-check applies to itself.** A change to the checker must keep
-  `make test` green (no tautological relaxations).
+## Test properties
+
+- Tests mirror module paths.
+- Deterministic: no wall-clock, network, or order dependence; seeded randoms.
+- Assert behaviour, not implementation.
+- Sort file listings before processing — `glob` order is filesystem-dependent.
+- A test that cannot fail on a plausible bug is not a test (no tautological
+  fixtures — validate real artifacts).
+
+## Organisation
+
+- **Unit tests:** one function/module in isolation, no API calls.
+- **Integration tests:** full pipeline with fakes.
+- **E2E tests:** real external APIs, one consolidated suite per API, skipped
+  by default (`@pytest.mark.e2e`).
+- Shared test infrastructure (fixtures, fakes) is extracted once, not
+  copy-pasted per file.
+
+## Mocking and dependency injection
+
+Inject the dependency (service, output path, fake) — never
+`monkeypatch`/`patch` global state. If something isn't reachable through DI,
+refactor the code to accept a dependency. Fakes subclass the real protocol so
+the type checker still holds at edit time.
+
+Injection patterns, in order:
+- **Parameter injection** for leaf-level dependencies (underscore-prefixed
+  optional param falling back to the real implementation).
+- **Services container** for deep call chains.
+- **ContextVars** for request-scoped singletons.
+
+Forbidden: `monkeypatch`/`unittest.mock.patch`, module-level mutable state,
+lazy imports, and abstract base classes with a single concrete
+implementation.
+
+Pure functions need no mocking. Function-param injection is next. Containers
+after that. Global patching is a last resort and a smell.

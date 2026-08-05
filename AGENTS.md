@@ -24,6 +24,7 @@ links to.
 | Documentation standard (what good documentation is) | `docs/writing-documentation.md` |
 | Doc folder structure (the required doc set) | `docs/documentation-structure.md` |
 | Testing standard | `docs/testing-standards.md` |
+| How the standards deploy to new repos | `docs/standards-deployment.md` |
 | Trigger rules | `rules/*.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
 | The repo scaffold (how new repos are built) | `skills/new-repo-scaffold/SKILL.md` |
