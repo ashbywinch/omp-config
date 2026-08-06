@@ -58,13 +58,15 @@ gh pr create \
 rm pr_description.md
 ```
 
-**Updating the description later — never `gh pr edit`** (it fails on the
-Projects-classic deprecation GraphQL error on some orgs). PATCH the body:
+**Updating the description later — never `gh pr edit`** (Projects-classic
+deprecation GraphQL error on some orgs); PATCH instead:
 
 ```bash
 gh api -X PATCH repos/<owner>/<repo>/pulls/<number> --input body.json \
   --jq '.body[0:60]'   # verify the patch applied
 ```
+`body.json` is `{"body": "<description>"}` with newlines escaped as `\n`
+(raw newlines break the JSON).
 
 ---
 
