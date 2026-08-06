@@ -15,6 +15,12 @@ an import, a capture, a review, a migration — are discovered by **doing it
 with real material and interviewing the user through the experience**, not
 by design on a whiteboard. The attempt is the interview.
 
+**Two processes are in play — keep them distinct.** The process you are
+*designing* (the flow's rules) lands in the project's flow spec and PRD.
+The process you are *engaging in* (the interview itself) is this skill's
+methodology. Lessons about the first go to the project; lessons about the
+second may be added here — your choice, never an obligation.
+
 ## The loop
 
 1. **Build a working skeleton early.** The smallest honest end-to-end path
@@ -68,12 +74,18 @@ by design on a whiteboard. The attempt is the interview.
 - **Rules generalise.** After the specific fix, rephrase the rule so the
   next instance is caught: a one-off misattribution becomes "a known
   category is disambiguated, never guessed".
-- **The user's model instinct is a signal, not a rule.** When they say a
-  thing is "probably not a different type, but a flag", explore that
-  framing — but a new type is right when the thing has its own structure
-  or behaviour, not just a different kind; don't shoehorn. Similarly
-  "calculated not stored": prefer deriving the facts a derivation can
-  express, and state the rest.
+- **Elicit the data model as you go.** The interview produces a data
+  model — entities, kinds, statuses, refs — that must end up represented
+  in code; elicit it explicitly and record it. Before inventing anything,
+  check whether the domain has **prior art for the whole model** (GEDCOM
+  for family trees, standard vocabularies, industry schemas) and align
+  with it rather than reinventing.
+- **Types vs statuses is a modelling decision, not a signal to trust.**
+  Two things can be two types, or one type with a status or flag —
+  consider carefully which is correct: distinct structure or behaviour
+  argues for a type; a kind within otherwise-identical records argues for
+  a status. The user may be mistaken either way; decide on the model, not
+  on phrasing.
 
 ## Enforcing with tests
 

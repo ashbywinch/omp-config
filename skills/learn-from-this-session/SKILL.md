@@ -42,9 +42,9 @@ unusable in another domain. Run this checklist:
 
 The skill holds the method; the standards hold the domain.
 
-**Process-design lessons are codified in `skill://process-interview`** —
-added to its accumulated methodology, not written as a one-off in a
-project doc. When the session's lesson is about how a *process* was
-specified — the flow rules, the interview discipline, the integrity
-guards — it belongs there: the skill is the methodology for
-requirements-by-doing.
+**The engaging process's lessons accumulate in `skill://process-interview`.**
+Lessons about how requirements-by-doing itself is run — the interview
+discipline, the rule-craft, the integrity guards — are the skill's own
+methodology and may be added to it if you and the user choose; it is never
+an obligation. Lessons about the *designed* process — the flow being
+specified — belong in the project's flow spec and PRD, never in this skill.
