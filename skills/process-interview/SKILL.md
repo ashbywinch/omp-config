@@ -106,11 +106,9 @@ Know where every decision belongs, and update as you go, not at the end:
 There is no separate "UX requirements" category — presentation
 requirements belong in the requirements doc; conventions in the
 conventions doc; working notes in the log. **The domain principles the
-interview surfaces are standards**: when the user states a value the
-process must honour (authenticity of material, the meaning of a link, the
-honesty of a presentation), record it in the standards doc — never in the
-skill. The skill holds the method; the standards hold the domain (see
-`skill://learn-from-this-session`'s strip checklist).
+interview surfaces are standards** — record them in the standards doc,
+never in the skill (see `skill://learn-from-this-session`'s strip
+checklist).
 
 ## The session record
 

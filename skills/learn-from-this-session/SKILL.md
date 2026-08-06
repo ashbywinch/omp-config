@@ -20,10 +20,8 @@ Create or update the relevant rule, SKILL.md, or APPEND_SYSTEM.md to codify the 
 ## Strip project specifics from everything you update
 
 Before you finish any codification — a skill, a rule, an APPEND_SYSTEM — audit
-it for project-specific content and remove it. The failure mode is real: a
-methodology skill written from a single project session carried that
-project's named incidents, doc names, and domain principles, and had to be
-re-written. Run this checklist:
+it for project-specific content and remove it: residue makes a skill
+unusable in another domain. Run this checklist:
 
 - **Named incidents and examples** — "when the old building failed to
   geocode under its former name…", "the invented heirloom object…" —
