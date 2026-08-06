@@ -58,6 +58,16 @@ gh pr create \
 rm pr_description.md
 ```
 
+**Updating the description later — never `gh pr edit`.** `gh pr edit` queries
+the deprecated Projects (classic) field and fails outright with "GraphQL:
+Projects (classic) is being deprecated…" on some GitHub orgs/gh versions.
+Update the body through the REST API instead (2026-08-06):
+
+```bash
+gh api -X PATCH repos/<owner>/<repo>/pulls/<number> --input body.json \
+  --jq '.body[0:60]'   # verify the patch applied
+```
+
 ---
 
 ## Part 2: Post-Creation — Monitor Checks
@@ -241,6 +251,10 @@ Each CI cycle is 3-5 minutes. A lint error wastes that entire cycle. Always run 
 
 ### Pushing while a review is in flight
 Never push mid-run — the wait-read-fix-push loop is in §5b.
+
+### Using `gh pr edit` to update a description
+It fails with the Projects (classic) deprecation GraphQL error on some
+orgs/gh versions. PATCH via the REST API (§4) instead.
 
 ### Assuming all suggestions are from the current run
 PR Code Suggestions accumulate across multiple runs and may contain stale suggestions. Always check the PR Reviewer Guide for the current assessment — it's updated on each push.
