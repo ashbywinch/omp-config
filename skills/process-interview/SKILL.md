@@ -26,12 +26,10 @@ by design on a whiteboard. The attempt is the interview.
    append-only store. If the domain has no real material yet, say so and
    proceed with the closest honest stand-in — but flag it.
 3. **Interview the user through it.** Present what the attempt produced,
-   one question at a time (the user's explicit instruction: *"we go
-   through those pending questions one at a time"*). Never dump a wall of
-   questions.
+   one question at a time. Never dump a wall of questions.
 4. **Turn failures into rules.** Every rule is written AFTER a demonstrated
-   failure, never before. Name the rules (A, B, C…), and for each one
-   record the incident that motivated it.
+   failure, never before. Name each rule and record the incident that
+   motivated it.
 5. **Enforce with tests.** Failing tests first, for rules and for the
    process. Integrity evals run over the real data every gate — a rule
    without a test is a hope.
@@ -111,7 +109,8 @@ conventions doc; working notes in the log. **The domain principles the
 interview surfaces are standards**: when the user states a value the
 process must honour (authenticity of material, the meaning of a link, the
 honesty of a presentation), record it in the standards doc — never in the
-skill. The skill holds the method; the standards hold the domain.
+skill. The skill holds the method; the standards hold the domain (see
+`skill://learn-from-this-session`'s strip checklist).
 
 ## The session record
 
