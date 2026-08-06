@@ -49,6 +49,14 @@ How it will all be done. Sections, in order:
 - **Technology choices** next, with the alternatives considered and why they
   lost. The architecture determines what choices make sense, not the other
   way around.
+- **Component breakdown** — every component/module with its responsibility,
+  its interfaces (what it provides and consumes), and the data it owns.
+  Components are the code's boundaries before the code exists.
+- **Object model** — the domain nouns (and analytical objects: findings,
+  metrics, runs) with purpose, key fields, and relationships. It is the
+  naming authority for the implementation: a class or module whose name is
+  not an object-model noun is a finding. See `skill://write-tech-spec` for
+  the process.
 - **Spikes required to confirm** — named, with what each must prove before
   the choice is locked.
 - **Strategic technical decisions** that follow from requirements —

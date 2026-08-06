@@ -66,7 +66,12 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   (`TransitOrchestrator` → "orchestrates transit") means the name or the
   concept boundary is wrong — fix the name or split the concept. **The
   stress test:** would someone who knows the domain but not the code
-  understand this from the name alone?
+  understand this from the name alone? **The object model is the naming
+  authority:** where a TECHSPEC documents one, a class or module whose name
+  is not an object-model noun is a finding — either the model is missing an
+  object or the name is wrong; fix one, never let them drift. Docs may carry
+  process vocabulary ("the classify step of the pipeline"); code names may
+  not.
 - **Semantic types over primitives.** A point in time is a date type with
   awareness, not a bare string; structured data is an object with named
   fields, not a bare dict; enumerated values are enums; units are part of the
