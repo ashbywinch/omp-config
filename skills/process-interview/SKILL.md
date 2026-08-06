@@ -44,8 +44,8 @@ by design on a whiteboard. The attempt is the interview.
   spec's amendments. Actively solicit them — "what did we get wrong?" —
   and record each one verbatim with its date. The user will catch things
   no analysis will: a claimed precision that was never checked, an
-  edge case the rules exclude, a category that was mis-typed, a link made
-  without attestation, a question the process never asked.
+  edge case the rules exclude, a category that was mis-typed, an
+  assertion made without evidence, a question the process never asked.
 - **Verify every claim before acting.** The user's description can be a
   misreading (a date reported from a neighbouring label; a detail
   mis-attributed). Investigate, state what you found, and correct the
@@ -56,7 +56,7 @@ by design on a whiteboard. The attempt is the interview.
   the pattern across the whole dataset — if one invented item exists,
   check them all. The named case is the symptom; the pattern is the rule.
 - **Ask about edge cases explicitly.** Corner uses the user mentions in
-  passing (a thing that can legitimately happen on the same day; content
+  passing (an occurrence that can coincide with its capture; material
   that doesn't fit the obvious category) are real requirements. Follow
   them to their conclusion — they usually amend the rule.
 - **Track pending questions in the record.** Unresolved items live in the
@@ -124,5 +124,5 @@ reviewable by the user.
   facts nobody has stated.
 - `skill://ux-process` — when the process has a UI, loop it like any
   surface.
-- `skill://write-documentation` — the standards triplet for the specs the
-  interview produces.
+- `skill://write-documentation` — the standards docs (coding, testing,
+  documentation) for the specs the interview produces.
