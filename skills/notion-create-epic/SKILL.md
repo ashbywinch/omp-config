@@ -17,10 +17,12 @@ Creates a Draft Epic from a Top Level Epic.
 
 ## First: Epic or Value Stream?
 
-Decide which it is first — the definition, examples, and "does this work ever end?" test live in `skill://epic-quality-standard`:
+**Decide before creating** — the definition, examples, and "does this work ever end?" test live in `skill://epic-quality-standard`:
 
 - **Has a done point** (finishable work) → Epic, in the Epics database
 - **No done point** (ongoing area of activity) → Value Stream, in the Value Streams database — NOT the Epics database. A value stream hosts finishable work as **child epics** (linked via the epic's Parent Value Stream).
+
+**A value stream can never be under an epic.** If the item is a value stream and its would-be parent is an epic, that parent is also a mislabeled value stream — convert the parent chain first (see below), then place the new VS under the converted VS.
 
 Database IDs and page-creation syntax: `skill://notion-database-management`.
 
@@ -29,6 +31,7 @@ When converting an existing epic into a value stream (it was misclassified, or i
 2. Re-point the old epic's children: each child epic gets **Parent Value Stream** = the new VS (and its Parent Epic cleared, unless it also has an epic parent)
 3. Move the old epic's Insights to the VS's **Key Insights 2** relation
 4. Mark the old epic **Superseded** (never delete — traceability)
+5. Repeat for any epic parent of the converted epic — it is likewise a mislabeled VS and must be converted bottom-up
 
 ## Process
 
