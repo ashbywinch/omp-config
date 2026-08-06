@@ -13,15 +13,14 @@ High-level strategic work packages from business goals.
 
 - `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
 - Business goal or strategic objective
-- Epics database ID: `20d3122e-1a13-81a1-8388-de5cebd1acb2`
-- Value Streams database ID: `20d3122e-1a13-81be-8412-e536c02f77d4`
+- Database IDs (Epics, Value Streams): `skill://notion-database-management`
 
 ## Epic or Value Stream?
 
-**Check for a done point first** (see `skill://epic-quality-standard`):
+**Check for a done point first** — the definition and test live in `skill://epic-quality-standard`:
 
 - Finishable work → Epic (Epics database)
-- **No done point** — an ongoing area of activity (e.g. Lifelong Learning, Marketing, Personal News & Trends, Standards, Accessibility) → **Value Stream** in the Value Streams database, not an epic. It can host finishable work as **child epics** (linked from the child epic via Parent Value Stream).
+- **No done point** — an ongoing area of activity (e.g. Lifelong Learning, Marketing, Personal News & Trends, Standards, Accessibility) → **Value Stream** in the Value Streams database, not an epic. It hosts finishable work as **child epics** (linked from the child epic via Parent Value Stream).
 
 A "top level" ongoing goal is a value stream (optionally under a parent value stream), not a top-level epic.
 
@@ -77,7 +76,4 @@ See `skill://notion-database-management` for relation syntax.
 - Child epics are database entries, not sub-pages
 - Unique IDs per child (e.g., Epic 1.1, 1.2)
 - An epic can have both a parent and dependencies, but never both parent fields
-
-## Relation Write Rule (CRITICAL)
-
-**A relation PATCH replaces the whole array — it does not append.** Read first, build the full array (existing + new), PATCH the complete array. PATCHing only the new ID silently drops existing links.
+- Relation mechanics (read-modify-write, mirroring): `skill://notion-database-management`

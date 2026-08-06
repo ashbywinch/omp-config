@@ -55,11 +55,6 @@ An Epic is a tactical work package that converts a Top Level Epic into actionabl
 - [ ] Insights use the "Insights" relation field (not legacy text field)
 - [ ] When an epic's work is scheduled on the calendar, event descriptions must reference the epic or task ID
 
-## Relation Write Rule (CRITICAL)
+## Relation Write Rule
 
-**A relation PATCH replaces the whole array — it does not append.** When adding a relation (e.g. a second insight to an epic that already has one):
-1. Read the page first
-2. Build the full array: existing IDs + new ID(s)
-3. PATCH with the complete array
-
-Never PATCH a relation with only the new ID — it silently drops the existing links.
+Relation mechanics (read-modify-write, parent-field mirroring) live in `skill://notion-database-management` — follow those when writing any relation (Insights, Parent Epic, Parent Value Stream, Dependencies).

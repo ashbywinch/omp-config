@@ -25,6 +25,8 @@ Core patterns for Notion operations via `ntn`. Domain skills reference this for 
 | Epics | `20d3122e-1a13-81a1-8388-de5cebd1acb2` |
 | Tasks | `20d3122e-1a13-813a-9231-e7e086b2b86f` |
 | Insights | `20d3122e-1a13-8110-b1c2-fa15ecadde25` |
+| Value Streams | `20d3122e-1a13-81be-8412-e536c02f77d4` |
+| Missions | `20d3122e-1a13-8147-9b53-c6c04bd99926` |
 
 ## Query Patterns
 
@@ -114,6 +116,23 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 ```json
 "Parent Epic": {"relation": []}
 ```
+
+## Relation Write Rule (CRITICAL)
+
+**A relation PATCH replaces the whole array — it does not append.** When adding a relation (e.g. a second insight to an epic that already has one):
+1. Read the page first
+2. Build the full array: existing IDs + new ID(s)
+3. PATCH with the complete array
+
+Never PATCH a relation with only the new ID — it silently drops the existing links.
+
+## Parent-field Mirroring
+
+Parent relations (e.g. `Parent Epic`, `Parent Value Stream`) mirror entries onto the *parent's* field when written on the *child*. So a parent page's field can contain both its parent and its children.
+
+- **Write the parent link on the CHILD page** — the child points up at its parent.
+- **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them.
+- **Hierarchy semantics** live in `skill://epic-quality-standard` (exactly one of `Parent Epic` / `Parent Value Stream` per epic, never both).
 
 ## Error Recovery
 

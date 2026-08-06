@@ -17,10 +17,12 @@ Creates a Draft Epic from a Top Level Epic.
 
 ## First: Epic or Value Stream?
 
-Before creating anything, decide which it is (see `skill://epic-quality-standard`):
+Decide which it is first — the definition, examples, and "does this work ever end?" test live in `skill://epic-quality-standard`:
 
-- **Has a done point** (finishable work) → Epic, in the **Epics** database
-- **No done point** (ongoing area of activity) → **Value Stream**, in the **Value Streams** database (`20d3122e-1a13-81be-8412-e536c02f77d4`) — NOT the Epics database. A value stream cannot contain scoped work itself; it hosts finishable work as **child epics** (linked via the epic's Parent Value Stream).
+- **Has a done point** (finishable work) → Epic, in the Epics database
+- **No done point** (ongoing area of activity) → Value Stream, in the Value Streams database — NOT the Epics database. A value stream hosts finishable work as **child epics** (linked via the epic's Parent Value Stream).
+
+Database IDs and page-creation syntax: `skill://notion-database-management`.
 
 When converting an existing epic into a value stream (it was misclassified, or its nature is ongoing):
 1. Create the Value Stream page (same name, Value Stream ID next free)
@@ -59,9 +61,7 @@ Set **exactly one** parent field on the child page:
 "Parent Value Stream": {"relation": [{"id": "<VALUE_STREAM_ID>"}]}
 ```
 
-**Never set both.** The parent is always written on the CHILD page (the child points up).
-
-> Note: the backend mirrors child entries into the parent page's Parent Epic field. If a parent page's Parent Epic field shows pages that point back at it, those are its children, not its parent — ignore them when reading the hierarchy.
+**Never set both.** The parent is always written on the CHILD page (the child points up). Relation write mechanics (read-modify-write, parent-field mirroring): `skill://notion-database-management`.
 
 ### 5. Validate
 - [ ] Traceable from Top Level Epic to Draft Epic
@@ -80,6 +80,4 @@ Set **exactly one** parent field on the child page:
 | **Dependencies** | Blocking relationships |
 | **Both** | An epic can have a parent AND dependencies, but NEVER both parent fields |
 
-## Relation Write Rule (CRITICAL)
-
-**A relation PATCH replaces the whole array — it does not append.** To add a relation to a page that already has entries: read first, build the full array (existing + new), PATCH the complete array. PATCHing only the new ID silently drops existing links (e.g. linking a second insight to an epic drops the first).
+Relation mechanics (read-modify-write, mirroring): `skill://notion-database-management`.
