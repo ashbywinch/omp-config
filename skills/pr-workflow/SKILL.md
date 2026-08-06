@@ -240,27 +240,22 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ## Common Pitfalls
 
-### Reading only the `<details>` count
-The review comment has multiple sections beyond the collapsible `<details>` elements. Security concerns, compliance violations, and other text may appear in the table rows or as standalone links. Always read the **full body** of the review comment, not just extracted summaries.
-
-### Cancelling runs prematurely
-Checks take 3-5+ minutes. The GitHub API `updatedAt` can lag. Never cancel without investigating via step-level job status first. A run that shows no progress for 5+ minutes at the step level may still be completing model inference.
-
-### Pushing without local lint/tests
-Each CI cycle is 3-5 minutes. A lint error wastes that entire cycle. Always run `ruff check .` and `pytest -x` locally.
-
-### Pushing while a review is in flight
-Never push mid-run — the wait-read-fix-push loop is in §5b.
-
-### Using `gh pr edit` to update a description
-It fails with the Projects (classic) deprecation GraphQL error on some
-orgs/gh versions. PATCH via the REST API (§4) instead.
-
-### Assuming all suggestions are from the current run
-PR Code Suggestions accumulate across multiple runs and may contain stale suggestions. Always check the PR Reviewer Guide for the current assessment — it's updated on each push.
-
-### Fixing AI config suggestions
-The AI will suggest changes to `.pr_agent.toml`, review workflow files, and its own configuration. These are almost never actionable — the config is already working. Focus on code changes.
+The sections above are the how-to; these are the one-line reminders.
+- **Reading only the `<details>` count** — the review comment has findings
+  outside the collapsible sections (security table, compliance links);
+  read the full body (§8).
+- **Cancelling runs prematurely** — checks take minutes and `updatedAt`
+  lags; investigate step-level status before cancelling (§5).
+- **Pushing without local lint/tests** — each CI cycle costs minutes; run
+  the suite locally first (§10).
+- **Pushing while a review is in flight** — wait-read-fix-push, one push
+  per pass (§5b).
+- **Updating a PR description with `gh pr edit`** — it fails on the
+  Projects-classic deprecation; use the REST PATCH (§4).
+- **Assuming all suggestions are from the current run** — stale
+  suggestions accumulate; check the latest PR Reviewer Guide (§7).
+- **Fixing AI config suggestions** — `.pr_agent.toml`/workflow
+  self-reviews are almost never actionable (§9).
 
 ---
 
