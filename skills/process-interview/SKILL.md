@@ -31,12 +31,14 @@ by design on a whiteboard. The attempt is the interview.
    failure, never before. Name each rule and record the incident that
    motivated it.
 5. **Enforce with tests.** Failing tests first, for rules and for the
-   process. Integrity evals run over the real data every gate — a rule
-   without a test is a hope.
+   process. During the interview, the prototype's checks run over the
+   small dataset the prototype itself creates — a rule without a test is
+   a hope (see "Enforcing with tests" for the prototype-only boundary).
 6. **Distill the principles.** When the rules stop changing, step back and
    write the few overarching principles the rules instantiate — and record
-   them in the standards doc, not the skill. A session that produces only
-   rules has not finished.
+   them where they belong: usually the feature's PRD or flow spec; only
+   genuinely repo-wide principles go in the standards. A session that
+   produces only rules has not finished.
 
 ## The interview discipline
 
@@ -51,10 +53,6 @@ by design on a whiteboard. The attempt is the interview.
   mis-attributed). Investigate, state what you found, and correct the
   record — but never dismiss the report: behind every misreading is
   usually a real problem with the presentation or the data.
-- **Treat "we have X despite Y" as a rule violation.** When the user
-  points at one stored artifact that breaks an unstated principle, hunt
-  the pattern across the whole dataset — if one invented item exists,
-  check them all. The named case is the symptom; the pattern is the rule.
 - **Ask about edge cases explicitly.** Corner uses the user mentions in
   passing (an occurrence that can coincide with its capture; material
   that doesn't fit the obvious category) are real requirements. Follow
@@ -71,19 +69,25 @@ by design on a whiteboard. The attempt is the interview.
 - **Rules generalise.** After the specific fix, rephrase the rule so the
   next instance is caught: a one-off misattribution becomes "a known
   category is disambiguated, never guessed".
-- **Prefer flags and derived values over new types and stored values.**
-  When the user says a thing is "probably not a different type, but a
-  flag", they are usually right. Follow "calculated not stored" for
-  derived facts until the user overrules it.
+- **The user's model instinct is a signal, not a rule.** When they say a
+  thing is "probably not a different type, but a flag", explore that
+  framing — but a new type is right when the thing has its own structure
+  or behaviour, not just a different kind; don't shoehorn. Similarly
+  "calculated not stored": prefer deriving the facts a derivation can
+  express, and state the rest.
 
 ## Enforcing with tests
 
 - **Failing tests first**, for every rule — including the process's own
   data quality. Each rule's test is the rule's enforcement point.
-- **Integrity evals run over the real data, not fixtures** — one guard per
-  rule, run on every gate, so a violation fails the build with the
-  offending records named. The eval categories follow the rules the
-  interview produced; they are the project's own, never the skill's.
+- **During the interview, the prototype's checks run over the small
+  dataset the prototype itself creates** — one guard per rule, failing
+  the build with the offending records named, exercising the rules
+  against real material. That is the point of the prototype: it is the
+  data's first consumer. **This is prototype-only.** Outside this
+  interview's throwaway prototype, never run unit tests or evals against
+  production, real, or live data — normal development tests against
+  fixtures and test data, always.
 - **Fail loudly.** A guard that degrades silently is not a guard. Design
   the pipeline so a violation refuses to build — and let it catch real
   violations during the session (it will).
@@ -106,8 +110,10 @@ Know where every decision belongs, and update as you go, not at the end:
 There is no separate "UX requirements" category — presentation
 requirements belong in the requirements doc; conventions in the
 conventions doc; working notes in the log. **The domain principles the
-interview surfaces are standards** (step 6) — see
-`skill://learn-from-this-session`'s strip checklist for the audit.
+interview surfaces land where they belong** (step 6) — usually the
+feature's PRD or flow spec; only genuinely repo-wide principles go in the
+standards — see `skill://learn-from-this-session`'s strip checklist for
+the audit.
 
 ## The session record
 

@@ -43,8 +43,9 @@ unusable in another domain. Run this checklist:
 
 The skill holds the method; the standards hold the domain.
 
-**Process-design lessons become `skill://process-interview`.** When the
-session's lesson is about how a *process* was specified — the flow rules,
-the interview discipline, the integrity guards — codify it there rather
-than in a project doc: the skill is the accumulated methodology for
+**Process-design lessons are codified in `skill://process-interview`** —
+added to its accumulated methodology, not written as a one-off in a
+project doc. When the session's lesson is about how a *process* was
+specified — the flow rules, the interview discipline, the integrity
+guards — it belongs there: the skill is the methodology for
 requirements-by-doing.
