@@ -244,6 +244,16 @@ The sections above are the how-to; these are the one-line reminders.
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
   read the full body (§8).
+- **A pre-commit hook blocked your commit — never `--no-verify`.** A hook
+  that modifies files (a formatter) blocks the commit; the safe recovery
+  is to re-stage the hook-modified files and commit again WITH the hook —
+  but first verify what the re-stage captured: a blocked commit's
+  stash/restore cycle can leave the working tree different from your
+  intent, and a blind `git add -A` commits the reverted content silently.
+  `--no-verify` also skips the secrets and standards checks. The fix for
+  a blocked commit is re-stage + verify the staged diff + re-commit with
+  the hook (2026-08-06: a formatter-blocked commit silently shipped a
+  reverted fix).
 - **Cancelling runs prematurely** — checks take minutes and `updatedAt`
   lags; investigate step-level status before cancelling (§5).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
