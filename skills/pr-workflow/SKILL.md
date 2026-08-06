@@ -58,10 +58,8 @@ gh pr create \
 rm pr_description.md
 ```
 
-**Updating the description later — never `gh pr edit`.** `gh pr edit` queries
-the deprecated Projects (classic) field and fails outright with "GraphQL:
-Projects (classic) is being deprecated…" on some GitHub orgs/gh versions.
-Update the body through the REST API instead (2026-08-06):
+**Updating the description later — never `gh pr edit`** (it fails on the
+Projects-classic deprecation GraphQL error on some orgs). PATCH the body:
 
 ```bash
 gh api -X PATCH repos/<owner>/<repo>/pulls/<number> --input body.json \
@@ -250,8 +248,7 @@ The sections above are the how-to; these are the one-line reminders.
   the suite locally first (§10).
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
-- **Updating a PR description with `gh pr edit`** — it fails on the
-  Projects-classic deprecation; use the REST PATCH (§4).
+- **Updating a PR description** — never `gh pr edit`; see §4.
 - **Assuming all suggestions are from the current run** — stale
   suggestions accumulate; check the latest PR Reviewer Guide (§7).
 - **Fixing AI config suggestions** — `.pr_agent.toml`/workflow
