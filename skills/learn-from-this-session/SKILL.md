@@ -16,3 +16,37 @@ Take a moment to reflect on what happened in this session.
 Discuss your thoughts with the user and see if they agree. When you've reached consensus:
 
 Create or update the relevant rule, SKILL.md, or APPEND_SYSTEM.md to codify the improvement.
+
+## Strip project specifics from everything you update
+
+Before you finish any codification — a skill, a rule, an APPEND_SYSTEM — audit
+it for project-specific content and remove it. The failure mode is real: a
+methodology skill written from a single project session carried that
+project's named incidents, doc names, and domain principles, and had to be
+re-written. Run this checklist:
+
+- **Named incidents and examples** — "when the old building failed to
+  geocode under its former name…", "the invented heirloom object…" —
+  become generic lessons ("a claimed precision that was never checked",
+  "an artifact no source attests").
+- **File and doc names** — the flow's spec file, the integrity-eval test
+  file — are stripped; the *pattern* (the flow spec, the eval) stays.
+- **Domain principles and standards** — "material must be authentic",
+  "a link asserts something" — are the project's standards, not the
+  skill's. Record them in the project's standards doc and leave a one-line
+  pointer at most ("the domain principles the interview surfaces are
+  standards — record them there, never in the skill").
+- **Eval categories and rule names** — a project's specific eval set or
+  its named rules (A, B, C…) are its own; the generic pattern is "each
+  rule gets a guard over the real data".
+- **The test: would a reader in an unrelated domain follow this?** If the
+  skill only makes sense to someone who knows the project it came from, it
+  is not a skill yet.
+
+The skill holds the method; the standards hold the domain.
+
+**Process-design lessons become `skill://process-interview`.** When the
+session's lesson is about how a *process* was specified — the flow rules,
+the interview discipline, the integrity guards — codify it there rather
+than in a project doc: the skill is the accumulated methodology for
+requirements-by-doing.
