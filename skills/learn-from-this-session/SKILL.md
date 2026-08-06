@@ -30,10 +30,10 @@ unusable in another domain. Run this checklist:
 - **File and doc names** — the flow's spec file, the integrity-eval test
   file — are stripped; the *pattern* (the flow spec, the eval) stays.
 - **Domain principles and standards** — "material must be authentic",
-  "a link asserts something" — are the project's standards, not the
-  skill's. Record them in the project's standards doc and leave a one-line
-  pointer at most ("the domain principles the interview surfaces are
-  standards — record them there, never in the skill").
+  "a link asserts something" — are the project's, not the skill's. Record
+  them where they belong — usually the feature's PRD or flow spec; only
+  genuinely repo-wide principles go in the standards doc — and leave a
+  one-line pointer at most.
 - **Eval categories and rule names** — a project's specific eval set or
   its named rules (A, B, C…) are its own; the generic pattern is "each
   rule gets a guard over the real data".

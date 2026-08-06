@@ -5,7 +5,9 @@ description: |
   interviewing the user through the attempt — build a working skeleton,
   run it against real material, ask one question at a time, and turn every
   demonstrated failure into a rule with a test. Distill the overarching
-  principles at the end and record them in the standards, not the skill.
+  principles at the end and record them where they belong — usually the
+  feature's PRD or flow spec, only genuinely repo-wide principles in the
+  standards.
 ---
 
 # Process Interview
