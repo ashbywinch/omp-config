@@ -16,3 +16,35 @@ Take a moment to reflect on what happened in this session.
 Discuss your thoughts with the user and see if they agree. When you've reached consensus:
 
 Create or update the relevant rule, SKILL.md, or APPEND_SYSTEM.md to codify the improvement.
+
+## Strip project specifics from everything you update
+
+Before you finish any codification — a skill, a rule, an APPEND_SYSTEM — audit
+it for project-specific content and remove it: residue makes a skill
+unusable in another domain. Run this checklist:
+
+- **Named incidents and examples** — "when the old building failed to
+  geocode under its former name…", "the invented heirloom object…" —
+  become generic lessons ("a claimed precision that was never checked",
+  "an artifact no source attests").
+- **File and doc names** — the flow's spec file, the integrity-eval test
+  file — are stripped; the *pattern* (the flow spec, the eval) stays.
+- **Domain principles and standards** — "material must be authentic",
+  "a link asserts something" — are the project's, not the skill's; where
+  they belong is `skill://process-interview` step 6 (link, don't
+  restate).
+- **Eval categories and rule names** — a project's specific eval set or
+  its named rules (A, B, C…) are its own; the generic pattern is "each
+  rule gets a guard over the real data".
+- **The test: would a reader in an unrelated domain follow this?** If the
+  skill only makes sense to someone who knows the project it came from, it
+  is not a skill yet.
+
+The skill holds the method; the standards hold the domain.
+
+**The engaging process's lessons accumulate in `skill://process-interview`.**
+Lessons about how requirements-by-doing itself is run — the interview
+discipline, the rule-craft, the integrity guards — are the skill's own
+methodology and may be added to it if you and the user choose; it is never
+an obligation. Lessons about the *designed* process — the flow being
+specified — belong in the project's flow spec and PRD, never in this skill.
