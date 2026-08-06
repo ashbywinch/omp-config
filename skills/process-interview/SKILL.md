@@ -5,9 +5,7 @@ description: |
   interviewing the user through the attempt — build a working skeleton,
   run it against real material, ask one question at a time, and turn every
   demonstrated failure into a rule with a test. Distill the overarching
-  principles at the end and record them where they belong — usually the
-  feature's PRD or flow spec, only genuinely repo-wide principles in the
-  standards.
+  principles at the end and record them where they belong (step 6).
 ---
 
 # Process Interview
@@ -33,9 +31,8 @@ by design on a whiteboard. The attempt is the interview.
    failure, never before. Name each rule and record the incident that
    motivated it.
 5. **Enforce with tests.** Failing tests first, for rules and for the
-   process. During the interview, the prototype's checks run over the
-   small dataset the prototype itself creates — a rule without a test is
-   a hope (see "Enforcing with tests" for the prototype-only boundary).
+   process — a rule without a test is a hope (see "Enforcing with
+   tests" for the prototype-only boundary).
 6. **Distill the principles.** When the rules stop changing, step back and
    write the few overarching principles the rules instantiate — and record
    them where they belong: usually the feature's PRD or flow spec; only
@@ -112,10 +109,8 @@ Know where every decision belongs, and update as you go, not at the end:
 There is no separate "UX requirements" category — presentation
 requirements belong in the requirements doc; conventions in the
 conventions doc; working notes in the log. **The domain principles the
-interview surfaces land where they belong** (step 6) — usually the
-feature's PRD or flow spec; only genuinely repo-wide principles go in the
-standards — see `skill://learn-from-this-session`'s strip checklist for
-the audit.
+interview surfaces land per step 6** — see
+`skill://learn-from-this-session`'s strip checklist for the audit.
 
 ## The session record
 
