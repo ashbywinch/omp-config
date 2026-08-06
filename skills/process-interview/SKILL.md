@@ -22,8 +22,8 @@ by design on a whiteboard. The attempt is the interview.
    wrong; that is the point. Do not polish it; the interview will rewrite
    it.
 2. **Try it with real material.** Never invented content: the demo hides
-   the real failures, and invented artifacts become permanent lies in an
-   append-only store. If the domain has no real material yet, say so and
+   the real failures, and invented artifacts become permanent lies once
+   they ship. If the domain has no real material yet, say so and
    proceed with the closest honest stand-in — but flag it.
 3. **Interview the user through it.** Present what the attempt produced,
    one question at a time. Never dump a wall of questions.
@@ -97,7 +97,7 @@ Know where every decision belongs, and update as you go, not at the end:
 
 | Decision | Home |
 |---|---|
-| User-visible requirements (incl. presentation) | the requirements doc (screen table / principles) |
+| User-visible requirements (incl. presentation) | the requirements doc |
 | Mechanics — flags, seams, validation, algorithms, evals | the design/spec doc |
 | A flow's rules | the flow spec for that flow |
 | Visual/interaction conventions | the conventions doc |
@@ -106,14 +106,13 @@ Know where every decision belongs, and update as you go, not at the end:
 There is no separate "UX requirements" category — presentation
 requirements belong in the requirements doc; conventions in the
 conventions doc; working notes in the log. **The domain principles the
-interview surfaces are standards** — record them in the standards doc,
-never in the skill (see `skill://learn-from-this-session`'s strip
-checklist).
+interview surfaces are standards** (step 6) — see
+`skill://learn-from-this-session`'s strip checklist for the audit.
 
 ## The session record
 
 Keep an interview log: every decision with its date, every rule with its
-motivating incident, every pending question. Append-only, like the data.
+motivating incident, every pending question. Append-only.
 It is what makes the session reproducible for the next agent and
 reviewable by the user.
 
