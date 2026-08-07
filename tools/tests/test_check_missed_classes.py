@@ -79,114 +79,265 @@ def save_config(config) -> None:
     pass
 """
 
-MIXED = """\
-import json
-
-
-def parse_config(config: Config) -> str:
-    return config.raw
-
-
-def load_config(config: Config) -> Config:
-    return config
-
-
-def save_config(config: Config) -> None:
-    config.dirty = True
-
-
-def load_record(record: Record) -> Record:
-    return record
+DICT_STR_SIGNATURE = """\
+def render(config: dict[str, str]) -> str:
+    return config["name"]
 """
 
-ASYNC = """\
-async def fetch_config(config: Config) -> Config:
-    return config
+MAP_COUNTS = """\
+def counts() -> dict[str, int]:
+    return {}
+"""
 
+DICT_ANY_RETURN = """\
+def build() -> dict[str, Any]:
+    return {}
+"""
 
-async def refresh_config(config: Config) -> None:
-    await config.refresh()
+TUPLE_SIGNATURE = """\
+def classify(item: str) -> tuple[int, bool]:
+    return 1, True
+"""
 
+NESTED_LIST_SIGNATURE = """\
+def parse_all(raw: list[dict[str, Any]]) -> None:
+    pass
+"""
 
-async def save_config(config: Config) -> None:
-    config.dirty = True
+LIST_OF_PRIMITIVE_DICT = """\
+def executions() -> list[dict[str, str]]:
+    return []
+"""
+
+DICT_OF_COLLECTION = """\
+def start_by_call() -> dict[str, dict[str, str]]:
+    return {}
+"""
+
+MAP_OF_DOMAIN_OK = """\
+def index(labels: dict[str, Label]) -> None:
+    pass
+"""
+
+LIST_OF_DOMAIN_OK = """\
+def collect(runs: list[Run]) -> None:
+    return runs
+"""
+
+LIST_OF_STR_OK = """\
+def names(items: list[str]) -> list[str]:
+    return items
+"""
+
+DESERIALIZER_BOUNDARY = """\
+def from_line(line: dict[str, Any]) -> Label:
+    return Label(line["call_id"])
+"""
+
+GRAB_BAG_TO_PRIMITIVE = """\
+def created_ms(line: dict[str, Any]) -> int:
+    return int(line["created_at_ms"])
+"""
+
+RECORD_LITERAL = """\
+def make_item(block):
+    return {"kind": "tool_call", "call_id": block.get("id")}
+"""
+
+LOOKUP_TABLE_OK = """\
+PHASE_UI = {"prd": "PRD", "exec": "Execute", "ux": "UX loop"}
+"""
+
+MIXED_RECORD_LITERAL = """\
+def tag(kind, value):
+    return {"kind": kind, "value": value, "extra": 1}
+"""
+
+HEADERS_MAP = """\
+def _get_json(url: str, token: str):
+    req = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+    )
+    return json.load(urllib.request.urlopen(req))
+"""
+
+ASSIGNED_RECORD = """\
+def make_item(block):
+    item = {"kind": "tool_call", "call_id": block.get("id")}
+    return item
+"""
+
+INLINE_ARG_RECORD = """\
+def render(block):
+    return format_({"kind": "tool_call", "call_id": block.get("id")})
 """
 
 
-class MissedClassesScanTest(unittest.TestCase):
-    def test_three_shared_params_is_a_finding(self):
+class RecordCollectionGateTest(unittest.TestCase):
+    def test_dict_str_signature_is_a_map_exempt(self):
         with tempfile.TemporaryDirectory() as td:
-            f = write_module(Path(td), "m.py", THREE_SHARED)
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(len(findings), 1)
-            self.assertIn("3 free functions", findings[0])
-            self.assertIn("'Config'", findings[0])
-            self.assertIn(f.name, findings[0])
-            self.assertEqual(warnings, [])
+            write_module(Path(td), "m.py", DICT_STR_SIGNATURE)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
 
-    def test_two_shared_params_warns_not_fails(self):
+    def test_primitive_map_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", MAP_COUNTS)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_dict_any_return_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", DICT_ANY_RETURN)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_tuple_signature_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", TUPLE_SIGNATURE)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+            self.assertIn("tuple[int, bool]", result.findings[0])
+
+    def test_nested_list_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", NESTED_LIST_SIGNATURE)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_list_of_primitive_dict_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", LIST_OF_PRIMITIVE_DICT)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_dict_of_collection_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", DICT_OF_COLLECTION)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_map_of_domain_class_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", MAP_OF_DOMAIN_OK)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_list_of_domain_class_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", LIST_OF_DOMAIN_OK)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_list_of_primitive_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", LIST_OF_STR_OK)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_deserializer_boundary_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", DESERIALIZER_BOUNDARY)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_grab_bag_to_primitive_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", GRAB_BAG_TO_PRIMITIVE)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_record_dict_literal_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", RECORD_LITERAL)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+            self.assertIn("record", result.findings[0])
+
+    def test_lookup_table_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", LOOKUP_TABLE_OK)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_mixed_record_literal_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", MIXED_RECORD_LITERAL)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_headers_map_literal_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", HEADERS_MAP)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_assigned_record_literal_is_a_finding(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", ASSIGNED_RECORD)
+            result = scan([Path(td)])
+            self.assertEqual(len(result.findings), 1)
+
+    def test_inline_arg_record_literal_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", INLINE_ARG_RECORD)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+
+class StrewingWarningTest(unittest.TestCase):
+    def test_three_shared_params_warns_not_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", THREE_SHARED)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])  # strewing is a warning, not the gate
+            self.assertEqual(len(result.warnings), 1)
+            self.assertIn("3 free functions", result.warnings[0])
+
+    def test_two_shared_params_warns(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "m.py", TWO_SHARED)
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(findings, [])
-            self.assertEqual(len(warnings), 1)
-            self.assertIn("2 free functions", warnings[0])
-
-    def test_threshold_tunable(self):
-        with tempfile.TemporaryDirectory() as td:
-            write_module(Path(td), "m.py", TWO_SHARED)
-            findings, _ = scan([Path(td)], 2)
-            self.assertEqual(len(findings), 1)  # two shared params is a finding at threshold 2
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+            self.assertEqual(len(result.warnings), 1)
+            self.assertIn("2 free functions", result.warnings[0])
 
     def test_different_leading_params_is_clean(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "m.py", DIFFERENT_LEADS)
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(findings, [])
-            self.assertEqual(warnings, [])
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+            self.assertEqual(result.warnings, [])
 
     def test_class_methods_are_ignored(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "m.py", METHODS_ONLY)
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(findings, [])
-            self.assertEqual(warnings, [])
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+            self.assertEqual(result.warnings, [])
 
     def test_unannotated_first_params_are_skipped(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "m.py", UNANNOTATED)
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(findings, [])
-            self.assertEqual(warnings, [])
-
-    def test_mixed_finds_only_the_missed_class(self):
-        with tempfile.TemporaryDirectory() as td:
-            write_module(Path(td), "m.py", MIXED)
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(len(findings), 1)  # only the Config trio
-            self.assertIn("'Config'", findings[0])
-            self.assertEqual(warnings, [])
-
-    def test_async_functions_count(self):
-        with tempfile.TemporaryDirectory() as td:
-            write_module(Path(td), "m.py", ASYNC)
-            findings, _ = scan([Path(td)], 3)
-            self.assertEqual(len(findings), 1)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+            self.assertEqual(result.warnings, [])
 
     def test_directory_walk_and_single_file(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "a.py", THREE_SHARED)
             write_module(Path(td), "b.py", DIFFERENT_LEADS)
-            self.assertEqual(len(scan([Path(td)], 3)[0]), 1)
-            self.assertEqual(len(scan([Path(td) / "a.py"], 3)[0]), 1)
-            self.assertEqual(scan([Path(td) / "b.py"], 3)[0], [])
+            self.assertEqual(len(scan([Path(td)]).warnings), 1)
+            self.assertEqual(len(scan([Path(td) / "a.py"]).warnings), 1)
+            self.assertEqual(scan([Path(td) / "b.py"]).warnings, [])
 
     def test_broken_source_is_skipped_not_crashed(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "broken.py", "def f(:")
-            findings, warnings = scan([Path(td)], 3)
-            self.assertEqual(findings, [])
-            self.assertEqual(warnings, [])
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+            self.assertEqual(result.warnings, [])
 
 
 if __name__ == "__main__":
