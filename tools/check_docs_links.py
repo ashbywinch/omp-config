@@ -65,13 +65,12 @@ def _outside_fences(text: str) -> list[Fence]:
     seg_start = 0
     for line in text.splitlines(keepends=True):
         if FENCE_RE.match(line):
-            if in_fence:
-                spans.append(Fence(seg_start, pos))
-            else:
-                seg_start = pos + len(line)
+            if not in_fence and seg_start < pos:
+                spans.append(Fence(seg_start, pos))  # prose before the opening fence
+            seg_start = pos + len(line)
             in_fence = not in_fence
         pos += len(line)
-    if not in_fence:
+    if not in_fence and seg_start < pos:
         spans.append(Fence(seg_start, pos))
     return spans
 

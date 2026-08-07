@@ -80,6 +80,8 @@ class ModuleScanner:
             return False
         value = node.slice
         if isinstance(value, ast.Tuple):
+            if len(value.elts) != 2:
+                return True  # malformed — treat as bare-ish
             _, val = value.elts
             return cls._name_of(val) in ("Any", "object", "None")
         return True  # dict[X] single-arg
@@ -104,6 +106,8 @@ class ModuleScanner:
         if base.id == "dict":
             value = node.slice
             if isinstance(value, ast.Tuple):
+                if len(value.elts) != 2:
+                    return False  # dict[()] / dict[str, int, float] — malformed, tolerate
                 key, val = value.elts
                 if cls._name_of(key) not in ("str", "Any"):
                     return False
