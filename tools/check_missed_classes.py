@@ -247,7 +247,13 @@ def scan(paths: list[Path]) -> ScanResult:
     files: list[Path] = []
     for p in paths:
         if p.is_dir():
-            files.extend(sorted(p.rglob("*.py")))
+            files.extend(
+                f
+                for f in sorted(p.rglob("*.py"))
+                # fixture dirs are intentionally non-compliant test input;
+                # dot-dirs are vendored/hidden trees (site-packages etc.)
+                if "fixtures" not in f.parts and not any(part.startswith(".") for part in f.parts)
+            )
         elif p.is_file() and p.suffix == ".py":
             files.append(p)
     findings: list[str] = []
