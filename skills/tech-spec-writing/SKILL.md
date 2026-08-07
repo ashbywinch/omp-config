@@ -41,15 +41,11 @@ A TECH-SPEC starts from the defaults; it departs from them only with a
 recorded reason.
 
 - **Python web servers: FastAPI + uvicorn.** The framework owns request
-  parsing — query decoding, cookies, JSON bodies, redirects. A
-  hand-rolled HTTP server reimplements each wrong one at a time (the
-  auth bug class: a percent-encoded query param handed to Google, a
-  `session=`-prefixed cookie header, a JSON body). If the app has any
-  HTTP surface beyond static-file serving, that surface is FastAPI. The
-  spec's test section then exercises the real HTTP stack (uvicorn on an
-  ephemeral port, or the framework's test client) so the framework's
-  decode/cookie/redirect behavior is covered — unit tests of the flow
-  logic miss it.
+  parsing; the rule, its rationale, and the real-HTTP-stack testing
+  requirement live in the Python language layer
+  (`skills/scaffold-language-layers/SKILL.md`). The TECH-SPEC records
+  the choice — no hand-rolled HTTP — and its test section follows the
+  layer's testing rule.
 - **Python toolchain**: uv, ruff, basedpyright, pytest (see the scaffold
   language layers).
 - **The object model** — name the nouns: the aggregate (the archive /

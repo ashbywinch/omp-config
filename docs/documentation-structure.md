@@ -80,6 +80,14 @@ following links (one level deep is the norm). A doc that AGENTS.md cannot
 lead to is undiscoverable, and undiscoverable documentation is a finding:
 it does not exist for the reader who starts where all readers start.
 
+**Skills are exempt from the AGENTS.md reachability rule.** A harness
+loads skills and tools through its own built-in discovery mechanism — a
+skills tool, a registry, an index — and that mechanism varies from
+harness to harness. Findability is the harness's job, not the doc
+tree's: the reachability rule above covers the documentation set
+(`docs/`, `standards/`, `rules/`), and a skill the harness's own
+mechanism can find needs no link from AGENTS.md.
+
 ## The standards the folder carries
 
 A project repo's `docs/` also carries the standards the review bot enforces —

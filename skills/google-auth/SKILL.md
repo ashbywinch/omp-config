@@ -34,13 +34,14 @@ so the cookie's host matches the callback's.
 The auth failures come from the plumbing around the OAuth library, not the
 library: URL-decoding the callback query (Google percent-encodes the auth
 code — `4%2F0AXE…`), parsing the `Cookie` header, reading JSON bodies,
-issuing redirects. A hand-rolled server reimplements each wrong once.
-Use **FastAPI** (or Flask/Django) so those are the framework's job —
-`request.query_params` decodes, `request.cookies` parses,
-`RedirectResponse`/`JSONResponse` handle the rest. The same reasoning
-applies to the frontend: the "Sign in" button fetches the login endpoint
-and follows the `auth_url` it returns — navigating straight to the
-endpoint renders the JSON as a page.
+issuing redirects. Use **FastAPI** (or Flask/Django) so those are the
+framework's job — `request.query_params` decodes, `request.cookies`
+parses, `RedirectResponse`/`JSONResponse` handle the rest (the
+framework-owns-parsing rule and its rationale:
+`skills/scaffold-language-layers/SKILL.md`). The same reasoning applies
+to the frontend: the "Sign in" button fetches the login endpoint and
+follows the `auth_url` it returns — navigating straight to the endpoint
+renders the JSON as a page.
 
 ## The shared core
 
@@ -104,7 +105,6 @@ support email); a Testing-mode screen only admits the listed test users.
 - **Log the auth outcomes** (grant started / callback received / session
   minted / `/me` saw a session) at INFO with a visible format — the
   default root logger drops INFO and you diagnose blind.
-- **Testing**: exercise the real HTTP stack; the framework's test client
-  (or an ephemeral server) covers the decode/cookie/redirect paths that
-  unit tests of the flow logic miss. Stub Google's endpoints — a real
-  approval is the manual end-to-end step.
+- **Testing**: exercise the real HTTP stack (the language layer's
+  testing rule); stub Google's endpoints — a real approval is the
+  manual end-to-end step.
