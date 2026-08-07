@@ -55,7 +55,7 @@ renders the JSON as a page.
 - **The cookie lands on a page navigation, not a fetch response.** The
   phone's network can reject fetch responses carrying a Set-Cookie, and
   mobile browsers race a fetch-set cookie against an immediate reload.
-  Houses' proven path: the OAuth callback is a full-page redirect — the
+  The proven path: the OAuth callback is a full-page redirect — the
   cookie rides the 302 the browser follows, and the app reloads naturally.
 - **Config in the environment** — client id/secret + a session secret in
   the env file (gitignored); the entrypoint wrapper sources it (a bare
@@ -72,7 +72,7 @@ renders the JSON as a page.
 1. **The Google side**: an OAuth client of type **Web application** with
    one redirect URI: `http://192.168.1.251.sslip.io:8000/api/auth/callback`
    (the LAN IP embedded in the sslip.io hostname + your port). Google
-   accepts it — houses runs exactly this.
+   accepts it — this is the shape a LAN app runs.
 2. **The flow**: login endpoint builds the authorization URL (PKCE,
    state); the app fetches it and follows `auth_url`; Google redirects to
    the registered callback (a top-level navigation — the cookie lands
