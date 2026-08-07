@@ -134,6 +134,21 @@ def from_line(line: dict[str, Any]) -> Label:
     return Label(line["call_id"])
 """
 
+WRAPPED_DESERIALIZER = """\
+def from_line(line: dict[str, Any]) -> Label | None:
+    return None
+"""
+
+OPTIONAL_DESERIALIZER = """\
+def from_line(line: dict[str, Any]) -> Optional[Label]:
+    return None
+"""
+
+UNION_VALUE_MAP = """\
+def merge(opts: dict[str, str | None]) -> None:
+    pass
+"""
+
 GRAB_BAG_TO_PRIMITIVE = """\
 def created_ms(line: dict[str, Any]) -> int:
     return int(line["created_at_ms"])
@@ -239,6 +254,24 @@ class RecordCollectionGateTest(unittest.TestCase):
     def test_deserializer_boundary_is_exempt(self):
         with tempfile.TemporaryDirectory() as td:
             write_module(Path(td), "m.py", DESERIALIZER_BOUNDARY)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_wrapped_deserializer_return_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", WRAPPED_DESERIALIZER)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_optional_deserializer_return_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", OPTIONAL_DESERIALIZER)
+            result = scan([Path(td)])
+            self.assertEqual(result.findings, [])
+
+    def test_union_value_map_is_exempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            write_module(Path(td), "m.py", UNION_VALUE_MAP)
             result = scan([Path(td)])
             self.assertEqual(result.findings, [])
 

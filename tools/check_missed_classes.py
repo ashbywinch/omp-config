@@ -126,15 +126,30 @@ class ModuleScanner:
         return False
 
     @staticmethod
+    def _union_parts(node: ast.expr) -> list[ast.expr]:
+        """The components of a type expression: flatten `A | B` unions and
+        unwrap Optional[..]/Union[..] subscripts; anything else is itself."""
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return ModuleScanner._union_parts(node.left) + ModuleScanner._union_parts(node.right)
+        if isinstance(node, ast.Subscript):
+            parts = node.slice
+            if isinstance(parts, ast.Tuple):
+                return [e for part in parts.elts for e in ModuleScanner._union_parts(part)]
+            return ModuleScanner._union_parts(parts)
+        return [node]
+
+    @staticmethod
     def _returns_domain_class(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-        """Return annotation is a single class name (Label, Run, ...) — the
-        function converts raw JSON into a domain object."""
+        """Return annotation resolves to a domain class — possibly wrapped
+        in Optional/Union or a `|` union — so the function converts raw
+        JSON into domain objects (the sanctioned deserializer boundary)."""
         r = node.returns
         if r is None:
             return False
-        if isinstance(r, ast.Name):
-            return r.id not in PRIMITIVES and r.id not in ("dict", "tuple", "list")
-        return False
+        return any(
+            isinstance(p, ast.Name) and p.id not in PRIMITIVES and p.id not in ("dict", "tuple", "list")
+            for p in ModuleScanner._union_parts(r)
+        )
 
     def signature_findings(self) -> list[str]:
         findings: list[str] = []
