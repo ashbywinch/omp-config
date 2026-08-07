@@ -33,8 +33,11 @@ and say so — degrade honestly, never vendor a copy.
 
 ### 1. Prepare the review input
 
-- Diff: `git diff <base>...HEAD` (or the working-tree diff pre-commit)
-  plus `git diff --stat`; the changed-file list.
+- **Commit first.** The review runs between commits: commit the current
+  work so the tree is clean, and record the SHA of the last review point.
+  Every pass's diff is between commits, never a dirty tree.
+- First pass: the whole PR — `git diff <base>...HEAD` plus
+  `git diff --stat` and the changed-file list.
 - Context: the repo's `repo_context_files` from `.pr_agent.toml`.
 - The subtask prompt carries the diff INLINE (the prompt expects the
   diff as input, not as a file to open).
@@ -72,13 +75,31 @@ design-choice flagging, no speculation without a concrete code path.
   reason) — a dismissed finding is dismissed with a stated reason, not
   silently dropped.
 
-### 4. Loop
+### 4. Loop — decide the next pass's diff scope
 
-After the round of fixes, re-run the review on the delta (step 2 with the
-new diff). Stop when the remaining findings are not worth the tokens of
-another pass — i.e., only trivial, rare, or already-dismissed-with-reason
-issues remain. State the stop condition explicitly: what was fixed, what
-the user decided, what remains and why another pass was not worth it.
+Fix (test-first), **commit the fixes** (the next review point is a commit,
+not the working tree), then decide what the next pass reviews:
+
+- **Incremental** — `git diff <last_review_sha>..HEAD`: only the fixes
+  since the last review. Choose when the delta is small and localized (a
+  few files, mechanical, pure additions that don't alter previously
+  reviewed contracts).
+- **Whole PR** — `git diff <base>...HEAD`: everything. Choose when the
+  delta is large (many files or lines), **structural** (refactors, renames,
+  moving modules, changing a shared contract), or the fixes cross-cut many
+  previously-reviewed files — a refactor that touches callers across the
+  codebase needs the whole picture, not its own diff.
+
+Judgment rule: when in doubt, widen. An incremental pass is only safe if
+you can point to the reviewed contracts it does not touch. If the
+cumulative changes since the last whole-PR pass are substantial, run a
+whole-PR pass before stopping.
+
+Stop when the remaining findings are not worth the tokens of another
+pass — only trivial, rare, or already-dismissed-with-reason issues remain.
+State the stop condition explicitly: what was fixed, what the user decided,
+what remains, the diff scope chosen and why, and why another pass was not
+worth it.
 
 ## Guards
 
