@@ -114,7 +114,8 @@ context. Write for density: the smallest set of words that preserves every
 fact and decision.
 
 - **Rules as explicit negatives.** "Never X" reads faster and is followed
-  more reliably than "be careful about X".
+  more reliably than "be careful about X". (For instructions an agent must
+  *act on* — a skill, a rule, a task prompt — see `skill://prompt-craft`.)
 - **Commands over prose.** `make test` beats "run the test suite to verify
   everything works".
 - **Tables over prose.** A rule per row beats a paragraph per rule, when a

@@ -23,6 +23,13 @@ documentation: SKILL.md is subject to both standards like any doc — a skill
 covers one procedure, stays within the always-loaded size ceilings, and is
 discoverable through the harness's skill list.
 
+A skill is also an **instruction an agent must follow** — its body is a
+prompt. The doc half (context efficiency, discoverability) is this skill;
+the instruction half (what wording an agent reliably acts on) is
+`skill://prompt-craft`. They do not duplicate each other: this one shapes
+the document, that one shapes the instruction — a shared rule is linked in
+one place, never restated in the other.
+
 ## Before writing, answer these questions
 
 - Who is this for? (developer running the server, agent implementing a
