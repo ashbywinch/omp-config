@@ -20,13 +20,10 @@ Core patterns for Notion operations via `ntn`. Domain skills reference this for 
 
 ## Write Permission Gate (CRITICAL)
 
-**No write to any Notion database without explicit user approval of that exact write.** Applies to every create, PATCH, delete, and relation change in every database. Domain skills must not bypass this gate; the APPEND_SYSTEM.md "External Writes" rule is the general form.
+**No write to any Notion database without explicit user approval of that exact write.** Applies to every create, PATCH, delete, and relation change in every database. The APPEND_SYSTEM.md "External Writes" rule is the general form (enumerate the writes, wait for an explicit yes, never infer records, never bundle writes into an answer, discussion is not approval); this section adds what is Notion-specific:
 
-- **Explicit means the write list itself.** The user approves the specific pages, properties, and values. Agreeing to a routing table, approving a plan, or continuing a design discussion is NOT approval to write.
-- **Discussion is not approval.** If the user is still asking questions or refining scope, the design is not settled — no writes. Answer their question and stop; never bundle a batch of writes into the same turn as an answer.
-- **Enumerate before you write.** Present every intended write (create page X with these properties; link A→B; set Status on pages N..) and wait for a "yes" to that list. One explicit "write all of the above as listed" authorizes exactly that list, nothing else.
-- **Never create records by inference.** A page (epic, task, insight, value stream) is created only when the user explicitly asked for it or explicitly approved its creation by name. Inferring a record from a remark or a "we should make this" is not permission.
-- **Create and link are separate approvals.** Routing an insight into a new epic needs (1) approval to create the epic, then (2) approval of the link.
+- **Create and link are separate approvals.** Routing an insight into a new epic needs (1) approval to create the epic, then (2) approval of the link. A creation approval never authorizes the link.
+- **Every write needs enumerating, including Status updates.** A "mark as processed"-style PATCH is a write like any other and belongs in the approved list.
 - When in doubt, present the write list and ask. A wasted round-trip is cheap; an unauthorized write is not.
 
 ## Database IDs
