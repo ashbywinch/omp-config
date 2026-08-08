@@ -76,11 +76,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # gh api --paginate emits ONE JSON array per page — slurp (-s) and
+          # concat, or a 31+ comment PR makes this a multi-line string that
+          # never equals "true" (a false failure — the-loft 2026-08-08 review).
+          comments="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --paginate | jq -s 'add')"
+          if printf '%s' "$comments" | jq -e 'any(.body == "/skip")' >/dev/null; then
+            echo "review skipped by a human (/skip)"
+            exit 0
+          fi
           head_date="$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq .commit.committer.date)"
-          covered="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --paginate \
-            | jq -r --arg sha "$SHA" --arg hd "$head_date" \
-              '[.[] | select(.body | startswith("## PR Reviewer Guide"))]
-               | any(.created_at >= $hd or (.body | contains($sha)))')"
+          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date"             '[.[] | select(.body | startswith("## PR Reviewer Guide"))]
+             | any(.created_at >= $hd or (.body | contains($sha)))')"
           if [ "$covered" != "true" ]; then
             echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
             exit 1
