@@ -18,7 +18,7 @@ review time and never copies either:
    PR-Agent repo, pinned to the SAME version the repo's review action pins
    (read `.github/workflows/pr-agent.yml` for the tag; fall back to
    `v0.41.1`). Read it via the URL reader:
-   `https://raw.githubusercontent.com/The-PR-Agent/pr-agent/<tag>/pr_agent/settings/pr_reviewer_prompts.toml`
+   `https://raw.githubusercontent.com/Codium-ai/pr-agent/<tag>/pr_agent/settings/pr_reviewer_prompts.toml`
    It carries the diff-format spec, the flagging rules (thorough on real
    bugs, certain before flagging lower severity, no speculation, no
    design-choice flagging) and the structured output shape.
