@@ -17,8 +17,8 @@
 #
 # DO NOT CHANGE:
 # - Never run the full test suite here — too slow; tests stay in CI.
-# - The gate must not silently skip a broken file: covers staged, unstaged,
-#   AND untracked sources.
+# - The gate must not silently skip a broken file: the skip scopes to the
+#   PUSHED RANGE, never the working tree (see below).
 # - `set -e` (fail loudly on the first error — a skipped check is worse
 #   than a failed one).
 
@@ -26,11 +26,28 @@ set -e
 
 # Only run when the push actually touches Python/TS/Vue sources or the
 # typecheck config — a pure docs push shouldn't pay the check cost.
-if [ -z "$(git diff --cached --name-only -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ] && \
-   [ -z "$(git diff --name-only -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ] && \
-   [ -z "$(git ls-files --others --exclude-standard -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ]; then
-    exit 0
-fi
+#
+# The scope is the pushed commits, read from the hook's stdin
+# (<local ref> <local sha> <remote ref> <remote sha> per pushed ref), NOT
+# the working tree: at push time the index and worktree are clean, so a
+# worktree-based skip would exit 0 before the gate ever ran. A new branch
+# (all-zero remote sha) diffs against the empty tree, so every pushed file
+# is in scope; a deleted ref (all-zero local sha) is skipped.
+EMPTY_TREE=$(git hash-object -t tree /dev/null)
+ZERO_SHA=0000000000000000000000000000000000000000
+touched=false
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    case $local_sha in
+        ""|$ZERO_SHA) continue ;;   # deleted ref — nothing to check
+    esac
+    base=$remote_sha
+    [ "$base" = "$ZERO_SHA" ] && base=$EMPTY_TREE
+    if [ -n "$(git diff --name-only "$base".."$local_sha" -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ]; then
+        touched=true
+        break
+    fi
+done
+[ "$touched" = true ] || exit 0
 
 if [ ! -x .venv/bin/ruff ]; then
     echo "pre-push: .venv missing — run 'make setup' first"

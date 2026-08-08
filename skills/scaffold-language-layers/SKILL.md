@@ -57,10 +57,22 @@ equivalent.
   **basedpyright** (the alternative) — invocation is the BARE command; `basedpyright` is config-driven and has NO `check` subcommand (`basedpyright check` exits 4 treating `check` as a path). It exits 1 on WARNINGS by default — gate on the ERROR COUNT, not the exit code or `--level`: `basedpyright --outputjson | python -c "import json,sys; sys.exit(1 if json.load(sys.stdin)['summary']['errorCount'] else 0)"` — `--level=error` is ignored in CI because basedpyright has an "actions mode" (triggered by `GITHUB_ACTIONS`) where the `--level` filter doesn't apply to the exit code. Known open bug: DetachHead/basedpyright#1481; the JSON-summary parse is the community-standard fix. Its baseline lock mode is the gold standard the pyrefly wrapper replicates.
 
   **Bringing an existing repo into house shape** (not greenfield): bare `dict` annotations fail the strict checkers — use `dict[str, Any]`; pytest fixture params need explicit annotations (`tmp_path: Path`); DI fakes must SUBCLASS the real classes — plain `cast` fails with `reportInvalidCast` when the types don't overlap.
-- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker: pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
-- Git hooks: `pre-commit` framework, installed by `make setup` (`uv run pre-commit install`). **Working files: `examples/python/.pre-commit-config.yaml` + `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`** — ruff + pyrefly + gitleaks is the default; the basedpyright hook alternative is commented in the config. The type-check hook differs by checker: pyrefly's official mirror is `facebook/pyrefly-pre-commit` (hook id `pyrefly-check`, `pass_filenames: false` — checks the whole repo; pre-commit 0.42+ consolidated the old two hooks into one). Pitfall: the hook's `include`/`project-includes` scope silently turns OFF checking for files outside it (facebook/pyrefly-pre-commit#8) — scope via the config, never rely on the hook to exclude. basedpyright's hook lives in the MIRROR repo `DetachHead/basedpyright-prek-mirror` (unprefixed tags); `DetachHead/basedpyright` itself fails with InvalidManifestError.
-
-Fast checks only, never a test hook. `.gitleaksignore` whitelists intentional test fixtures (kilocode's pattern). Hooks run on ALL staged files — pyproject `include` scope does not apply, so scratch/legacy dirs need per-hook `exclude: ^dir/`. The ruff hook runs with `--fix`: it edits staged files and pre-commit aborts the commit — expect a re-add + recommit cycle (and `pre-commit run --all-files` skips everything until the first commit exists).
+- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff (+ type checker: pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
+- Git hooks: **raw `scripts/pre-commit` + `scripts/pre-push`** (working
+  files: `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`),
+  installed by `make install-hooks` (via `make setup`). The pre-commit hook
+  runs `make lint-check` + a gitleaks secrets scan on the staged diff; the
+  pre-push hook runs `make check` — the exact gate CI runs — so hook and CI
+  can never drift; check targets depend on `deps`, never `install-hooks`
+  (the pre-push deadlock). Fast checks only, never a test hook.
+  `.gitleaksignore` whitelists intentional test fixtures (kilocode's
+  pattern). Gitleaks is a one-time install (`go install
+  github.com/gitleaks/gitleaks/v8@latest` or brew); the hook fails loudly
+  when it is missing, so the secrets scan never silently disappears. (A
+  repo that prefers the pre-commit framework can wire
+  ruff/pyrefly/gitleaks through `facebook/pyrefly-pre-commit` instead —
+  pitfall: the hook's `include` scope silently turns OFF checking outside
+  the include — but the shipped example is one mechanism: raw scripts.)
 
 **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points. The critical bits, with the reasoning (also in the file's comments):
 

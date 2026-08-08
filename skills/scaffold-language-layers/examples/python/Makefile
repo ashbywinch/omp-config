@@ -70,7 +70,7 @@ run: setup
 # The exact gate a push must pass — run identically by CI and the pre-push
 # hook (single source of truth; no test run — too slow for a hook, and CI's
 # `make test` already includes these).
-check: lint-check typecheck
+check: deps lint-check typecheck
 
 test: deps lint-check typecheck
 	@$(PYTEST) tests/ -q --tb=short
@@ -87,7 +87,7 @@ coverage: deps
 
 lint: deps lint-check
 
-lint-check:  # Shared with the pre-commit hook — single source of truth for the lint scope
+lint-check: deps  # Shared with the pre-commit hook — single source of truth for the lint scope
 	@$(RUFF) check <pkg>/ tests/
 
 lint-github: deps   # CI only: findings surface as PR annotations

@@ -58,8 +58,8 @@ Key invariants in the Makefile (see the file comments for the full rationale):
 - `clean` removes exactly `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data.
 
 Hooks (`skill://scaffold-language-layers/examples/python/scripts/pre-commit`, `.../pre-push`, installed by `make install-hooks`):
-- pre-commit delegates to `make lint-check`; pre-push delegates to `make check` — never duplicate the tool invocations.
-- pre-push skip logic watches `*.py '*.ts' '*.vue' '*.js' pyrefly.toml` (a config change can alter the diagnostic set). It must NOT skip unstaged/untracked sources — the gate must not silently skip a broken file.
+- pre-commit delegates to `make lint-check` (plus a gitleaks secrets scan); pre-push delegates to `make check` — never duplicate the tool invocations.
+- pre-push skip logic scopes to the pushed commits, watching `*.py '*.ts' '*.vue' '*.js' pyrefly.toml` (a config change can alter the diagnostic set) — never the working tree: at push time the worktree is clean, and a worktree-based skip would let the gate silently never run.
 
 Non-Python: same targets, different toolchain lines (see language layers).
 
@@ -139,7 +139,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 - `.editorconfig`: `root = true`, `utf-8`, `insert_final_newline = true`, `eol = lf`, 2-space indent default, per-language overrides (kilocode). `max_line_length` must match the formatter (120 for ruff/prettier) — kilocode's editorconfig 80-vs-prettier-120 mismatch is a smell to avoid.
 - `.env.example` committed with every env var documented (values blank); `.env` itself is gitignored. The app reads values from the real environment (`os.environ`) — never from a file — so `.env` is not a runtime artifact and never needs distributing. Dev scenario: `make setup` guarantees `.env` exists (`[ -f .env ] || cp .env.example .env`), and env loading is scoped to run-type targets only — `uv run --env-file .env python -m <pkg>` — never on lint/test/coverage, so CI and fresh clones are unaffected. `--env-file` has the correct precedence (real env wins over file values); shell sourcing does NOT (`set -a; . ./.env` clobbers real vars with blank file values, which would blank a real secret). The guarantee lives in the Makefile, not the one-time scaffold — the repo gets cloned forever without re-running the skill. Real secrets live in the shell environment only — never in code, docs, logs, or the example file (chat-workflow AGENTS.md; houses coding-standards). No env vars at all? Ship a comment-only `.env.example` — the setup copy line stays harmless.
 - `.vscode/extensions.json` with recommended extensions — only if you want editor parity; it requires the `!.vscode/extensions.json` negation above (side-by-side ships one with `Vue.volar`; kilocode ships eslint/esbuild/direnv). Otherwise `.vscode/` is fully ignored.
-- Git hooks (stack-appropriate mechanism, see language layers; **working files: `skill://scaffold-language-layers/examples/python/scripts/pre-commit`, `.../pre-push`, `.../.pre-commit-config.yaml`**) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky. **The pre-push hook delegates to `make check`** (like pre-commit → `make lint-check`) so hook and CI can't drift — but check targets depend on `deps`, NEVER `install-hooks` (a hook calling `make check` would re-copy/refuse the very hook file — the pre-push deadlock). A hook running the tools directly instead of make is a smell — fix the make dependency, don't duplicate.
+- Git hooks (stack-appropriate mechanism, see language layers; **working files: `skill://scaffold-language-layers/examples/python/scripts/pre-commit`, `.../pre-push`**) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: raw git hooks (`scripts/pre-commit` + `scripts/pre-push`) installed by `make install-hooks` — they delegate to make targets so hook and CI can't drift. JS/TS: husky. **The pre-push hook delegates to `make check`** (like pre-commit → `make lint-check`) so hook and CI can't drift — but check targets depend on `deps`, NEVER `install-hooks` (a hook calling `make check` would re-copy/refuse the very hook file — the pre-push deadlock). A hook running the tools directly instead of make is a smell — fix the make dependency, don't duplicate.
 
 ### 5. Entry docs: README for humans, AGENTS.md for agents
 
@@ -166,7 +166,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 None of the surveyed repos have protection enforceable from the tree — it's a GitHub setting. The scaffold must create the repo and apply it:
 
 ```bash
-# git init first: make setup runs `pre-commit install`, which needs a repo
+# git init first: make setup runs `install-hooks`, which needs a repo
 git init -b main
 make setup                       # generates uv.lock, installs hooks; .venv + *.egg-info are gitignored
 # commit AFTER setup so uv.lock lands in the initial commit
@@ -199,7 +199,7 @@ Run in order; the checklist below is the final gate, not documentation.
 
 1. **Fresh-clone smoke test** — the single most valuable check. Clone the new repo into a temp dir and run `make setup && make lint && make test` there. This simulates exactly what every future clone and CI run experiences; it fails if anything depends on scaffold-session state (venv, cwd, env, uncommitted files).
 2. **Coverage and clean loop** — `make coverage` (emits `coverage.xml` for the CI gate), then `make clean`, then re-run `make test` — proves the clean target doesn't break the loop.
-3. **Hooks actually fire** — `uv run pre-commit run --all-files` passes (pre-commit lives in the venv; the bare command is not on PATH). Then prove gitleaks with a REALISTIC key: plain `sk-` + 24 chars matches no default rule (empirically passes); use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes.
+3. **Hooks actually fire** — `make install-hooks` copies the raw hooks; stage a lint-breaking change and confirm the pre-commit hook blocks the commit (or run `.git/hooks/pre-commit` directly on the staged changes). Then prove gitleaks with a REALISTIC key: plain `sk-` + 24 chars matches no default rule (empirically passes); use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes. Confirm pre-push fires on the pushed range: a push that touches only docs skips; a push touching `.py` runs `make check`.
 4. **Gitignore honesty** — after setup, `git status --porcelain` is empty: `.venv/`, `.env`, caches, and agent state never appear.
 5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute. Local fresh-clone smoke ≠ CI: the same make recipe passed locally (and in a local clone) but failed on the GitHub runner — budget one CI debug iteration (print `--version`, `--help`, raw exit codes) when standing up a new repo.
 6. **Walk the checklist** — every box checked against the actual repo, not from memory.
@@ -241,7 +241,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - Type checker (pyrefly recommended, or basedpyright/mypy) configured and gated inside `make test`; pyrefly uses the both-direction baseline lock (`scripts/pyrefly-lock.py` — new errors AND stale baseline entries fail; pyrefly's own baseline is one-way and misses stale entries)
 - `make check` = lint + typecheck — the single gate CI and the pre-push hook both run (same command, no drift); check targets depend on `deps`, never `install-hooks`
 - Flat `<pkg>/` layout with `packages.find` include
-- pre-commit config: ruff + typecheck + gitleaks hooks, installed by `make setup` (pyrefly: `facebook/pyrefly-pre-commit` — `pyrefly-check`, whole-repo scope)
+- Raw git hooks: `scripts/pre-commit` (lint via `make lint-check` + gitleaks) and `scripts/pre-push` (the full `make check` gate), installed by `make install-hooks` (via `make setup`); gitleaks is a one-time install (`go install github.com/gitleaks/gitleaks/v8@latest` or brew)
 
 ### JS/TS
 - [ ] npm scripts mirror make targets: dev/build/preview/test/coverage/lint/format

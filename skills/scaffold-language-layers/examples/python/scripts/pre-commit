@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# Pre-commit hook: run the fast lint gate — delegate to `make lint-check`.
+# Pre-commit hook: run the fast lint + secrets gates — delegate to
+# `make lint-check`, then run gitleaks over the staged diff.
 #
 # Install: `make install-hooks` (copies this file to .git/hooks/pre-commit).
 # Re-run `make install-hooks` after pulling updates — this file is the
@@ -16,6 +17,17 @@ set -e
 
 if [ -z "$(git diff --cached --name-only -- '*.py')" ]; then
     exit 0
+fi
+
+# Secrets scan — the house hook contract is lint + typecheck + gitleaks.
+# One-time install: `go install github.com/gitleaks/gitleaks/v8@latest` or
+# brew. Fail loudly when missing: a scan that silently disappears is a
+# scan that never runs.
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --pre-commit --redact --staged
+else
+    echo "pre-commit: gitleaks not on PATH — install it (go install github.com/gitleaks/gitleaks/v8@latest or brew), or drop this block from the hook" >&2
+    exit 1
 fi
 
 if [ ! -x .venv/bin/ruff ]; then
