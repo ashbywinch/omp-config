@@ -34,7 +34,7 @@ Proactively suggest routing destinations. Don't ask "where should this go?" — 
 After processing, update Status to **"Processed"** — otherwise it appears unprocessed next session.
 
 ### Process One at a Time
-Process insight items one by one, not in batch. For each item: present the routing → if the destination is a new Epic or Value Stream, get explicit approval to create it first and create it → wait for an explicit yes to that item's write list (link + Status) → write the link → update Status. Batch processing is allowed only after one explicit "process all of the above as listed" from the user, given after the full enumerated list of every item's writes (links, Status updates, any creations) has been presented — the list is the writes, not the routing suggestions.
+Process insight items one by one, not in batch. For each item: present the routing → if the destination is a new Epic or Value Stream, get explicit approval to create it first and create it → wait for an explicit yes to that item's write list (link + Status) → write the link → update Status. Batch processing is allowed only after one explicit "process all of the above as listed" from the user, given after the full enumerated list of every item's writes (links, Status updates, any creations) has been presented — the list is the writes, not the routing suggestions. The single statement approves each enumerated write individually, so a creation approval never authorizes its link; execute creations before the links that point to them.
 
 ## Process
 
@@ -46,7 +46,7 @@ For each insight:
 1. Read the raw text
 2. Suggest a specific routing destination (Epic or Value Stream)
 3. If the destination is a new Epic or Value Stream: get explicit approval to create it first, create it — the creation approval does not authorize the link
-4. Present the exact writes for THAT item (the link, and Status set to "Processed") and wait for an explicit yes to that list — discussion of the routing is not confirmation
+4. Present the exact writes for THAT item — the destination page (by name), the link to it, and Status set to "Processed" — and wait for an explicit yes to that list; discussion of the routing is not confirmation
 5. Link via relation (see `skill://notion-database-management` for relation PATCH syntax)
 6. Update Status to "Processed"
 
