@@ -1,0 +1,70 @@
+# <project> — pyproject.toml
+#
+# CHANGE: name/version/description; bump requires-python to the current
+# stable at scaffold time (`uv python list` — never guess); the dev
+# dependency versions; <pkg> in the setuptools + ruff + coverage paths.
+#
+# DO NOT CHANGE:
+# - No `ignore = [...]` list in [tool.ruff.lint] — don't cargo-cult
+#   chat-workflow/energy_envelope's UP046/UP047 skip (a reflection
+#   constraint there, not a general practice).
+# - The type checker section: PREFER pyrefly (fast + lock wrapper). If you
+#   switch to basedpyright, keep its `include` (not `exclude`) scoping and
+#   the error-count gate in the Makefile — see the type-checker bullet in
+#   the language layer.
+# - Dev deps live in PEP 735 [dependency-groups] dev, never split across
+#   optional-dependencies too (chat-workflow does, which is a smell).
+
+[project]
+name = "<project>"
+version = "0.1.0"
+description = "<one line>"
+readme = "README.md"
+requires-python = ">=3.12"  # bump to current stable at scaffold time (uv python list)
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8.0.0", "pytest-cov>=5.0.0", "ruff>=0.11.0", "pyrefly>=1.2.0", "archunitpython"]
+
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["<pkg>*"]
+
+[tool.ruff]
+target-version = "py312"  # match the .python-version pin
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+# No ignore list: don't cargo-cult chat-workflow/energy_envelope's UP046/UP047
+# skip (a reflection constraint there, not a general practice).
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["*/__main__.py"]  # entry points are never imported by tests — omit them or the 80% CI gate fails
+
+# Type checker — PREFER pyrefly (fast + lock wrapper). Standalone
+# pyrefly.toml uses top-level keys (preset, [errors]); this [tool.pyrefly]
+# form is for pyproject.toml (or skip it and use pyrefly.toml). The
+# baseline lock lives in scripts/pyrefly-lock.py (see the type-checker
+# bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
+[tool.pyrefly]
+preset = "default"
+errors = { missing-override-decorator = true, missing-super-call = true }
+
+# ALTERNATIVE — basedpyright (config-driven, no subcommand; scope with
+# `include` NOT `exclude` — an exclude key replaces the implicit
+# .venv/cache exclusions and the scan explodes into site-packages).
+# --level=error lives in the Makefile + hook, and its lock mode is the
+# gold standard the pyrefly wrapper replicates.
+# [tool.basedpyright]
+# include = ["<pkg>", "tests"]

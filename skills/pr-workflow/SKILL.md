@@ -47,6 +47,15 @@ Create a `pr_description.md` with:
 - **Risk areas** — what to pay attention to in review
 - **Testing** — what was verified and how
 
+**Never reference issue/PR numbers (`#N`) in the description unless you
+mean a real linked ticket.** PR-Agent's ticket-compliance step latches
+onto any `#N` in the body and tries to fetch it as an issue — a bare
+mention like "see #51" where #51 is a PR (or an issue that can't be
+fetched) crashes the review job with `Error extracting tickets` /
+`'NoneType' object has no attribute 'get'` (observed 2026-08-08, houses:
+a PR body saying "crashed the run on #51" killed pr-agent's review of
+that very PR). Say "the earlier dependabot PR" instead of "#51".
+
 ### 4. Create PR
 
 ```bash
@@ -114,6 +123,17 @@ The loop, one push per pass:
 
 Never push while a pr-review check is in flight: every push costs a full
 review generation, so batch fixes.
+
+### 5c. Skipping the AI Review (`/skip`) — only on explicit user request
+
+A human posting `/skip` as a PR comment opts that PR out of the AI review
+(supported by the house pr-agent setup: `skip_commands` in `.pr_agent.toml`,
+and the check-review step passes on a skip instead of failing with "no
+comments posted"). This is a **deliberate opt-out only — do NOT use it on
+your own initiative**. Use it only when the user explicitly asks to skip
+the review on a specific PR (e.g. a trivial mechanical bump where review
+adds nothing, and the user says so). The default is that every PR gets
+reviewed; a skipped review is a decision the user makes, not the agent.
 
 ### 6. When Checks Fail
 
@@ -261,6 +281,12 @@ The sections above are the how-to; these are the one-line reminders.
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
 - **Updating a PR description** — never `gh pr edit`; see §4.
+- **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
+  fetches any `#N`; a PR number or unfetchable issue crashes the review
+  with `Error extracting tickets` (§3).
+- **Posting `/skip` on your own initiative** — the review-skip command is
+  a user decision, never the agent's; only use it when the user explicitly
+  asks (§5c).
 - **Assuming all suggestions are from the current run** — stale
   suggestions accumulate; check the latest PR Reviewer Guide (§7).
 - **Fixing AI config suggestions** — `.pr_agent.toml`/workflow

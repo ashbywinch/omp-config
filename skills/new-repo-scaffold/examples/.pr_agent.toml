@@ -1,0 +1,50 @@
+# PR-Agent config — the house review contract.
+#
+# CHANGE: `<PROJECT>_API_KEY` -> repo secret name; add/remove docs from
+# repo_context_files as the repo's doc set changes.
+#
+# DO NOT CHANGE:
+# - api_base points at the house provider. Never let a PR branch override
+#   it (the workflow has no checkout for exactly this reason).
+# - repo_context_files lists ALL the standards + plan docs: the reviewer
+#   reads ONLY these files, so a rule that isn't listed here is invisible
+#   to review.
+# - extra_instructions demands a per-doc Compliance section — this is what
+#   makes the bot enforce the standards instead of rubber-stamping.
+
+[openai]
+custom_llm_provider = "openai"
+api_base = "https://opencode.ai/zen/go/v1"
+
+[config]
+model = "openai/deepseek-v4-flash"
+custom_model_max_tokens = 128000
+max_model_tokens = 128000
+ai_timeout = 600
+fallback_models = []
+repo_context_from_default_branch = false
+repo_context_files = [
+    "docs/PRD.md",
+    "docs/TECHSPEC.md",
+    "docs/PLAN.md",
+    "docs/coding-standards.md",
+    "docs/testing-standards.md",
+    "docs/writing-documentation.md",
+    "docs/documentation-structure.md",
+    "docs/ux-standards.md",
+]
+
+[pr_reviewer]
+require_tests_review = true
+require_security_review = true
+num_max_findings = 50
+extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (missing or malformed required docs — PRD with JTBD/personas/constraints, TECHSPEC with choices/spikes/diagrams, PLAN with the software's phase inputs/outputs and quality gates — and the required docs failing the documentation-quality checklist)"
+
+[github_action_config]
+handle_push_trigger = true
+push_commands = ["/review", "/improve"]
+# A human posting "/skip" on the PR skips the AI review for that PR
+# (the check-review step passes on it). Deliberate opt-out only — the
+# default is that every PR gets reviewed. Do NOT use /skip on your own
+# initiative; only when the user explicitly asks.
+skip_commands = ["/skip"]

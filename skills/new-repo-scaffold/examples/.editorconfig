@@ -1,0 +1,18 @@
+# .editorconfig — cross-editor defaults.
+#
+# CHANGE: per-language overrides for languages with different conventions.
+#
+# DO NOT CHANGE:
+# - max_line_length MUST match the formatter (120 for ruff/prettier) —
+#   kilocode's editorconfig 80-vs-prettier-120 mismatch is the smell.
+# - utf-8, lf, final newline are non-negotiable.
+
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+end_of_line = lf
+indent_style = space
+indent_size = 2
+max_line_length = 120

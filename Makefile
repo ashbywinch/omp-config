@@ -32,6 +32,9 @@ install:
 		name=$$(basename $$skill_dir); \
 		mkdir -p $(SKILLS_DIR)/$$name; \
 		ln -sf $$skill_dir/SKILL.md $(SKILLS_DIR)/$$name/SKILL.md; \
+		if [ -d $$skill_dir/examples ]; then \
+			ln -sfn $$skill_dir/examples $(SKILLS_DIR)/$$name/examples; \
+		fi; \
 	done
 	@echo "Installed omp-config. Restart omp to pick up changes."
 
@@ -43,6 +46,7 @@ uninstall:
 	for skill_dir in $(CURDIR)/skills/*/; do \
 		name=$$(basename $$skill_dir); \
 		rm -f $(SKILLS_DIR)/$$name/SKILL.md; \
+		rm -rf $(SKILLS_DIR)/$$name/examples; \
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
 	@echo "Removed omp-config symlinks."
