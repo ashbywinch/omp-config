@@ -46,17 +46,16 @@ Rules:
 - Colored output via `GREEN/YELLOW/RED/NC` ANSI variables and `@echo`.
 - `clean` removes exactly: `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc`.
 - **Pin the language runtime.** CI (`setup-node`/`setup-python` action) and local dev (`.nvmrc`, `.python-version`) use the **same** version; local dev must match CI — pinning CI only is the smell (side-by-side/houses pin CI only, kilocode pins bun via `packageManager`).
-- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment).
+- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment). **Baseline-locked repos (recommended):** the checker runs against a committed baseline and fails on drift in BOTH directions — a NEW error AND a stale baseline entry (an error the code no longer produces). The stale direction is the one that bites: a fix that removes a diagnostic without refreshing the baseline silently passes checkers whose baseline is a one-way suppression list (pyrefly's built-in baseline — exit 0, "0 errors (N suppressed)"). Only a lock that checks baseline-not-in-current catches it; basedpyright's lock mode has this, pyrefly needs a small wrapper (see `skill://scaffold-language-layers`).
 
-Python flavor (adapt `<pkg>` and `tests/` per project):
+Python flavor (adapt `<pkg>` and `tests/` per project; type-check via pyrefly + the both-direction baseline lock — see `skill://scaffold-language-layers` for the wrapper):
 
 ```makefile
 # Makefile for <project>
-.PHONY: help setup run lint lint-github typecheck test format coverage clean
+.PHONY: help setup deps run lint lint-check lint-github typecheck typecheck-update-baseline check test format coverage clean
 
 PYTHON := .venv/bin/python
 RUFF := .venv/bin/ruff
-BASEDPYRIGHT := .venv/bin/basedpyright
 
 GREEN := \033[0;32m
 NC := \033[0m
@@ -65,8 +64,9 @@ help:
 	@echo "Available commands:"
 	@echo "  ${GREEN}make setup${NC}        Create venv, install deps + pre-commit hooks, ensure .env exists"
 	@echo "  ${GREEN}make run${NC}          Run the app (loads .env; real env wins)"
+	@echo "  ${GREEN}make check${NC}        Lint + typecheck — the gate CI and the pre-push hook run"
 	@echo "  ${GREEN}make lint${NC}         Check code quality"
-	@echo "  ${GREEN}make typecheck${NC}    Static type check (basedpyright)"
+	@echo "  ${GREEN}make typecheck${NC}    Static type check (pyrefly, baseline lock)"
 	@echo "  ${GREEN}make test${NC}         Run tests (lint + typecheck gate)"
 	@echo "  ${GREEN}make format${NC}       Auto-fix formatting issues"
 	@echo "  ${GREEN}make coverage${NC}     Run tests with coverage report"
@@ -81,22 +81,34 @@ setup:
 run: setup
 	@uv run --env-file .env python -m <pkg>
 
-lint: setup
+# deps = what CHECK targets need — never install-hooks (a hook calling
+# `make check` would re-copy/refuse the very hook file: the pre-push deadlock).
+deps:
+	@uv sync
+
+lint: deps lint-check
+
+lint-check:   # Shared with the pre-commit hook — single source of truth for the lint scope
 	@$(RUFF) check <pkg>/ tests/
 
-lint-github: setup   # CI only: findings surface as PR annotations
+lint-github: deps   # CI only: findings surface as PR annotations
 	@$(RUFF) check <pkg>/ tests/ --output-format=github
 
-typecheck: setup     # gate on errorCount from --outputjson: basedpyright's --level is honored
-	@$(BASEDPYRIGHT) --outputjson | $(PYTHON) -c "import json,sys; d=json.load(sys.stdin); sys.exit(1 if d['summary']['errorCount'] else 0)"
+typecheck: deps     # pyrefly + BOTH-direction baseline lock (new errors AND stale entries fail)
+	@$(PYTHON) scripts/pyrefly-lock.py check
 
-test: setup lint typecheck
+typecheck-update-baseline: deps   # after a deliberate diagnostic change, commit the refresh
+	@$(PYTHON) scripts/pyrefly-lock.py update-baseline
+
+check: lint-check typecheck   # the exact gate CI and the pre-push hook run — same command, no drift
+
+test: deps lint-check typecheck
 	@$(PYTHON) -m pytest
 
-coverage: setup
+coverage: deps
 	@$(PYTHON) -m pytest --cov=<pkg> --cov-report=term-missing --cov-report=xml
 
-format: setup
+format: deps
 	@$(RUFF) check --fix <pkg>/ tests/
 	@$(RUFF) format <pkg>/ tests/
 
@@ -106,6 +118,8 @@ clean:
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete
 ```
+
+Pre-push hook (`scripts/pre-push`, installed by `make install-hooks`): delegate to `make check` — never duplicate the tool invocations. Skip logic watches `*.py '*.ts' '*.vue' '*.js' pyrefly.toml` (a config change can alter the diagnostic set).
 
 Non-Python: same targets, different toolchain lines (see language layers).
 
@@ -219,7 +233,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 - `.editorconfig`: `root = true`, `utf-8`, `insert_final_newline = true`, `eol = lf`, 2-space indent default, per-language overrides (kilocode). `max_line_length` must match the formatter (120 for ruff/prettier) — kilocode's editorconfig 80-vs-prettier-120 mismatch is a smell to avoid.
 - `.env.example` committed with every env var documented (values blank); `.env` itself is gitignored. The app reads values from the real environment (`os.environ`) — never from a file — so `.env` is not a runtime artifact and never needs distributing. Dev scenario: `make setup` guarantees `.env` exists (`[ -f .env ] || cp .env.example .env`), and env loading is scoped to run-type targets only — `uv run --env-file .env python -m <pkg>` — never on lint/test/coverage, so CI and fresh clones are unaffected. `--env-file` has the correct precedence (real env wins over file values); shell sourcing does NOT (`set -a; . ./.env` clobbers real vars with blank file values, which would blank a real secret). The guarantee lives in the Makefile, not the one-time scaffold — the repo gets cloned forever without re-running the skill. Real secrets live in the shell environment only — never in code, docs, logs, or the example file (chat-workflow AGENTS.md; houses coding-standards). No env vars at all? Ship a comment-only `.env.example` — the setup copy line stays harmless.
 - `.vscode/extensions.json` with recommended extensions — only if you want editor parity; it requires the `!.vscode/extensions.json` negation above (side-by-side ships one with `Vue.volar`; kilocode ships eslint/esbuild/direnv). Otherwise `.vscode/` is fully ignored.
-- Git hooks (stack-appropriate mechanism, see language layers) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky.
+- Git hooks (stack-appropriate mechanism, see language layers) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky. **The pre-push hook delegates to `make check`** (like pre-commit → `make lint-check`) so hook and CI can't drift — but check targets depend on `deps`, NEVER `install-hooks` (a hook calling `make check` would re-copy/refuse the very hook file — the pre-push deadlock). A hook running the tools directly instead of make is a smell — fix the make dependency, don't duplicate.
 
 ### 5. Entry docs: README for humans, AGENTS.md for agents
 
@@ -364,7 +378,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] Makefile with `help setup lint test coverage format clean` (+ `run`/`stop` for services, `dist` for artifacts); `.PHONY` on all targets
 - [ ] `make test` depends on `make lint`; CI runs only make targets
 - [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
-- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count
+- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail)
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
@@ -390,10 +404,11 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] pytest with `testpaths = ["tests"]`; dev deps in `[dependency-groups] dev` (PEP 735) incl. archunitpython
 - [ ] Semantic types wired: pint for quantities, a Money type for currency (the generic rules are in the global standard; the library choices are here)
 - [ ] `docs/coding-standards.md` carries the "Python conventions" section (materialized from this skill's language layer — the bot reads only `repo_context_files`)
-- [ ] pytest is the runner; unittest only for eval harnesses needing module-level discovery (documented deviation, not default)
-- [ ] Type checker (basedpyright or mypy) configured and gated inside `make test` (`--level=error` in make target AND hook args; scope via `include`, never `exclude`)
-- [ ] Flat `<pkg>/` layout with `packages.find` include
-- [ ] pre-commit config: ruff + basedpyright + gitleaks hooks, installed by `make setup`
+- pytest is the runner; unittest only for eval harnesses needing module-level discovery (documented deviation, not default)
+- Type checker (pyrefly recommended, or basedpyright/mypy) configured and gated inside `make test`; pyrefly uses the both-direction baseline lock (`scripts/pyrefly-lock.py` — new errors AND stale baseline entries fail; pyrefly's own baseline is one-way and misses stale entries)
+- `make check` = lint + typecheck — the single gate CI and the pre-push hook both run (same command, no drift); check targets depend on `deps`, never `install-hooks`
+- Flat `<pkg>/` layout with `packages.find` include
+- pre-commit config: ruff + typecheck + gitleaks hooks, installed by `make setup` (pyrefly: `facebook/pyrefly-pre-commit` — `pyrefly-check`, whole-repo scope)
 
 ### JS/TS
 - [ ] npm scripts mirror make targets: dev/build/preview/test/coverage/lint/format
