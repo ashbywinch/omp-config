@@ -16,6 +16,8 @@ repo_context_files = [
 ]
 
 [pr_reviewer]
+enable_incremental = true
+persistent_comment = true  # update the same review comment instead of posting a new one
 require_tests_review = true
 require_security_review = true
 num_max_findings = 50
@@ -24,3 +26,6 @@ extra_instructions = "Check the PR against each file in repo_context_files. Add 
 [github_action_config]
 handle_push_trigger = true
 push_commands = ["/review", "/improve"]
+
+[pr_code_suggestions]
+persistent_comment = true

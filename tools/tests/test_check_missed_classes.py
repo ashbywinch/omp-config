@@ -93,6 +93,40 @@ class RecordCollectionGateTest(unittest.TestCase):
     def test_inline_arg_record_literal_is_exempt(self):
         self.assertEqual(scan_fixture("inline_arg_record.py").findings, [])
 
+    def test_optional_wrapped_return_is_a_finding(self):
+        self.assertEqual(len(scan_fixture("optional_return_record.py").findings), 1)
+
+    def test_union_param_record_is_a_finding(self):
+        self.assertEqual(len(scan_fixture("union_param_record.py").findings), 1)
+
+    def test_variadic_tuple_is_exempt(self):
+        self.assertEqual(scan_fixture("variadic_tuple_ok.py").findings, [])
+
+    def test_nested_constant_lookup_is_exempt(self):
+        self.assertEqual(scan_fixture("nested_const_lookup_ok.py").findings, [])
+
+    def test_comprehension_record_is_a_finding(self):
+        self.assertEqual(len(scan_fixture("comprehension_record.py").findings), 1)
+
+    def test_typing_qualified_record_is_a_finding(self):
+        self.assertEqual(len(scan_fixture("typing_qualified.py").findings), 1)
+
+    def test_bulk_deserializer_is_exempt(self):
+        """from_lines(list[dict[str, Any]]) -> list[Label] is raw JSON in,
+        domain objects out — the sanctioned boundary."""
+        self.assertEqual(scan_fixture("bulk_deserializer.py").findings, [])
+
+    def test_optional_value_map_is_exempt(self):
+        """dict[str, Optional[str]] is a map, exactly like dict[str, str | None]."""
+        self.assertEqual(scan_fixture("optional_value_map_ok.py").findings, [])
+
+    def test_map_return_is_not_a_deserializer_boundary(self):
+        """dict[str, Label] return is a map, not a domain-class return — the
+        grab-bag parameter is not silently exempted."""
+        findings = scan_fixture("map_return_not_boundary.py").findings
+        self.assertEqual(len(findings), 1)
+        self.assertIn("parameter 'd'", findings[0])
+
 
 class StrewingWarningTest(unittest.TestCase):
     def test_three_shared_params_warns_not_fails(self):

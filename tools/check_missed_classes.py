@@ -34,7 +34,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-# Primitive value types: a dict of these (in a signature) is a record, not a map.
+# Primitive value types: a dict of these (in a signature) is a map, not a record.
 PRIMITIVES = frozenset({"str", "int", "float", "bool", "bytes", "Any", "object", "None"})
 
 
@@ -63,28 +63,75 @@ class ModuleScanner:
     def _name_of(node: ast.expr | None) -> str | None:
         if isinstance(node, ast.Name):
             return node.id
+        if isinstance(node, ast.Attribute):
+            return node.attr  # typing.Any -> Any
         if isinstance(node, ast.Constant):
             return str(node.value)
         return None
 
-    @classmethod
-    def _is_grab_bag(cls, node: ast.expr) -> bool:
-        """A bare dict or one whose value type says nothing about its shape
-        (dict[str, Any], dict[Any, X], dict[str, object]) — an untyped record."""
+    @staticmethod
+    def _base_name(node: ast.expr | None) -> str | None:
+        """The normalized collection base name: dict/list/tuple for bare
+        names and typing-qualified spellings (typing.Dict -> dict)."""
         if isinstance(node, ast.Name):
-            return node.id == "dict"
+            return node.id
+        if isinstance(node, ast.Attribute):
+            return node.attr.lower()
+        return None
+
+    @classmethod
+    def _unwrap(cls, node: ast.expr) -> list[ast.expr]:
+        """Peel Optional[..]/Union[..]/A | B wrappers into their members;
+        anything else is itself. Deliberately does NOT unwrap arbitrary
+        subscripts — dict[str, Label] is a map, not a domain-class return."""
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return cls._unwrap(node.left) + cls._unwrap(node.right)
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id in ("Optional", "Union"):
+            parts = node.slice
+            if isinstance(parts, ast.Tuple):
+                return [e for part in parts.elts for e in cls._unwrap(part)]
+            return cls._unwrap(parts)
+        return [node]
+
+    @staticmethod
+    def _is_variadic_tuple(node: ast.expr) -> bool:
+        """tuple[T, ...] — a homogeneous sequence like list[T], not a
+        fixed-size record pair."""
+        if not isinstance(node, ast.Subscript) or ModuleScanner._base_name(node.value) != "tuple":
+            return False
+        parts = node.slice
+        return isinstance(parts, ast.Tuple) and any(
+            isinstance(e, ast.Constant) and e.value is Ellipsis for e in parts.elts
+        )
+
+    @classmethod
+    def _is_raw_json(cls, node: ast.expr) -> bool:
+        """Raw JSON in: a bare or grab-bag dict (dict, dict[str, Any],
+        dict[Any, X], dict[str, object]), or a collection whose element is
+        one (list[dict[str, Any]] — bulk deserializer rows)."""
+        wrapped = cls._unwrap(node)
+        if len(wrapped) != 1:
+            return any(cls._is_raw_json(p) for p in wrapped)
+        node = wrapped[0]
+        if isinstance(node, ast.Name):
+            return cls._base_name(node) == "dict"
         if not isinstance(node, ast.Subscript):
             return False
-        base = node.value
-        if not isinstance(base, ast.Name) or base.id != "dict":
-            return False
-        value = node.slice
-        if isinstance(value, ast.Tuple):
-            if len(value.elts) != 2:
-                return True  # malformed — treat as bare-ish
-            _, val = value.elts
-            return cls._name_of(val) in ("Any", "object", "None")
-        return True  # dict[X] single-arg
+        base = cls._base_name(node.value)
+        if base == "dict":
+            value = node.slice
+            if isinstance(value, ast.Tuple):
+                if len(value.elts) != 2:
+                    return True  # malformed — treat as bare-ish
+                _, val = value.elts
+                return cls._name_of(val) in ("Any", "object", "None")
+            return True  # dict[X] single-arg
+        if base in ("list", "tuple"):
+            elt = node.slice
+            if isinstance(elt, ast.Tuple):
+                return False  # a fixed tuple of stuff is not raw rows
+            return cls._is_raw_json(elt)
+        return False
 
     @classmethod
     def _annotation_is_record(cls, node: ast.expr | None) -> bool:
@@ -92,18 +139,23 @@ class ModuleScanner:
 
         Calibration: maps pass (dict[str, primitive], dict[str, Domain]);
         grab-bags fail (bare dict, dict[str, Any]); collections of dicts /
-        tuples / nested lists fail; fixed tuples fail.
+        tuples / nested lists fail; fixed tuples fail. Optional/Union/|
+        wrappers are peeled first, so equivalent spellings agree.
+        Variadic tuples (tuple[str, ...]) and bare list/tuple are
+        collections, not records.
         """
         if node is None:
             return False
+        wrapped = cls._unwrap(node)
+        if len(wrapped) != 1:
+            return any(cls._annotation_is_record(p) for p in wrapped)
+        node = wrapped[0]
         if isinstance(node, ast.Name):
-            return node.id in ("dict", "tuple")
+            return cls._base_name(node) == "dict"  # bare dict = grab-bag; bare list/tuple are collections
         if not isinstance(node, ast.Subscript):
             return False
-        base = node.value
-        if not isinstance(base, ast.Name):
-            return False
-        if base.id == "dict":
+        base = cls._base_name(node.value)
+        if base == "dict":
             value = node.slice
             if isinstance(value, ast.Tuple):
                 if len(value.elts) != 2:
@@ -111,49 +163,51 @@ class ModuleScanner:
                 key, val = value.elts
                 if cls._name_of(key) not in ("str", "Any"):
                     return False
+                val_parts = cls._unwrap(val)
+                val = val_parts[0] if len(val_parts) == 1 else val
                 val_name = cls._name_of(val)
                 if val_name in ("Any", "object", "None"):
                     return True  # grab-bag: no shape
                 if isinstance(val, ast.Subscript):
-                    return True  # values are themselves collections (records)
-                if isinstance(val, ast.Name) and val.id in ("dict", "tuple", "list"):
+                    return not cls._is_variadic_tuple(val)  # collection values are records; variadic is a sequence
+                if cls._base_name(val) in ("dict", "tuple", "list"):
                     return True
                 return False  # dict[str, primitive | domain] = a map
             return True  # dict[X] single-arg or dict[()] — bare-ish
-        if base.id == "tuple":
-            return True  # a fixed-size pair is a record
-        if base.id == "list":
+        if base == "tuple":
+            return not cls._is_variadic_tuple(node)  # fixed-size pairs are records
+        if base == "list":
             value = node.slice
             if isinstance(value, ast.Subscript):
                 return True  # list[dict[...]] / list[tuple[...]] / list[list[...]] — records
             return isinstance(value, ast.Name) and value.id in ("dict", "tuple", "list")
         return False
 
-    @staticmethod
-    def _union_parts(node: ast.expr) -> list[ast.expr]:
-        """The components of a type expression: flatten `A | B` unions and
-        unwrap Optional[..]/Union[..] subscripts; anything else is itself."""
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-            return ModuleScanner._union_parts(node.left) + ModuleScanner._union_parts(node.right)
-        if isinstance(node, ast.Subscript):
-            parts = node.slice
-            if isinstance(parts, ast.Tuple):
-                return [e for part in parts.elts for e in ModuleScanner._union_parts(part)]
-            return ModuleScanner._union_parts(parts)
-        return [node]
-
-    @staticmethod
-    def _returns_domain_class(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-        """Return annotation resolves to a domain class — possibly wrapped
-        in Optional/Union or a `|` union — so the function converts raw
-        JSON into domain objects (the sanctioned deserializer boundary)."""
+    @classmethod
+    def _returns_domain_class(cls, node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Return annotation resolves to a domain class — a bare class
+        name, Optional/Union/| wrappers, or a collection of one
+        (list[Label], tuple[Label, ...]) — so the function converts raw
+        JSON into domain objects (the sanctioned deserializer boundary).
+        A map return (dict[str, Label]) is not a boundary."""
         r = node.returns
         if r is None:
             return False
-        return any(
-            isinstance(p, ast.Name) and p.id not in PRIMITIVES and p.id not in ("dict", "tuple", "list")
-            for p in ModuleScanner._union_parts(r)
-        )
+        return any(cls._part_is_domain(p) for p in cls._unwrap(r))
+
+    @classmethod
+    def _part_is_domain(cls, node: ast.expr) -> bool:
+        """One part of the return annotation that resolves to a domain
+        class: a bare class name, or a collection of one."""
+        if isinstance(node, ast.Name):
+            return node.id not in PRIMITIVES and node.id not in ("dict", "tuple", "list")
+        if isinstance(node, ast.Subscript) and cls._base_name(node.value) in ("list", "tuple"):
+            elt = node.slice
+            if isinstance(elt, ast.Tuple):
+                parts = [e for e in elt.elts if not (isinstance(e, ast.Constant) and e.value is Ellipsis)]
+                return len(parts) == 1 and cls._part_is_domain(parts[0])
+            return cls._part_is_domain(elt)
+        return False
 
     def signature_findings(self) -> list[str]:
         findings: list[str] = []
@@ -166,7 +220,7 @@ class ModuleScanner:
                 ann_node = arg.annotation
                 if ann_node is None or not self._annotation_is_record(ann_node):
                     continue
-                if boundary and self._is_grab_bag(ann_node):
+                if boundary and self._is_raw_json(ann_node):
                     continue  # deserializer boundary: raw JSON in, domain class out
                 ann = ast.unparse(ann_node)
                 findings.append(
@@ -182,12 +236,24 @@ class ModuleScanner:
                 )
         return findings
 
+    @staticmethod
+    def _is_constant_value(node: ast.expr) -> bool:
+        """A literal value that cannot vary at runtime: a constant, or a
+        list/tuple literal whose elements are all constant (lookup tables
+        may carry nested constant structures)."""
+        if isinstance(node, ast.Constant):
+            return True
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return all(ModuleScanner._is_constant_value(e) for e in node.elts)
+        return False
+
     def record_literal_lines(self) -> list[int]:
         """Line numbers of dict literals building records: >= 2 keys, >= 1
         constant string key, >= 1 dynamic value, in a record position
-        (assigned, returned, or yielded). Inline call arguments are maps
-        and are not descended into. Lookup tables (all values constant)
-        pass."""
+        (assigned, returned, or yielded, including inside comprehensions
+        and lambdas). Inline call arguments are maps and are not descended
+        into. Lookup tables (all values constant, nested structures
+        included) pass."""
         found: set[int] = set()
 
         def scan_expr(node: ast.expr | None) -> None:
@@ -198,7 +264,7 @@ class ModuleScanner:
                 has_const_key = any(
                     isinstance(k, ast.Constant) and isinstance(k.value, str) for k in keys
                 )
-                has_dynamic_value = any(not isinstance(v, ast.Constant) for v in node.values)
+                has_dynamic_value = any(not self._is_constant_value(v) for v in node.values)
                 if len(keys) >= 2 and has_const_key and has_dynamic_value:
                     found.add(node.lineno)
                 for v in node.values:
@@ -210,6 +276,13 @@ class ModuleScanner:
             elif isinstance(node, ast.IfExp):
                 scan_expr(node.body)
                 scan_expr(node.orelse)
+            elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+                scan_expr(node.elt)
+            elif isinstance(node, ast.DictComp):
+                scan_expr(node.key)
+                scan_expr(node.value)
+            elif isinstance(node, ast.Lambda):
+                scan_expr(node.body)
             # Do NOT descend into Call nodes: inline arguments (headers={...},
             # params={...}) are maps/config, not records.
 
