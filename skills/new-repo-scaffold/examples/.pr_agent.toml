@@ -6,6 +6,17 @@
 # DO NOT CHANGE:
 # - api_base points at the house provider. Never let a PR branch override
 #   it (the workflow has no checkout for exactly this reason).
+# - model stays "openai/deepseek-v4-flash": the action's handler strips the
+#   openai/ (and azure/) prefix and sends the bare name to api_base. Any
+#   OTHER prefix (e.g. "opencode-go/deepseek-v4-flash") goes to the endpoint
+#   verbatim and 401s with "Model ... is not supported" — silently, every
+#   run (the-loft 2026-08-08: hours of failed reviews from exactly this).
+# - This file applies ONLY when the workflow pins PR_AGENT_CONFIG_BRANCH to
+#   a branch holding it: the action gates repo .pr_agent.toml keys by
+#   per-host allowed-keys, so without the pin the image defaults run
+#   (model gpt-5.6, api_base api.openai.com) and the key is rejected as
+#   "Incorrect API key provided: sk-..." — when that error shows, check the
+#   pin and the branch's file, never the key.
 # - repo_context_files lists ALL the standards + plan docs: the reviewer
 #   reads ONLY these files, so a rule that isn't listed here is invisible
 #   to review.
@@ -39,6 +50,9 @@ require_tests_review = true
 require_security_review = true
 num_max_findings = 50
 extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (missing or malformed required docs — PRD with JTBD/personas/constraints, TECHSPEC with choices/spikes/diagrams, PLAN with the software's phase inputs/outputs and quality gates — and the required docs failing the documentation-quality checklist), and UX deviations from docs/ux-standards.md. Structural findings the standards name are findings too: a missed class (bare dict/tuple/list in a record position), a name that violates the object model or domain-noun rules, and separation-of-concerns violations."
+
+[pr_code_suggestions]
+persistent_comment = true
 
 [github_action_config]
 handle_push_trigger = true
