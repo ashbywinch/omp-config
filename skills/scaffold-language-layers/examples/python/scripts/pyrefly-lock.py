@@ -40,8 +40,30 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple, TypedDict
 
 DEFAULT_BASELINE = Path(".pyrefly-baseline.json")
+
+
+class DiagnosticKey(NamedTuple):
+    """The comparison key for one diagnostic — a named record, never a
+    bare tuple (path, line, column, name)."""
+    path: str
+    line: int
+    column: int
+    name: str
+
+
+class Diagnostic(TypedDict, total=False):
+    """One pyrefly error — a record, not a bare dict.
+
+    Fields may be absent for unlocated diagnostics; error_key normalizes
+    them so keys compare and sort stably."""
+    path: str
+    line: int
+    column: int
+    name: str
+    concise_description: str
 
 
 def _pyrefly_binary() -> str:
@@ -56,11 +78,15 @@ def _pyrefly_binary() -> str:
 PYREFLY_BASE_ARGS = [_pyrefly_binary(), "check", "--output-format", "json"]
 
 
-def error_key(e: dict) -> tuple:
-    return (e.get("path"), e.get("line"), e.get("column"), e.get("name"))
+def error_key(e: Diagnostic) -> DiagnosticKey:
+    """(path, line, column, name) — None-safe, so unlocated diagnostics
+    compare and sort stably instead of crashing or collapsing."""
+    return DiagnosticKey(
+        e.get("path") or "", e.get("line") or 0, e.get("column") or 0, e.get("name") or ""
+    )
 
 
-def current_errors(extra_args: list[str]) -> list[dict]:
+def current_errors(extra_args: list[str]) -> list[Diagnostic]:
     """Run pyrefly (no baseline) and return the full error list."""
     proc = subprocess.run(
         PYREFLY_BASE_ARGS + extra_args,
@@ -80,7 +106,7 @@ def current_errors(extra_args: list[str]) -> list[dict]:
     return data.get("errors", [])
 
 
-def load_baseline(path: Path) -> list[dict]:
+def load_baseline(path: Path) -> list[Diagnostic]:
     if not path.is_file():
         return []
     return json.loads(path.read_text()).get("errors", [])
@@ -103,8 +129,10 @@ def main() -> int:
     baseline = {error_key(e): e for e in load_baseline(args.baseline)}
 
     if args.cmd == "update-baseline":
-        # Sort by (path, line, column) for a stable diff-friendly file.
-        ordered = sorted(errors, key=lambda e: (e.get("path", ""), e.get("line", 0), e.get("column", 0)))
+        # Sort by the same key the diff uses — (path, line, column, name)
+        # with identical defaults — so the committed file is canonical
+        # with respect to the comparison.
+        ordered = sorted(errors, key=error_key)
         args.baseline.write_text(json.dumps({"errors": ordered}, indent=1) + "\n")
         print(f"pyrefly-lock: wrote baseline with {len(ordered)} errors to {args.baseline}")
         return 0
