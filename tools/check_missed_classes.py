@@ -12,11 +12,13 @@ the two places records appear:
    class is a collection. Deserializer boundaries are the one sanctioned
    bare-dict spot: a grab-bag parameter on a function that returns a
    domain class (raw JSON in, `Label` out) is exempt.
-2. **Literals** — a dict literal with >= 2 constant string keys and at
-   least one dynamic value, in a *record position* (assigned, returned, or
-   yielded), is a record being built (`{"kind": "tool_call", ...}`).
-   Inline call arguments (`headers={...}`) are maps, not records, and pass.
-   Lookup tables whose keys and values are all constant pass untouched.
+2. **Literals** — a dict literal with >= 2 keys, at least one constant
+   string key, and at least one dynamic value, in a *record position*
+   (assigned, returned, or yielded), is a record being built
+   (`{"kind": "tool_call", ...}` — mixed or odd keys included: if it has
+   a shape, it wants a class). Inline call arguments (`headers={...}`)
+   are maps, not records, and pass. Lookup tables whose keys and values
+   are all constant (nested structures included) pass untouched.
 
 Function strewing (free functions sharing a leading parameter) is a
 canary for the same disease; it is reported as a warning, never the gate.
@@ -125,7 +127,8 @@ class ModuleScanner:
                 if len(value.elts) != 2:
                     return True  # malformed — treat as bare-ish
                 _, val = value.elts
-                return cls._name_of(val) in ("Any", "object", "None")
+                val_parts = cls._unwrap(val)
+                return any(cls._name_of(p) in ("Any", "object", "None") for p in val_parts)
             return True  # dict[X] single-arg
         if base in ("list", "tuple"):
             elt = node.slice
@@ -165,7 +168,13 @@ class ModuleScanner:
                 if cls._name_of(key) not in ("str", "Any"):
                     return False
                 val_parts = cls._unwrap(val)
-                val = val_parts[0] if len(val_parts) == 1 else val
+                if len(val_parts) > 1:
+                    # a union value: a record or shapeless member (Any | None)
+                    # makes the whole value a record
+                    return any(cls._annotation_is_record(p) for p in val_parts) or any(
+                        cls._name_of(p) in ("Any", "object") for p in val_parts
+                    )
+                val = val_parts[0]
                 val_name = cls._name_of(val)
                 if val_name in ("Any", "object", "None"):
                     return True  # grab-bag: no shape
@@ -217,6 +226,10 @@ class ModuleScanner:
                 continue
             boundary = self._returns_domain_class(node)
             args = node.args.args + node.args.posonlyargs + node.args.kwonlyargs
+            if node.args.vararg is not None:
+                args = args + [node.args.vararg]
+            if node.args.kwarg is not None:
+                args = args + [node.args.kwarg]
             for arg in args:
                 ann_node = arg.annotation
                 if ann_node is None or not self._annotation_is_record(ann_node):

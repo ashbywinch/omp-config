@@ -127,6 +127,21 @@ class RecordCollectionGateTest(unittest.TestCase):
         """dict[str, Optional[str]] is a map, exactly like dict[str, str | None]."""
         self.assertEqual(scan_fixture("optional_value_map_ok.py").findings, [])
 
+    def test_vararg_and_kwarg_annotations_are_findings(self):
+        self.assertEqual(len(scan_fixture("varargs.py").findings), 2)
+
+    def test_union_grab_bag_value_is_a_finding(self):
+        """dict[str, Any | None] is as shapeless as dict[str, Any]."""
+        self.assertEqual(len(scan_fixture("union_grab_bag.py").findings), 1)
+
+    def test_union_grab_bag_at_boundary_is_exempt(self):
+        self.assertEqual(scan_fixture("union_grab_bag_boundary.py").findings, [])
+
+    def test_mixed_key_record_is_a_finding(self):
+        """The tighter literal rule: a constant string key and a dynamic
+        value make a record, whatever the odd key is."""
+        self.assertEqual(len(scan_fixture("mixed_key_record.py").findings), 1)
+
     def test_map_return_is_not_a_deserializer_boundary(self):
         """dict[str, Label] return is a map, not a domain-class return — the
         grab-bag parameter is not silently exempted."""
