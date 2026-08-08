@@ -48,6 +48,27 @@ constant to point at a tmp dir; make the dependency a parameter).
   by default (`@pytest.mark.e2e`).
 - Shared test infrastructure (fixtures, fakes) is extracted once, not
   copy-pasted per file.
+- **Never let a derived artifact drift from a fresh run.** When something
+  is both committed and derived (a projection, an index, a store a producer
+  fills), its shape rule is enforced per [A described contract is not an
+  enforced contract](coding-standards.md#a-described-contract-is-not-an-enforced-contract)
+  — verified here against regeneration. Three tests:
+  - the committed version equals a fresh run, compared on a defined stable
+    form implemented as a normalizing function declared alongside the
+    producer (canonical ordering, no timestamps, paths relative to the
+    repo root, locale-independent) — never raw output, so a
+    non-deterministic producer cannot make the test flaky; pin the
+    normalizer itself with a unit test for determinism and environment
+    independence;
+  - re-running the producer changes nothing (idempotent), compared on the
+    same defined stable form — incidental raw-output nondeterminism
+    (ordering, timestamps) is not drift;
+  - the invariant is asserted on the producer's declared inputs and
+    outputs (a unit-level check, no live state required) and separately
+    on the fresh-run result using the same defined stable form; both
+    assertions must pass.
+  Hand-patching the committed output hides a producer bug that resurfaces
+  on every fresh build. Regenerability is a claim, verified not assumed.
 
 ## Precompute, materialise — unless the test is the round trip
 

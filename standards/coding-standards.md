@@ -121,6 +121,28 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   asserts what a value is, the library parses it" is the anti-pattern.
   Dates, numbers, formats: let a validated library parse; the code asserts,
   never invents.
+### A described contract is not an enforced contract
+
+A contract that lives only in a sentence is missed exactly where it
+matters: models pass happy-path tests while the stated contract is unmet
+(ContractEval, ACL 2026 Findings,
+https://aclanthology.org/2026.findings-acl.2112/). A shape rule is
+enforced by a *type, a validator, or an eval* decided where the data
+enters, with a test pinning it in the same change. A rule in prose
+without a check is a wish:
+
+- ✗ "The record's end date must be after its start date."
+- ✓ `Record` is a type whose constructor rejects an end date before
+  `startDate`, and a test pins that rejection.
+- A validator that returns success when a required datum is missing is a
+  finding: the fields the rule reads must be complete on the record, and a
+  missing datum is a data gap that fails validation — never special-case
+  the validator into guessing or skipping.
+- **A rule that must hold across a collection names every surface it
+  reads.** A fact can be expressed on more than one surface (a record's own
+  text, a document that refers to it, a note); a cross-collection rule
+  names every surface where the fact can be expressed, or it silently
+  misses whole classes.
 
 ### Robustness
 
