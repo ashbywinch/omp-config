@@ -65,6 +65,11 @@ class RecordCollectionGateTest(unittest.TestCase):
         like list[Optional[dict[str, Any]]] — equivalent spellings agree."""
         self.assertEqual(len(scan_fixture("list_union_dict_value.py").findings), 1)
 
+    def test_list_capitalized_typing_element_is_a_finding(self):
+        """List[Dict] (legacy capitalized typing spellings) is a collection
+        of grab-bags, exactly like list[dict] — case must not flip the verdict."""
+        self.assertEqual(len(scan_fixture("list_capitalized_typing.py").findings), 1)
+
     def test_list_of_primitive_is_exempt(self):
         self.assertEqual(scan_fixture("list_of_str_ok.py").findings, [])
 

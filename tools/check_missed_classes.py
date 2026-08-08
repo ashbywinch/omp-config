@@ -193,7 +193,7 @@ class ModuleScanner:
             value = parts[0]
             if isinstance(value, ast.Subscript):
                 return not cls._is_variadic_tuple(value)  # list[dict[...]] / list[tuple[...]] / list[list[...]] — records; variadic is a sequence
-            return isinstance(value, ast.Name) and value.id in ("dict", "tuple", "list")
+            return isinstance(value, ast.Name) and cls._base_name(value) in ("dict", "tuple", "list")
         return False
 
     @classmethod
