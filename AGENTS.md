@@ -52,6 +52,5 @@ changes (the scaffold skill says so).
 ## Git workflow
 
 - NEVER commit to main. Branch off main, PR required, protected main.
-- A skills/standards change is not live until `make install` + omp restart —
-  mention both in the PR so a reviewer knows the change needs the restart to
-  take effect.
+- A skills/standards change is not live until `make install` + omp restart
+  (the fact, stated here — nobody reads the PR description; 2026-08-08).

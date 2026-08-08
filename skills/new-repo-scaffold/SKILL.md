@@ -164,6 +164,8 @@ The silent-failure modes (all hit on the-loft 2026-08-08, hours of "the review i
 - **"Model ... is not supported"** — the `model` line lost its `openai/` prefix (the handler strips only `openai/`/`azure/`; anything else goes to the endpoint verbatim). Keep `model = "openai/deepseek-v4-flash"` verbatim.
 - **The review posts but the check fails** — the check must match "## PR Reviewer Guide" by prefix + (SHA in body OR posted after the head commit landed): v0.41.1 reviews never contain the head SHA, so a SHA-in-body-only matcher fails even on a successful review.
 
+Deliberate duplication exception (recorded 2026-08-08 after a review finding): the example files' `DO NOT CHANGE` headers restate the failure modes nearly verbatim. That is intentional — the examples are copied into new repos standalone (no skill), so each must be self-sufficient; SKILL.md here is the canonical home when the action's behavior changes and the copies drift.
+
 - `.github/dependabot.yml` — **working file: `examples/.github/dependabot.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence.
 
 ### 7. Repo creation & branch protection
