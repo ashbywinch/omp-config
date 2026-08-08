@@ -31,6 +31,17 @@ links to.
 
 Read the relevant doc before changing behavior. **Before writing or editing any doc, skill, or APPEND_SYSTEM.md, read `docs/writing-documentation.md` first** — skills are documentation, and every rule there (single source of truth, density, one topic per file) applies to them. The canonical standards are the source — a repo's `docs/coding-standards.md` is a copy of `standards/coding-standards.md` that must be refreshed when the canonical changes (the scaffold skill says so).
 
+## Tool selection
+
+| Task | Use |
+|---|---|
+| Load a skill or rule | `skill://<name>` / `rule://<name>` |
+| Read a doc, skill, or directory | `read` |
+| Locate files or search text | `glob` / `grep` |
+| Edit a doc, skill, or standard | `edit` (surgical) / `write` (create/replace) |
+| Verify the repo self-checks | `make test` |
+| Make a skill/rule/append edit live | `make install` + restart omp → PR (see `skill://update-skills`) |
+
 ## Testing rules
 
 - ALWAYS use `make` targets; NEVER construct ad-hoc test commands.
