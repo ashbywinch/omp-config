@@ -17,7 +17,7 @@ Transform raw inputs from the Notion Insights database into structured, actionab
 ## Critical Rules
 
 ### External System Rule (CRITICAL)
-NEVER write to any Notion database without explicit user approval of the exact write. Follow the Write Permission Gate in `skill://notion-database-management` (general form: APPEND_SYSTEM.md "External Writes"): enumerate every intended write — including the Status update — wait for an explicit yes to that list, and never create records by inference. Discussion or design talk is NOT approval. Routing into a new Epic or Value Stream requires two approvals: creation first, then the link.
+NEVER write to any Notion database without explicit user approval of the exact write — the Write Permission Gate in `skill://notion-database-management` (general form: APPEND_SYSTEM.md "External Writes") is the normative rule. Insights-specific: an item's write list is the link AND its Status update to "Processed"; routing into a new Epic or Value Stream needs creation approval before link approval.
 
 ### Notion Reference Rule
 When user says "Epic 1" or "Task 5", these refer to Notion records — not local files.
@@ -34,7 +34,7 @@ Proactively suggest routing destinations. Don't ask "where should this go?" — 
 After processing, update Status to **"Processed"** — otherwise it appears unprocessed next session.
 
 ### Process One at a Time
-Process insight items one by one, not in batch. For each item: present the routing → wait for an explicit yes to that item's write list (link + Status) → if the destination is a new Epic or Value Stream, get explicit approval to create it first and create it → write the link → update Status. Batch processing is allowed only after one explicit "process all of the above as listed" from the user, given after the full enumerated list has been presented.
+Process insight items one by one, not in batch. For each item: present the routing → wait for an explicit yes to that item's write list (link + Status) → if the destination is a new Epic or Value Stream, get explicit approval to create it first and create it → write the link → update Status. Batch processing is allowed only after one explicit "process all of the above as listed" from the user, given after the full enumerated list of every item's writes (links, Status updates, any creations) has been presented — the list is the writes, not the routing suggestions.
 
 ## Process
 
