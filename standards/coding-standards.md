@@ -19,7 +19,7 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   owns its invariants; external code never reaches into structures to compute
   derived values. Public-field classes that others manipulate are
   poorly-organised dicts; accessor chains feeding procedural code are missed
-  **Function strewing is a missed class** — when several
+  abstractions. **Function strewing is a missed class** — when several
   functions share the same data (the same record, the same fields), they are
   methods on that class: three or more free functions taking the same
   leading parameter are a class waiting to happen. A module that is a pile
