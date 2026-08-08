@@ -42,84 +42,24 @@ Every dev action goes through `make`; CI runs make targets, never raw tool comma
 
 Rules:
 - `.PHONY` every target.
+- **Pin the recipe shell** — `SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c` at the top of the Makefile: make's default `/bin/sh` is dash on Debian/Ubuntu (no `pipefail`), so bash-ism recipes fail CI while passing macOS (houses 2026-08).
 - Tool paths as variables at top: `PYTHON := .venv/bin/python`, `RUFF := .venv/bin/ruff`.
 - Colored output via `GREEN/YELLOW/RED/NC` ANSI variables and `@echo`.
 - `clean` removes exactly: `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc`.
 - **Pin the language runtime.** CI (`setup-node`/`setup-python` action) and local dev (`.nvmrc`, `.python-version`) use the **same** version; local dev must match CI — pinning CI only is the smell (side-by-side/houses pin CI only, kilocode pins bun via `packageManager`).
 - **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment). **Baseline-locked repos (recommended):** the checker runs against a committed baseline and fails on drift in BOTH directions — a NEW error AND a stale baseline entry (an error the code no longer produces). The stale direction is the one that bites: a fix that removes a diagnostic without refreshing the baseline silently passes checkers whose baseline is a one-way suppression list (pyrefly's built-in baseline — exit 0, "0 errors (N suppressed)"). Only a lock that checks baseline-not-in-current catches it; basedpyright's lock mode has this, pyrefly needs a small wrapper (see `skill://scaffold-language-layers`).
 
-Python flavor (adapt `<pkg>` and `tests/` per project; type-check via pyrefly + the both-direction baseline lock — see `skill://scaffold-language-layers` for the wrapper):
+**Working file: `examples/Makefile.python`** — copy it into the new repo, then edit the `CHANGE` points (package name, versions, project targets). Each file under `examples/` carries a `CHANGE` / `DO NOT CHANGE` comment header — the comments say *what* and *why*; the rules in this section say *when* it's OK to deviate.
 
-```makefile
-# Makefile for <project>
-.PHONY: help setup deps run lint lint-check lint-github typecheck typecheck-update-baseline check test format coverage clean
+Key invariants in the Makefile (see the file comments for the full rationale):
+- **`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`** — make's default `/bin/sh` is dash on Debian/Ubuntu (and the CI runners); dash has no `pipefail`, so a bash-ism recipe passes on macOS and dies in CI with "Illegal option -o pipefail" (houses 2026-08: PRs #56/#57 CI failures). Pin the shell once; never add `set -o pipefail` inside individual recipes.
+- **`deps` never depends on `install-hooks`** — a hook that calls `make check` would re-copy/refuse the very hook file (the pre-push deadlock). Check targets depend on `deps` (uv sync), and `install-hooks` depends on nothing check-related.
+- **`check` = `lint-check typecheck`** — the single gate CI and the pre-push hook both run; same command, no drift. No test run in the hook (too slow; CI's `make test` includes the checks).
+- `clean` removes exactly `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data.
 
-PYTHON := .venv/bin/python
-RUFF := .venv/bin/ruff
-
-GREEN := \033[0;32m
-NC := \033[0m
-
-help:
-	@echo "Available commands:"
-	@echo "  ${GREEN}make setup${NC}        Create venv, install deps + pre-commit hooks, ensure .env exists"
-	@echo "  ${GREEN}make run${NC}          Run the app (loads .env; real env wins)"
-	@echo "  ${GREEN}make check${NC}        Lint + typecheck — the gate CI and the pre-push hook run"
-	@echo "  ${GREEN}make lint${NC}         Check code quality"
-	@echo "  ${GREEN}make typecheck${NC}    Static type check (pyrefly, baseline lock)"
-	@echo "  ${GREEN}make test${NC}         Run tests (lint + typecheck gate)"
-	@echo "  ${GREEN}make format${NC}       Auto-fix formatting issues"
-	@echo "  ${GREEN}make coverage${NC}     Run tests with coverage report"
-	@echo "  ${GREEN}make clean${NC}        Remove .venv and generated files"
-
-setup:
-	@uv --version >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
-	@uv sync
-	@uv run pre-commit install
-	@[ -f .env ] || cp .env.example .env
-
-run: setup
-	@uv run --env-file .env python -m <pkg>
-
-# deps = what CHECK targets need — never install-hooks (a hook calling
-# `make check` would re-copy/refuse the very hook file: the pre-push deadlock).
-deps:
-	@uv sync
-
-lint: deps lint-check
-
-lint-check:   # Shared with the pre-commit hook — single source of truth for the lint scope
-	@$(RUFF) check <pkg>/ tests/
-
-lint-github: deps   # CI only: findings surface as PR annotations
-	@$(RUFF) check <pkg>/ tests/ --output-format=github
-
-typecheck: deps     # pyrefly + BOTH-direction baseline lock (new errors AND stale entries fail)
-	@$(PYTHON) scripts/pyrefly-lock.py check
-
-typecheck-update-baseline: deps   # after a deliberate diagnostic change, commit the refresh
-	@$(PYTHON) scripts/pyrefly-lock.py update-baseline
-
-check: lint-check typecheck   # the exact gate CI and the pre-push hook run — same command, no drift
-
-test: deps lint-check typecheck
-	@$(PYTHON) -m pytest
-
-coverage: deps
-	@$(PYTHON) -m pytest --cov=<pkg> --cov-report=term-missing --cov-report=xml
-
-format: deps
-	@$(RUFF) check --fix <pkg>/ tests/
-	@$(RUFF) format <pkg>/ tests/
-
-clean:
-	@rm -rf .venv htmlcov/
-	@rm -f .coverage coverage.xml
-	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@find . -type f -name "*.pyc" -delete
-```
-
-Pre-push hook (`scripts/pre-push`, installed by `make install-hooks`): delegate to `make check` — never duplicate the tool invocations. Skip logic watches `*.py '*.ts' '*.vue' '*.js' pyrefly.toml` (a config change can alter the diagnostic set).
+Hooks (`examples/scripts/pre-commit`, `examples/scripts/pre-push`, installed by `make install-hooks`):
+- pre-commit delegates to `make lint-check`; pre-push delegates to `make check` — never duplicate the tool invocations.
+- pre-push skip logic watches `*.py '*.ts' '*.vue' '*.js' pyrefly.toml` (a config change can alter the diagnostic set). It must NOT skip unstaged/untracked sources — the gate must not silently skip a broken file.
 
 Non-Python: same targets, different toolchain lines (see language layers).
 
@@ -141,42 +81,7 @@ change, never a local revert.
 
 One workflow per project; subprojects get path-filtered jobs (energy_envelope splits `android/**` from the Python root via `paths: ['!android/**']`).
 
-```yaml
-name: CI
-on:
-  push:
-  workflow_dispatch:
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-permissions:
-  contents: read
-  pull-requests: write   # the coverage comment step needs it; drop if you drop that step
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: make setup
-      - run: make lint-github
-      - run: make test
-      - run: make coverage
-      - name: Coverage summary
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        with:
-          filename: coverage.xml
-          badge: true
-          fail_below_min: true
-          thresholds: '80 90'
-          format: markdown
-          output: both
-      - name: Post coverage comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
-        with:
-          recreate: true
-          path: code-coverage-results.md
-```
+**Working file: `examples/.github/workflows/ci.yml`** — copy it into the new repo.
 
 Rules:
 - `permissions: contents: read` + `pull-requests: write` — the coverage comment step in the template needs the latter; drop both together if you drop the step.
@@ -220,6 +125,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 
 - Never commit to main; branch off main, PR required, protected origin/main (rule://session-start; chat-workflow/houses AGENTS.md).
 - Atomic commits; reference issues with `Fixes #N`.
+- **Working files: `examples/.gitignore`, `examples/.editorconfig`, `examples/.gitattributes`, `examples/.env.example`** — copy them; the rules below say what each guards and when deviation is OK.
 - `.gitignore` must cover (each pattern observed in 3+ repos):
   - env/secrets: `.env`, `.env.local`, `*.keystore`
   - envs/deps: `.venv/`, `venv/`, `node_modules/`, `dist/`
@@ -233,7 +139,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 - `.editorconfig`: `root = true`, `utf-8`, `insert_final_newline = true`, `eol = lf`, 2-space indent default, per-language overrides (kilocode). `max_line_length` must match the formatter (120 for ruff/prettier) — kilocode's editorconfig 80-vs-prettier-120 mismatch is a smell to avoid.
 - `.env.example` committed with every env var documented (values blank); `.env` itself is gitignored. The app reads values from the real environment (`os.environ`) — never from a file — so `.env` is not a runtime artifact and never needs distributing. Dev scenario: `make setup` guarantees `.env` exists (`[ -f .env ] || cp .env.example .env`), and env loading is scoped to run-type targets only — `uv run --env-file .env python -m <pkg>` — never on lint/test/coverage, so CI and fresh clones are unaffected. `--env-file` has the correct precedence (real env wins over file values); shell sourcing does NOT (`set -a; . ./.env` clobbers real vars with blank file values, which would blank a real secret). The guarantee lives in the Makefile, not the one-time scaffold — the repo gets cloned forever without re-running the skill. Real secrets live in the shell environment only — never in code, docs, logs, or the example file (chat-workflow AGENTS.md; houses coding-standards). No env vars at all? Ship a comment-only `.env.example` — the setup copy line stays harmless.
 - `.vscode/extensions.json` with recommended extensions — only if you want editor parity; it requires the `!.vscode/extensions.json` negation above (side-by-side ships one with `Vue.volar`; kilocode ships eslint/esbuild/direnv). Otherwise `.vscode/` is fully ignored.
-- Git hooks (stack-appropriate mechanism, see language layers) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky. **The pre-push hook delegates to `make check`** (like pre-commit → `make lint-check`) so hook and CI can't drift — but check targets depend on `deps`, NEVER `install-hooks` (a hook calling `make check` would re-copy/refuse the very hook file — the pre-push deadlock). A hook running the tools directly instead of make is a smell — fix the make dependency, don't duplicate.
+- Git hooks (stack-appropriate mechanism, see language layers; **working files: `examples/scripts/pre-commit`, `examples/scripts/pre-push`, `examples/.pre-commit-config.yaml`**) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: `pre-commit` framework. JS/TS: husky. **The pre-push hook delegates to `make check`** (like pre-commit → `make lint-check`) so hook and CI can't drift — but check targets depend on `deps`, NEVER `install-hooks` (a hook calling `make check` would re-copy/refuse the very hook file — the pre-push deadlock). A hook running the tools directly instead of make is a smell — fix the make dependency, don't duplicate.
 
 ### 5. Entry docs: README for humans, AGENTS.md for agents
 
@@ -249,82 +155,11 @@ layer test worthless, so follow the skill, not any repo's existing test):
 
 ### 6. PR review & dependency automation
 
-- `.pr_agent.toml` + `.github/workflows/pr-agent.yml`: the-pr-agent action with the house provider, standards docs in `repo_context_files`, a per-doc Compliance instruction, and a "check review succeeded" step that fails the PR when no review comment covers the head commit (books_to_anki's attribution logic). Exact TOML:
+- `.pr_agent.toml` + `.github/workflows/pr-agent.yml`: the-pr-agent action with the house provider, standards docs in `repo_context_files`, a per-doc Compliance instruction, and a "check review succeeded" step that fails the PR when no review comment covers the head commit (books_to_anki's attribution logic).
 
-```toml
-[openai]
-custom_llm_provider = "openai"
-api_base = "https://opencode.ai/zen/go/v1"
+**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml`** — copy both into the new repo. The security invariants (no checkout, config from a maintainer branch, pinned SHA) are documented in the workflow file's comment header and are non-negotiable: a PR branch could otherwise ship its own `pyproject.toml`/`.pr_agent.toml` pointing `api_base` at an attacker endpoint, and the API key would be sent there as the Bearer token. The workflow also skips the whole job on dependabot PRs (`if: github.event.pull_request.user.login != 'dependabot[bot]'`) — mechanical bumps don't need an AI review, and the ticket-compliance step chokes on their no-ticket descriptions.
 
-[config]
-model = "openai/deepseek-v4-flash"
-custom_model_max_tokens = 128000
-max_model_tokens = 128000
-ai_timeout = 600
-fallback_models = []
-repo_context_from_default_branch = false
-repo_context_files = [
-    "docs/PRD.md",
-    "docs/TECHSPEC.md",
-    "docs/PLAN.md",
-    "docs/coding-standards.md",
-    "docs/testing-standards.md",
-    "docs/writing-documentation.md",
-    "docs/documentation-structure.md",
-    "docs/ux-standards.md",
-]
-
-[pr_reviewer]
-require_tests_review = true
-require_security_review = true
-num_max_findings = 50
-extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (missing or malformed required docs — PRD with JTBD/personas/constraints, TECHSPEC with choices/spikes/diagrams, PLAN with the software's phase inputs/outputs and quality gates — and the required docs failing the documentation-quality checklist), and UX deviations from docs/ux-standards.md (a change that violates a UX principle or the repo's usability baseline is a finding). Structural findings matter as much as bugs: a missed class (three or more free functions sharing the same record, or a pile of functions over one structure — docs/coding-standards.md 'Cohesive modules and classes') and class names that are technology or verb-derived nouns like GraphBuilder instead of domain nouns ('Names communicate intent') are findings, not style notes. Separation-of-concerns violations are findings too: importing a sibling layer directly, or a function that mixes I/O with computation — fetch/read/parse and decide in one body ('Separation of concerns')."
-
-[github_action_config]
-handle_push_trigger = true
-push_commands = ["/review", "/improve"]
-```
-
-The workflow file, compact (books_to_anki adds an elaborate gh-api attribution check; **pin a real release tag — `@latest` does not resolve**):
-
-```yaml
-name: AI Code Review
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-jobs:
-  pr-review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
-        id: pr-agent
-        env:
-          OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
-          OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Check step: fail the PR when no "PR Reviewer Guide" comment covers the
-      # head commit (gh-api attribution; see books_to_anki for the full logic).
-```
-
-- `.github/dependabot.yml` — for uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`):
-
-```yaml
-version: 2
-updates:
-  - package-ecosystem: "pip"   # uv projects map here (uv.lock supported)
-    directory: "/"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-```
+- `.github/dependabot.yml` — **working file: `examples/.github/dependabot.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence.
 
 ### 7. Repo creation & branch protection
 
@@ -356,10 +191,7 @@ Rules:
 
 ## Language layers — see `skill://scaffold-language-layers`
 
-The per-stack toolchain layers (Python: uv/ruff/pytest; JS/TS: npm/vitest/eslint;
-other) live in the sibling skill `skill://scaffold-language-layers`, which is
-loaded when materializing a stack's conventions into the repo's
-`docs/coding-standards.md` copy.
+Toolchain details per stack materialize into the repo's `docs/coding-standards.md` copy.
 
 ## Verification (prove the scaffold works)
 
@@ -376,6 +208,7 @@ Run in order; the checklist below is the final gate, not documentation.
 
 ### General (every repo)
 - [ ] Makefile with `help setup lint test coverage format clean` (+ `run`/`stop` for services, `dist` for artifacts); `.PHONY` on all targets
+- [ ] Makefile pins the recipe shell (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — recipes can't diverge between macOS and CI
 - [ ] `make test` depends on `make lint`; CI runs only make targets
 - [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
 - [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail)

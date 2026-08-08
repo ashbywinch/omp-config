@@ -1,0 +1,9 @@
+# .gitattributes
+#
+# CHANGE: mark generated files `linguist-generated` (kilocode's pattern)
+# so they don't pollute language stats / diffs.
+#
+# DO NOT CHANGE:
+# - `* text=auto eol=lf` — LF everywhere, always.
+
+* text=auto eol=lf

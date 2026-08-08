@@ -45,7 +45,7 @@ equivalent.
   ```
   Presets: `default` ≈ basedpyright's `standard`. `strict`/`all` may produce IDENTICAL error sets (their extra codes don't trigger on a given codebase — verify, don't assume). `--check-all` is the real strictness jump (~13x errors, mostly unannotated-internals noise like `bad-function-definition`) — not a sane gate. Enable strictness via the `[errors]` table instead: `missing-override-decorator` (every override must carry `@override` — a real correctness guard for structurally-typed frameworks like a DAG node base class) and `missing-super-call` (`__init__` must call `super().__init__()`). Both are default-off; enabling them + baselining adds real findings.
 
-  **The baseline lock is YOURS to build — pyrefly's built-in baseline is one-way.** Pyrefly's `baseline` suppresses errors that match it but NEVER flags a stale entry (an error the code no longer produces) — the exact regression that broke houses' CI: a code fix removed a diagnostic without refreshing the baseline, and the stale entry passed silently (exit 0, "0 errors (N suppressed)"). basedpyright's lock mode fails on drift in BOTH directions (new error OR stale baseline) — that property is why the gate matters. Restore it with a small wrapper (houses: `scripts/pyrefly-lock.py`):
+  **The baseline lock is YOURS to build — pyrefly's built-in baseline is one-way.** Pyrefly's `baseline` suppresses errors that match it but NEVER flags a stale entry (an error the code no longer produces) — the exact regression that broke houses' CI: a code fix removed a diagnostic without refreshing the baseline, and the stale entry passed silently (exit 0, "0 errors (N suppressed)"). basedpyright's lock mode fails on drift in BOTH directions (new error OR stale baseline) — that property is why the gate matters. Restore it with a small wrapper — **working file: `skill://new-repo-scaffold/examples/scripts/pyrefly-lock.py`** (copy + `make typecheck`/`typecheck-update-baseline` targets from `skill://new-repo-scaffold/examples/Makefile.python`):
   - run `pyrefly check --output-format json` WITHOUT a baseline (the JSON has `{"errors": [{path, line, column, name, …}]}` — want every error, suppressed or not)
   - diff against the committed `.pyrefly-baseline.json` by `(path, line, column, name)`:
     - current-not-in-baseline → fail `NEW error(s)`
@@ -57,81 +57,16 @@ equivalent.
   **basedpyright** (the alternative) — invocation is the BARE command; `basedpyright` is config-driven and has NO `check` subcommand (`basedpyright check` exits 4 treating `check` as a path). It exits 1 on WARNINGS by default — gate on the ERROR COUNT, not the exit code or `--level`: `basedpyright --outputjson | python -c "import json,sys; sys.exit(1 if json.load(sys.stdin)['summary']['errorCount'] else 0)"` — `--level=error` is ignored in CI because basedpyright has an "actions mode" (triggered by `GITHUB_ACTIONS`) where the `--level` filter doesn't apply to the exit code. Known open bug: DetachHead/basedpyright#1481; the JSON-summary parse is the community-standard fix. Its baseline lock mode is the gold standard the pyrefly wrapper replicates.
 
   **Bringing an existing repo into house shape** (not greenfield): bare `dict` annotations fail the strict checkers — use `dict[str, Any]`; pytest fixture params need explicit annotations (`tmp_path: Path`); DI fakes must SUBCLASS the real classes — plain `cast` fails with `reportInvalidCast` when the types don't overlap.
-- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker: pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell.
-- Git hooks: `pre-commit` framework, installed by `make setup` (`uv run pre-commit install`). The type-check hook differs by checker: pyrefly's official mirror is `facebook/pyrefly-pre-commit` (hook id `pyrefly-check`, `pass_filenames: false` — checks the whole repo; pre-commit 0.42+ consolidated the old two hooks into one). Pitfall: the hook's `include`/`project-includes` scope silently turns OFF checking for files outside it (facebook/pyrefly-pre-commit#8) — scope via the config, never rely on the hook to exclude. basedpyright's hook lives in the MIRROR repo `DetachHead/basedpyright-prek-mirror` (unprefixed tags); `DetachHead/basedpyright` itself fails with InvalidManifestError:
-
-```yaml
-repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1   # pin a recent tag
-    hooks: [id: ruff, id: ruff-format]
-  - repo: https://github.com/DetachHead/basedpyright-prek-mirror
-    rev: 1.39.9    # UNPREFIXED tag; the mirror, not the main repo
-    hooks:
-      - id: basedpyright
-        args: ["--level", "error"]   # warnings fail by default; errors gate the commit
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.30.1   # pin a recent tag
-    hooks: [id: gitleaks]
-```
+- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, pre-commit (+ type checker: pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `skill://new-repo-scaffold/examples/pyproject.toml`** — copy it, edit the CHANGE points.
+  basedpyright's hook lives in the MIRROR repo `DetachHead/basedpyright-prek-mirror` (unprefixed tags); `DetachHead/basedpyright` itself fails with InvalidManifestError.
 
 Fast checks only, never a test hook. `.gitleaksignore` whitelists intentional test fixtures (kilocode's pattern). Hooks run on ALL staged files — pyproject `include` scope does not apply, so scratch/legacy dirs need per-hook `exclude: ^dir/`. The ruff hook runs with `--fix`: it edits staged files and pre-commit aborts the commit — expect a re-add + recommit cycle (and `pre-commit run --all-files` skips everything until the first commit exists).
 
-```toml
-[project]
-name = "<project>"
-version = "0.1.0"
-description = "<one line>"
-readme = "README.md"
-requires-python = ">=3.12"  # bump to current stable at scaffold time (uv python list)
-dependencies = []
+**Working file: `skill://new-repo-scaffold/examples/pyproject.toml`** — copy it, edit the CHANGE points. The critical bits, with the reasoning (also in the file's comments):
 
-[dependency-groups]
-dev = ["pytest>=8.0.0", "pytest-cov>=5.0.0", "ruff>=0.11.0", "pre-commit>=3.0.0", "basedpyright>=1.39.0"]
-
-[build-system]
-requires = ["setuptools>=64.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-include = ["<pkg>*"]
-
-[tool.ruff]
-target-version = "py312"  # match the .python-version pin
-line-length = 120
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "N"]
-# No ignore list: don't cargo-cult chat-workflow/energy_envelope's UP046/UP047
-# skip (a reflection constraint there, not a general practice).
-fixable = ["ALL"]
-
-[tool.ruff.format]
-quote-style = "double"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-
-[tool.coverage.run]
-omit = ["*/__main__.py"]  # entry points are never imported by tests — omit them or the 80% CI gate fails
-
-# Type checker — PREFER pyrefly (fast + lock wrapper). Standalone
-# pyrefly.toml uses top-level keys (preset, [errors]); this [tool.pyrefly]
-# form is for pyproject.toml (or skip it and use pyrefly.toml). The
-# baseline lock lives in scripts/pyrefly-lock.py (see the type-checker
-# bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
-[tool.pyrefly]
-preset = "default"
-errors = { missing-override-decorator = true, missing-super-call = true }
-
-# ALTERNATIVE — basedpyright (config-driven, no subcommand; scope with
-# `include` NOT `exclude` — an exclude key replaces the implicit
-# .venv/cache exclusions and the scan explodes into site-packages).
-# --level=error lives in the Makefile + hook, and its lock mode is the
-# gold standard the pyrefly wrapper replicates.
-# [tool.basedpyright]
-# include = ["<pkg>", "tests"]
-```
+- `[tool.ruff.lint] select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, quote-style double. **No `ignore` list** — don't cargo-cult chat-workflow/energy_envelope's UP046/UP047 skip (a reflection constraint there, not a general practice).
+- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
+- ALTERNATIVE — basedpyright: config-driven, no subcommand; scope with `include` NOT `exclude` (an exclude key replaces the implicit .venv/cache exclusions and the scan explodes into site-packages); `--level=error` lives in the Makefile + hook; its lock mode is the gold standard the pyrefly wrapper replicates.
 
 ### JS/TS (side-by-side, houses/frontend, kilocode)
 

@@ -1,0 +1,56 @@
+# AI Code Review (the-pr-agent) — the house review bot.
+#
+# CHANGE: `<PROJECT>_API_KEY` -> your repo secret name. Set the secret
+# BEFORE the first PR — the job fails fast without it (observed: secret
+# created after the PR-open event, run dead in 6s).
+#
+# DO NOT CHANGE:
+# - NO actions/checkout here — deliberate. PR-Agent fetches everything via
+#   the GitHub API (the pinned config branch, the diff, the repo context
+#   files), and the action's config loader ALSO merges a [tool.pr-agent]
+#   section from pyproject.toml found in the working tree. With a checkout
+#   of the PR head, an attacker branch could ship its own pyproject.toml
+#   overriding [openai] api_base; with no checkout there is no working-tree
+#   config to read at all.
+# - PR_AGENT_CONFIG_BRANCH: config MUST come from a maintainer-controlled
+#   branch — a PR branch could ship its own .pr_agent.toml pointing
+#   api_base at an attacker endpoint, and the API key would be sent there
+#   as the Bearer token. (.pr_agent.toml is fetched via the API from this
+#   branch; 404 falls back to the default branch — never the working tree.)
+# - Pin the action to a real release SHA (see houses' workflow) — @latest
+#   does not resolve. `the-pr-agent/pr-agent@<pinned-sha>`.
+# - The `if:` on the job: dependabot bumps are mechanical and covered by
+#   build-and-test; the AI review adds noise and its ticket-compliance step
+#   chokes on dependabot descriptions (no ticket ref). Skip the whole job.
+# - The "Check review succeeded" step: fails the PR when no review comment
+#   covers the head commit (gh-api attribution; see houses' workflow for
+#   the full logic).
+
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  pr-review:
+    runs-on: ubuntu-latest
+    # Dependabot bumps are mechanical and already covered by build-and-test;
+    # the AI review adds noise (and dependabot PRs lack a ticket, which the
+    # ticket-compliance step chokes on). Skip the whole job for them.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: the-pr-agent/pr-agent@b249e568e0c0fb6c674ace55fe95d02f62f8f3b3   # pin a real release SHA — @latest does not resolve
+        id: pr-agent
+        env:
+          OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
+          OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_AGENT_CONFIG_BRANCH: pr-agent-config
+
+      # Check step: fail the PR when no "PR Reviewer Guide" comment covers the
+      # head commit (gh-api attribution; see houses' workflow for the full logic).

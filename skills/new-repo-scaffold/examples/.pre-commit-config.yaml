@@ -1,0 +1,34 @@
+# pre-commit config — FAST checks only (lint + typecheck + secrets scan).
+# Never a test hook: tests stay gated in `make test` + CI.
+#
+# CHANGE: pin newer tags when bumping; add per-hook `exclude: ^dir/` for
+# scratch/legacy dirs.
+#
+# DO NOT CHANGE:
+# - No test hook. Hooks must finish in seconds or they get bypassed.
+# - The type-check hook depends on the checker you chose (pyrefly vs
+#   basedpyright) — see the language layer for the mirror gotchas.
+# - gitleaks is the secrets scan (house standard, every stack).
+# - `.gitleaksignore` whitelists intentional test fixtures (kilocode's pattern).
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1   # pin a recent tag
+    hooks: [id: ruff, id: ruff-format]
+  # pyrefly's official mirror: facebook/pyrefly-pre-commit (hook id
+  # pyrefly-check, pass_filenames: false — checks the whole repo).
+  # Pitfall: the hook's include/project-includes scope silently turns OFF
+  # checking for files outside it (facebook/pyrefly-pre-commit#8) — scope
+  # via the config, never rely on the hook to exclude.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1   # pin a recent tag
+    hooks: [id: gitleaks]
+
+# ALTERNATIVE type-check hook (basedpyright): lives in the MIRROR repo
+# DetachHead/basedpyright-prek-mirror (UNPREFIXED tags); the main
+# DetachHead/basedpyright repo fails with InvalidManifestError.
+#   - repo: https://github.com/DetachHead/basedpyright-prek-mirror
+#     rev: 1.39.9
+#     hooks:
+#       - id: basedpyright
+#         args: ["--level", "error"]   # warnings fail by default; errors gate the commit

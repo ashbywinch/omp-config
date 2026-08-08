@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+# Pre-push hook: run the same gate as CI — `make check` (lint + typecheck).
+#
+# Install: `make install-hooks` (copies this file to .git/hooks/pre-push).
+# Re-run `make install-hooks` after pulling updates — this file is the
+# single source of truth; the copy in .git/hooks is not versioned.
+#
+# Why `make check` and not the tools directly: CI runs `make check` (via
+# `make test`, which includes lint-check + typecheck) — delegating here
+# means the hook and CI can never drift apart. The deadlock that once
+# forced the hook to call the tools directly is gone: check targets depend
+# on `deps` (uv sync), never on install-hooks.
+#
+# CHANGE: extend the source globs if the repo adds another source type
+# (e.g. '.ts' '.vue' for a frontend) or a config whose change alters the
+# diagnostic set (pyrefly.toml / tsconfig).
+#
+# DO NOT CHANGE:
+# - Never run the full test suite here — too slow; tests stay in CI.
+# - The gate must not silently skip a broken file: covers staged, unstaged,
+#   AND untracked sources.
+# - `set -e` (fail loudly on the first error — a skipped check is worse
+#   than a failed one).
+
+set -e
+
+# Only run when the push actually touches Python/TS/Vue sources or the
+# typecheck config — a pure docs push shouldn't pay the check cost.
+if [ -z "$(git diff --cached --name-only -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ] && \
+   [ -z "$(git diff --name-only -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ] && \
+   [ -z "$(git ls-files --others --exclude-standard -- '*.py' '*.ts' '*.vue' '*.js' 'pyrefly.toml')" ]; then
+    exit 0
+fi
+
+if [ ! -x .venv/bin/ruff ]; then
+    echo "pre-push: .venv missing — run 'make setup' first"
+    exit 1
+fi
+
+make check

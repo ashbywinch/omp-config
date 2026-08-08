@@ -1,0 +1,19 @@
+# Dependabot — weekly for package ecosystem + github-actions.
+#
+# CHANGE: add more ecosystems (npm/docker/compose) as the repo grows.
+#
+# DO NOT CHANGE:
+# - For uv projects, the package ecosystem is dependabot's `pip` ecosystem
+#   (it reads uv.lock). Don't "fix" it to `uv` — that's not a valid value.
+# - Weekly is the house cadence.
+
+version: 2
+updates:
+  - package-ecosystem: "pip"   # uv projects map here (uv.lock supported)
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
