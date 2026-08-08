@@ -17,7 +17,7 @@ Transform raw inputs from the Notion Insights database into structured, actionab
 ## Critical Rules
 
 ### External System Rule (CRITICAL)
-NEVER write to any Notion database without explicit user approval of the exact write — the Write Permission Gate in `skill://notion-database-management` (general form: APPEND_SYSTEM.md "External Writes") is the normative rule. Insights-specific: an item's write list is the link AND its Status update to "Processed"; routing into a new Epic or Value Stream needs creation approval before link approval.
+Writes follow the Write Permission Gate in `skill://notion-database-management` (general form: APPEND_SYSTEM.md "External Writes"). Insights-specific: an item's write list is the link AND its Status update to "Processed"; routing into a new Epic or Value Stream needs creation approval before link approval.
 
 ### Notion Reference Rule
 When user says "Epic 1" or "Task 5", these refer to Notion records — not local files.

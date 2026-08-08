@@ -20,11 +20,10 @@ Core patterns for Notion operations via `ntn`. Domain skills reference this for 
 
 ## Write Permission Gate (CRITICAL)
 
-**No write to any Notion database without explicit user approval of that exact write.** Applies to every create, PATCH, delete, and relation change in every database. The APPEND_SYSTEM.md "External Writes" rule is the general form (enumerate the writes, wait for an explicit yes, never infer records, never bundle writes into an answer, discussion is not approval); this section adds what is Notion-specific:
+The general rule is APPEND_SYSTEM.md "External Writes" — apply it to every create, PATCH, delete, and relation change in every database. Notion-specific additions:
 
 - **Create and link are separate approvals.** Routing an insight into a new epic needs (1) approval to create the epic, then (2) approval of the link. A creation approval never authorizes the link.
 - **Every write needs enumerating, including Status updates.** A "mark as processed"-style PATCH is a write like any other and belongs in the approved list.
-- When in doubt, present the write list and ask. A wasted round-trip is cheap; an unauthorized write is not.
 
 ## Database IDs
 
