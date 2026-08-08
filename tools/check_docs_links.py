@@ -46,22 +46,32 @@ def _doc_files() -> list[Path]:
     return sorted(files)
 
 
-def _outside_fences(text: str) -> list[tuple[int, int]]:
+class Fence:
+    """A span of *text* that is NOT inside a ``` fenced block."""
+
+    start: int
+    end: int
+
+    def __init__(self, start: int, end: int) -> None:
+        self.start = start
+        self.end = end
+
+
+def _outside_fences(text: str) -> list[Fence]:
     """(start, end) spans of the text that are NOT inside ``` fenced blocks."""
-    spans: list[tuple[int, int]] = []
+    spans: list[Fence] = []
     pos = 0
     in_fence = False
     seg_start = 0
     for line in text.splitlines(keepends=True):
         if FENCE_RE.match(line):
-            if in_fence:
-                spans.append((seg_start, pos))
-            else:
-                seg_start = pos + len(line)
+            if not in_fence and seg_start < pos:
+                spans.append(Fence(seg_start, pos))  # prose before the opening fence
+            seg_start = pos + len(line)
             in_fence = not in_fence
         pos += len(line)
-    if not in_fence:
-        spans.append((seg_start, pos))
+    if not in_fence and seg_start < pos:
+        spans.append(Fence(seg_start, pos))
     return spans
 
 
@@ -70,8 +80,8 @@ def _check_links() -> list[str]:
     for md in _doc_files():
         text = md.read_text(encoding="utf-8")
         spans = _outside_fences(text)
-        for span_start, span_end in spans:
-            for match in LINK_RE.finditer(text, span_start, span_end):
+        for fence in spans:
+            for match in LINK_RE.finditer(text, fence.start, fence.end):
                 url = match.group(2).strip()
                 if url.startswith(SKIP_PREFIXES) or "=" in url or " " in url or "{{" in url or "$" in url:
                     continue
@@ -113,8 +123,8 @@ def _link_targets(md: Path, text: str) -> list[Path]:
     """Relative markdown-link and backtick-path targets of *md*, resolved."""
     targets: list[Path] = []
     spans = _outside_fences(text)
-    for span_start, span_end in spans:
-        for match in LINK_RE.finditer(text, span_start, span_end):
+    for fence in spans:
+        for match in LINK_RE.finditer(text, fence.start, fence.end):
             url = match.group(2).strip()
             if url.startswith(SKIP_PREFIXES) or "=" in url or " " in url or "{{" in url or "$" in url:
                 continue
@@ -171,7 +181,18 @@ def _check_discoverability() -> list[str]:
     ]
 
 
-def _check_sizes() -> tuple[list[str], list[str]]:
+class DocSizeReport:
+    """Files over the size ceilings: *hard* fails the check, *soft* warns."""
+
+    hard: list[str]
+    soft: list[str]
+
+    def __init__(self, hard: list[str], soft: list[str]) -> None:
+        self.hard = hard
+        self.soft = soft
+
+
+def _check_sizes() -> DocSizeReport:
     """docs/writing-documentation.md ceilings: hard fail > 32 KiB, warn > 200
     lines, for always-loaded files (AGENTS.md + skill bodies)."""
     files = [REPO / "AGENTS.md" if (REPO / "AGENTS.md").exists() else None]
@@ -186,13 +207,13 @@ def _check_sizes() -> tuple[list[str], list[str]]:
             hard.append(f"{f.relative_to(REPO)}: {len(text.encode('utf-8'))} bytes > {HARD_BYTES} ceiling")
         elif text.count("\n") > SOFT_LINES:
             soft.append(f"{f.relative_to(REPO)}: {text.count(chr(10))} lines > {SOFT_LINES} target (slim it)")
-    return hard, soft
+    return DocSizeReport(hard, soft)
 
 
 def main() -> int:
     failures = _check_links() + _check_skills() + _check_discoverability()
-    hard_sizes, soft_sizes = _check_sizes()
-    failures += hard_sizes
+    sizes = _check_sizes()
+    failures += sizes.hard
     if failures:
         print("omp-config self-checks failed:")
         for f in failures:
@@ -201,7 +222,7 @@ def main() -> int:
     docs = len(_doc_files())
     skills = len(list((REPO / "skills").iterdir()))
     print(f"ok — {docs} docs scanned, {skills} skills well-formed, links resolve, all docs reachable from AGENTS.md")
-    for w in soft_sizes:
+    for w in sizes.soft:
         print(f"  warn: {w}")
     return 0
 

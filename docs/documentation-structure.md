@@ -41,6 +41,14 @@ delivered together. Sections, in order:
 
 How it will all be done. Sections, in order:
 
+- **Component breakdown** — every component/module with its responsibility,
+  its interfaces (what it provides and consumes), and the data it owns.
+  Components are the code's boundaries before the code exists.
+- **Object model** — the domain nouns (and analytical objects: findings,
+  metrics, runs) with purpose, key fields, and relationships. It is the
+  naming authority for the implementation: a class or module whose name is
+  not an object-model noun is a finding. See `skill://tech-spec-writing`
+  for the process.
 - **Architecture first** — the architecture layers as a mermaid diagram, plus
   data flows and physical architecture. Reference the non-functional
   requirements from the PRD (cost to run, longevity, backups, monitoring,
@@ -79,6 +87,14 @@ The intended phases:
 following links (one level deep is the norm). A doc that AGENTS.md cannot
 lead to is undiscoverable, and undiscoverable documentation is a finding:
 it does not exist for the reader who starts where all readers start.
+
+**Skills are exempt from the AGENTS.md reachability rule.** A harness
+loads skills and tools through its own built-in discovery mechanism — a
+skills tool, a registry, an index — and that mechanism varies from
+harness to harness. Findability is the harness's job, not the doc
+tree's: the reachability rule above covers the documentation set
+(`docs/`, `standards/`, `rules/`), and a skill the harness's own
+mechanism can find needs no link from AGENTS.md.
 
 ## The standards the folder carries
 

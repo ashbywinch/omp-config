@@ -49,3 +49,5 @@ uninstall:
 
 test:
 	@python3 tools/check_docs_links.py
+	@python3 tools/check_missed_classes.py
+	@python3 -m unittest discover -s tools/tests

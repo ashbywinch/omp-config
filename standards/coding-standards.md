@@ -54,6 +54,20 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   and documented, or extract it to a shared module. Circular imports are fixed
   by restructuring modules, never bodged with lazy imports.
 
+### Code and structured data live in files
+
+- **A string literal never carries code or a structured format as text.**
+  Code that is meant to be executed, parsed, or maintained as code — a
+  snippet, a template, a generated program — is a real file. So is a
+  string whose content IS the data format: a JSON fragment, a CSV row, a
+  YAML blob, hand-written in a literal, is invisible to the format's own
+  validation (a parser, a schema), drifts from the real toolchain, and
+  cannot be linted or run. Building the text with the format's library
+  from program structures is not a violation — `json.dumps({...})`,
+  `csv.writer(...)` — the text is produced, never hand-written. In tests,
+  a fixture that is code, or structured data the test needs as text, is a
+  real file under `tests/fixtures/`.
+
 ### Naming & Types
 
 - **Names communicate intent.** Domain names, not shapes: `monthlyPayment`
@@ -72,7 +86,12 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   (`TransitOrchestrator` → "orchestrates transit") means the name or the
   concept boundary is wrong — fix the name or split the concept. **The
   stress test:** would someone who knows the domain but not the code
-  understand this from the name alone?
+  understand this from the name alone? **The object model is the naming
+  authority:** where a TECHSPEC documents one, a class or module whose name
+  is not an object-model noun is a finding — either the model is missing an
+  object or the name is wrong; fix one, never let them drift. Docs may carry
+  process vocabulary ("the classify step of the pipeline"); code names may
+  not.
 - **Semantic types over primitives.** A point in time is a date type with
   awareness, not a bare string; structured data is an object with named
   fields, not a bare dict; enumerated values are enums; units are part of the
