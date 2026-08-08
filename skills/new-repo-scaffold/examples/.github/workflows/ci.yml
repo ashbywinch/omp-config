@@ -5,6 +5,11 @@
 # is the sane starting point for an EXISTING codebase — a hard 80 gate on
 # day one is a broken CI).
 #
+# CHANGE (JS/TS repos): the coverage step reads the stack's report —
+# Python: irongut/CodeCoverageSummary on coverage.xml (as below); JS/TS:
+# slavcodev/coverage-monitor-action on coverage/clover.xml. Keep the make
+# steps identical; only the coverage action + filename swap.
+#
 # DO NOT CHANGE:
 # - `permissions: contents: read` (+ `pull-requests: write` only while the
 #   coverage-comment step is present — drop both together if you drop it).
