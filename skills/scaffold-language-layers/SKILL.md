@@ -28,6 +28,16 @@ equivalent.
 
 ### Python (books_to_anki, chat-workflow, energy_envelope, houses)
 
+- **Web servers default to FastAPI + uvicorn** (houses; the Loft moved in
+  2026-08-06). The framework owns request parsing — query decoding,
+  cookies, JSON bodies, redirects — which a hand-rolled HTTP server
+  reimplements wrong one at a time (the auth bug class: a percent-encoded
+  query param, a `session=`-prefixed cookie header, a JSON body). If the
+  app has any HTTP surface beyond `make serve` for static files, that
+  surface is FastAPI. Tests exercise the real HTTP stack (uvicorn on an
+  ephemeral port, or the framework's TestClient) so the framework's
+  decode/cookie/redirect behavior is covered — unit tests of the flow
+  logic miss it.
 - Toolchain: **uv** (`uv sync`), `.python-version` pinned to the **current stable** at scaffold time — find it via `uv python list` (cross-check python.org); never guess from training data, never a beta. Pin the newest stable the project's critical deps support (books_to_anki pins `==3.9.*` for spacy — the cautionary tale). Metadata `requires-python` is `>=X.Y` unbounded; ruff `target-version` tracks the pin.
 - **ruff** (lint + format): `select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, `quote-style = "double"`. The scaffold does NOT carry `ignore = ["UP046","UP047"]` (PEP 695 type-parameter syntax). If a new repo hits a real reflection incompatibility, fix the reflection, don't ignore the rule.
 - **pytest**: `testpaths = ["tests"]`, tests mirror package layout; `pytest-cov` for coverage. Default for everything — fixtures, `parametrize`, plugins. Deviation is justified only for eval/API harnesses that need module-level discovery with a custom runner: chat-workflow runs `python -m unittest discover tests/evals/` under a timeout wrapper for exactly that. That's a niche — before choosing unittest, check whether a thin wrapper around pytest gives the same control.
