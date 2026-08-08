@@ -24,6 +24,12 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   methods on that class: three or more free functions taking the same
   leading parameter are a class waiting to happen. A module that is a pile
   of functions over one structure is a finding, not a style preference.
+  **Name the class for the domain concept, and model the single record.**
+  When a family of functions over a record becomes a class, the class is
+  named for what the domain calls the collection (`Labels`, `Findings`),
+  never a pattern noun (`LabelStore`, `LabelsRepository`, `LabelsManager`),
+  and the single record is a first-class type alongside it (`Label`) — the
+  class owns the collection's invariants, the record is the thing itself.
   **No module-level mutable state and no `global`** — put state in a class
   named for the domain concept it represents (`_APIState`,
   `_GeocodeRateLimit`), never the pattern name (`_MutableState`).
@@ -60,7 +66,7 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   `Letter`, `Feed`) — "geocoder" is a smell, the geocoded *place* is the
   noun. Functions are verbs; variables hold what they name (`price`, not
   `x`); booleans read in `if` (`hasSchool`, not `schoolFlag`); an id is
-  never a label. **Avoid vague suffixes** — Manager, Orchestrator, Handler,
+  never a label. **Avoid vague suffixes** — Manager, Orchestrator, Handler, Store, Repository,
   Controller, Utils, Info — unless a framework convention demands them.
   **The docstring test:** a docstring that merely rephrases the name
   (`TransitOrchestrator` → "orchestrates transit") means the name or the
