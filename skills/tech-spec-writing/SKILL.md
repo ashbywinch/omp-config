@@ -66,6 +66,14 @@ recorded reason.
   (derived is computed from primary, never hand-edited, regenerable); the
   store's write rules (append-only supersede, tombstones); the validation
   seams (a write seam that refuses what the model rejects).
+- **The component breakdown and the object model** — every
+  component/module with its responsibility, its interfaces (what it
+  provides and consumes), and the data it owns; the domain nouns (and
+  analytical objects: findings, metrics, runs) with purpose, key fields,
+  and relationships. The object model is the naming authority
+  (coding-standards: a class or module whose name is not an
+  object-model noun is a finding). The authoritative required-section
+  list is `docs/documentation-structure.md`.
 - **The machine's rules as the spec** — not the intent, the rules: the
   computations (what is calculated, never stored), the render
   rules (what each surface shows, when it renders), the fail-loud

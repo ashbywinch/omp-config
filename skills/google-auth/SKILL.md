@@ -47,7 +47,10 @@ renders the JSON as a page.
 
 - **The session cookie** — a signed, self-contained cookie (itsdangerous's
   URLSafeTimedSerializer), 30 days, `HttpOnly`, `SameSite=Lax`, `Path=/`,
-  set by the framework's `set_cookie`. It survives restarts.
+  `Secure` when served over HTTPS (the production surface — e.g.
+  `secure=not DEBUG`; never on the plain-HTTP LAN flow, where the browser
+  would refuse to send it), set by the framework's `set_cookie`. It
+  survives restarts.
 - **`/api/auth/me`** — `{authenticated, email, name, picture, person}`;
   `person` is the app's own record for that email, resolved from the app's
   data (the person records carry `email` — identity lives in the DB, never
@@ -73,10 +76,12 @@ renders the JSON as a page.
    one redirect URI: `http://192.168.1.251.sslip.io:8000/api/auth/callback`
    (the LAN IP embedded in the sslip.io hostname + your port). Google
    accepts it — this is the shape a LAN app runs.
-2. **The flow**: login endpoint builds the authorization URL (PKCE,
-   state); the app fetches it and follows `auth_url`; Google redirects to
-   the registered callback (a top-level navigation — the cookie lands
-   there); the app's `/me` says authenticated.
+2. **The flow**: the login endpoint builds the authorization URL (PKCE,
+   state) and sets a short-lived `state` cookie; the app fetches it and
+   follows `auth_url`; Google redirects to the registered callback (a
+   top-level navigation — the cookie lands there); the callback verifies
+   the returned `state` against the cookie and refuses the exchange on
+   mismatch; the app's `/me` says authenticated.
 3. **Serve the app on the hostname** — the phone browses
    `http://192.168.1.251.sslip.io:8000`, not the raw IP.
 
@@ -98,6 +103,8 @@ support email); a Testing-mode screen only admits the listed test users.
 - **The sign-in button follows the login endpoint's `auth_url`** — it
   doesn't navigate to the endpoint directly (and the cookie lands on a
   page navigation, never a fetch response — see the shared core).
+- **Verify the `state` parameter in the callback** — it is the login
+  flow's CSRF guard; reject a mismatch before exchanging the code.
 - **Verify against the right client** — the id_token binds to its OAuth
   client; `email_verified` is required.
 - **Log the auth outcomes** (grant started / callback received / session

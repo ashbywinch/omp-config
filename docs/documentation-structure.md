@@ -41,6 +41,14 @@ delivered together. Sections, in order:
 
 How it will all be done. Sections, in order:
 
+- **Component breakdown** — every component/module with its responsibility,
+  its interfaces (what it provides and consumes), and the data it owns.
+  Components are the code's boundaries before the code exists.
+- **Object model** — the domain nouns (and analytical objects: findings,
+  metrics, runs) with purpose, key fields, and relationships. It is the
+  naming authority for the implementation: a class or module whose name is
+  not an object-model noun is a finding. See `skill://tech-spec-writing`
+  for the process.
 - **Architecture first** — the architecture layers as a mermaid diagram, plus
   data flows and physical architecture. Reference the non-functional
   requirements from the PRD (cost to run, longevity, backups, monitoring,

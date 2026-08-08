@@ -24,7 +24,9 @@ that belongs to a different audience or topic goes in that doc, linked —
 never copied in.
 
 All documentation must be usable by humans or by AI agents; both navigate
-from the entry point of AGENTS.md.
+from the entry point of AGENTS.md. Skills are exempt from the reachability
+rule — a harness discovers them through its own mechanism (rationale and
+scope in docs/documentation-structure.md).
 
 ## AGENTS.md is a bootloader, not an operating system
 

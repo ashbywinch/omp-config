@@ -187,9 +187,12 @@ class ModuleScanner:
         if base == "tuple":
             return not cls._is_variadic_tuple(node)  # fixed-size pairs are records
         if base == "list":
-            value = node.slice
+            parts = cls._unwrap(node.slice)
+            if len(parts) != 1:
+                return any(cls._annotation_is_record(p) for p in parts)
+            value = parts[0]
             if isinstance(value, ast.Subscript):
-                return True  # list[dict[...]] / list[tuple[...]] / list[list[...]] — records
+                return not cls._is_variadic_tuple(value)  # list[dict[...]] / list[tuple[...]] / list[list[...]] — records; variadic is a sequence
             return isinstance(value, ast.Name) and value.id in ("dict", "tuple", "list")
         return False
 

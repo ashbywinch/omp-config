@@ -55,6 +55,16 @@ class RecordCollectionGateTest(unittest.TestCase):
     def test_list_of_domain_class_is_exempt(self):
         self.assertEqual(scan_fixture("list_of_domain_ok.py").findings, [])
 
+    def test_list_of_optional_domain_is_exempt(self):
+        """list[Optional[Label]] is a collection of a domain class, exactly
+        like list[Label] — the Optional wrapper must be peeled first."""
+        self.assertEqual(scan_fixture("list_of_optional_domain_ok.py").findings, [])
+
+    def test_list_union_dict_value_is_a_finding(self):
+        """list[dict[str, Any] | None] is a collection of grab-bags, exactly
+        like list[Optional[dict[str, Any]]] — equivalent spellings agree."""
+        self.assertEqual(len(scan_fixture("list_union_dict_value.py").findings), 1)
+
     def test_list_of_primitive_is_exempt(self):
         self.assertEqual(scan_fixture("list_of_str_ok.py").findings, [])
 
