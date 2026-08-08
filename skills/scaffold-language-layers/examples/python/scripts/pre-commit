@@ -15,19 +15,24 @@
 
 set -e
 
-if [ -z "$(git diff --cached --name-only -- '*.py')" ]; then
-    exit 0
+if [ -z "$(git diff --cached --name-only)" ]; then
+    exit 0  # nothing staged — nothing to check
 fi
 
-# Secrets scan — the house hook contract is lint + typecheck + gitleaks.
-# One-time install: `go install github.com/gitleaks/gitleaks/v8@latest` or
-# brew. Fail loudly when missing: a scan that silently disappears is a
-# scan that never runs.
+# Secrets scan — runs on ANY staged change (configs, shell scripts,
+# .env.example included), never only Python. One-time install:
+# `go install github.com/gitleaks/gitleaks/v8@latest` or brew. Fail loudly
+# when missing: a scan that silently disappears is a scan that never runs.
 if command -v gitleaks >/dev/null 2>&1; then
     gitleaks git --pre-commit --redact --staged
 else
     echo "pre-commit: gitleaks not on PATH — install it (go install github.com/gitleaks/gitleaks/v8@latest or brew), or drop this block from the hook" >&2
     exit 1
+fi
+
+# Lint gate — only when the commit touches Python.
+if [ -z "$(git diff --cached --name-only -- '*.py')" ]; then
+    exit 0
 fi
 
 if [ ! -x .venv/bin/ruff ]; then

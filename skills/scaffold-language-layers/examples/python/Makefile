@@ -56,13 +56,12 @@ install-hooks:
 	@mkdir -p .git/hooks
 	@for hook in pre-commit pre-push; do \
 		if [ -f .git/hooks/$$hook ] && ! cmp -s scripts/$$hook .git/hooks/$$hook; then \
-			echo "${YELLOW}An existing $$hook hook differs — move it aside and re-run 'make install-hooks'${NC}"; \
-			exit 1; \
+			echo "${YELLOW}Overwriting an existing $$hook hook (scripts/ is the single source of truth — re-run after pulling updates, as the hook headers say)${NC}"; \
 		fi; \
 		cp scripts/$$hook .git/hooks/$$hook; \
 		chmod +x .git/hooks/$$hook; \
 	done
-	@echo "${GREEN}✓ Hooks installed (pre-commit: lint; pre-push: make check)${NC}"
+	@echo "${GREEN}✓ Hooks installed (pre-commit: lint + gitleaks; pre-push: make check)${NC}"
 
 run: setup
 	@$(UV) run --env-file .env python -m <pkg>
