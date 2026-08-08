@@ -1,8 +1,13 @@
 # AI Code Review (the-pr-agent) — the house review bot.
 #
-# CHANGE: `<PROJECT>_API_KEY` -> your repo secret name. Set the secret
-# BEFORE the first PR — the job fails fast without it (observed: secret
-# created after the PR-open event, run dead in 6s).
+# CHANGE: `<PROJECT>_API_KEY` -> your repo secret name. The secret value is
+# the house provider key for THIS project (the "opencode-go" entry from the
+# account's auth file). Set it BEFORE the first PR — the job fails fast
+# without it (observed: secret created after the PR-open event, run dead in
+# 6s). A wrong entry (another provider's key) fails every run with
+# "Incorrect API key provided: sk-..." — the endpoint says exactly that, so
+# when the check step errors with it, verify the secret's value, not the
+# model or the endpoint (the-loft 2026-08-08).
 #
 # DO NOT CHANGE:
 # - NO actions/checkout here — deliberate. PR-Agent fetches everything via
@@ -17,14 +22,23 @@
 #   api_base at an attacker endpoint, and the API key would be sent there
 #   as the Bearer token. (.pr_agent.toml is fetched via the API from this
 #   branch; 404 falls back to the default branch — never the working tree.)
+#   This is ALSO the only way the config applies at all: the action gates
+#   repo .pr_agent.toml keys by per-host allowed-keys, so without the pin
+#   the image defaults run (model gpt-5.6, api_base api.openai.com) and the
+#   model call dies with "Incorrect API key". Missing pin, not the key, is
+#   the first thing to check when that error shows.
 # - Pin the action to a real release SHA (see houses' workflow) — @latest
 #   does not resolve. `the-pr-agent/pr-agent@<pinned-sha>`.
 # - The `if:` on the job: dependabot bumps are mechanical and covered by
 #   build-and-test; the AI review adds noise and its ticket-compliance step
 #   chokes on dependabot descriptions (no ticket ref). Skip the whole job.
 # - The "Check review succeeded" step: fails the PR when no review comment
-#   covers the head commit (gh-api attribution; see houses' workflow for
-#   the full logic).
+#   covers the head commit. The matcher looks for a comment starting "## PR
+#   Reviewer Guide" AND (containing the head SHA OR posted after the head
+#   commit landed) — v0.41.1 reviews NEVER contain the head SHA, so a
+#   SHA-in-body-only match fails even when the review posted (the-loft
+#   2026-08-08). Must PASS when a human posted "/skip" (skip_commands in
+#   .pr_agent.toml — pr-agent posts nothing on a skip).
 
 name: AI Code Review
 
@@ -52,7 +66,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
 
-      # Check step: fail the PR when no "PR Reviewer Guide" comment covers the
-      # head commit (gh-api attribution; see houses' workflow for the full
-      # logic). Must PASS when a human posted "/skip" (skip_commands in
-      # .pr_agent.toml — pr-agent posts nothing on a skip).
+      # Fail the PR when no "## PR Reviewer Guide" comment covers the head
+      # commit: the comment matches by prefix + (SHA in body OR posted after
+      # the head commit landed) — the SHA-in-body fallback exists because
+      # v0.41.1's first review on a PR is posted without the SHA marker.
+      - name: Check review succeeded
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          head_date="$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq .commit.committer.date)"
+          covered="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --paginate \
+            | jq -r --arg sha "$SHA" --arg hd "$head_date" \
+              '[.[] | select(.body | startswith("## PR Reviewer Guide"))]
+               | any(.created_at >= $hd or (.body | contains($sha)))')"
+          if [ "$covered" != "true" ]; then
+            echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
+            exit 1
+          fi
+          echo "review posted for $SHA"
