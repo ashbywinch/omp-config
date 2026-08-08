@@ -53,4 +53,6 @@ jobs:
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
 
       # Check step: fail the PR when no "PR Reviewer Guide" comment covers the
-      # head commit (gh-api attribution; see houses' workflow for the full logic).
+      # head commit (gh-api attribution; see houses' workflow for the full
+      # logic). Must PASS when a human posted "/skip" (skip_commands in
+      # .pr_agent.toml — pr-agent posts nothing on a skip).
