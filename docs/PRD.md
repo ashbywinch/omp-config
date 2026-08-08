@@ -108,12 +108,10 @@ All code produced under these conventions is consistently:
   layer, so a new language follows suit instead of inventing its own rules.
 - **R5 — AGENTS.md is a bootloader, not an OS.** Only 100%-relevant content
   lives there; every doc is discoverable from it (directly or one link
-  deep); an undiscoverable doc is a finding. Skills are exempt: a harness
-  discovers them through its own built-in mechanism — a skills tool, a
-  registry, an index; that mechanism varies by harness, so findability is
-  the harness's job, not the doc tree's. (Decision 2026-08-07, per the
-  loop's direction; the exemption's scope lives in
-  docs/documentation-structure.md.)
+  deep); an undiscoverable doc is a finding. Skills are exempt from
+  reachability — a harness discovers them through its own mechanism
+  (decision 2026-08-07; rationale and scope in
+  docs/documentation-structure.md).
 - **R6 — Convergence over churn.** Standards and UX changes land against
   baselines and recorded decisions, with user agreement; the decisions doc
   is the loop's memory, so the loop converges instead of going in circles.

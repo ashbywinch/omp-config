@@ -95,11 +95,9 @@ support email); a Testing-mode screen only admits the listed test users.
 - **Never try to register a raw LAN IP as a redirect URI** — use the
   sslip.io-style hostname; the device flow is a needless detour for
   browsers.
-- **The cookie rides a page navigation, not a fetch response** — and the
-  sign-in button follows the login endpoint's `auth_url` instead of
-  navigating to the endpoint.
-- **Secrets**: never printed; the wrapper sources the env file; watch the
-  paste spaces.
+- **The sign-in button follows the login endpoint's `auth_url`** — it
+  doesn't navigate to the endpoint directly (and the cookie lands on a
+  page navigation, never a fetch response — see the shared core).
 - **Verify against the right client** — the id_token binds to its OAuth
   client; `email_verified` is required.
 - **Log the auth outcomes** (grant started / callback received / session

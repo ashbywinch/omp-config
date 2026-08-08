@@ -71,10 +71,11 @@ class ModuleScanner:
 
     @staticmethod
     def _base_name(node: ast.expr | None) -> str | None:
-        """The normalized collection base name: dict/list/tuple for bare
-        names and typing-qualified spellings (typing.Dict -> dict)."""
+        """The normalized collection base name: lowercase dict/list/tuple
+        for bare names and typing-qualified spellings (typing.Dict ->
+        dict, Optional -> optional)."""
         if isinstance(node, ast.Name):
-            return node.id
+            return node.id.lower()
         if isinstance(node, ast.Attribute):
             return node.attr.lower()
         return None
@@ -86,7 +87,7 @@ class ModuleScanner:
         subscripts — dict[str, Label] is a map, not a domain-class return."""
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
             return cls._unwrap(node.left) + cls._unwrap(node.right)
-        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id in ("Optional", "Union"):
+        if isinstance(node, ast.Subscript) and ModuleScanner._base_name(node.value) in ("optional", "union"):
             parts = node.slice
             if isinstance(parts, ast.Tuple):
                 return [e for part in parts.elts for e in cls._unwrap(part)]
@@ -239,12 +240,16 @@ class ModuleScanner:
     @staticmethod
     def _is_constant_value(node: ast.expr) -> bool:
         """A literal value that cannot vary at runtime: a constant, or a
-        list/tuple literal whose elements are all constant (lookup tables
+        list/tuple/dict literal whose parts are all constant (lookup tables
         may carry nested constant structures)."""
         if isinstance(node, ast.Constant):
             return True
         if isinstance(node, (ast.List, ast.Tuple)):
             return all(ModuleScanner._is_constant_value(e) for e in node.elts)
+        if isinstance(node, ast.Dict):
+            return all(k is not None and ModuleScanner._is_constant_value(k) for k in node.keys) and all(
+                ModuleScanner._is_constant_value(v) for v in node.values
+            )
         return False
 
     def record_literal_lines(self) -> list[int]:

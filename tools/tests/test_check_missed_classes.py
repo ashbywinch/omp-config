@@ -116,6 +116,13 @@ class RecordCollectionGateTest(unittest.TestCase):
         domain objects out — the sanctioned boundary."""
         self.assertEqual(scan_fixture("bulk_deserializer.py").findings, [])
 
+    def test_nested_dict_lookup_is_exempt(self):
+        self.assertEqual(scan_fixture("nested_dict_lookup_ok.py").findings, [])
+
+    def test_typing_qualified_wrapper_is_a_finding(self):
+        """typing.Optional[dict[str, Any]] unwraps like Optional[dict[str, Any]]."""
+        self.assertEqual(len(scan_fixture("typing_qualified_wrapper.py").findings), 1)
+
     def test_optional_value_map_is_exempt(self):
         """dict[str, Optional[str]] is a map, exactly like dict[str, str | None]."""
         self.assertEqual(scan_fixture("optional_value_map_ok.py").findings, [])
