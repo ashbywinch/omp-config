@@ -20,6 +20,10 @@ An Epic is a tactical work package that converts a Top Level Epic into actionabl
 
 **Where they live**: Epics live in the Epics database; Value Streams live in the **Value Streams** database (separate). A value stream "containing" an epic is expressed on the epic's **Parent Value Stream** relation.
 
+**No top-level epics**: an epic is never a top-level page — every epic has exactly one parent, either an epic or a value stream. Top-level pages in the tree are value streams only: a life goal (e.g. Lifelong Learning, Connection to Roots, Quality of Life) or a C-suite responsibility of the business (CEO, CTO, CMO, CRO, COO, CLO, CHRO). A product is never top-level: it is a value stream owned by a product GM who reports to the CTO.
+
+**Value streams need KPIs**: a value stream must be able to have KPIs — the name should describe a measurable, ongoing outcome ("Connection to Roots"), not a vague area ("Home and Family").
+
 **Hierarchy validity**: a value stream can NEVER be a child of an epic (an epic is finishable work; an ongoing value stream cannot be "part of" a finishable package). A value stream's parent, if any, is itself a value stream (or a mission). If a would-be epic turns out to be a value stream, any epic parent in its chain is likewise mislabeled and must be converted first.
 
 ## Status Lifecycle

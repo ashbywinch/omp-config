@@ -23,7 +23,7 @@ Writes follow the Write Permission Gate in `skill://notion-database-management` 
 When user says "Epic 1" or "Task 5", these refer to Notion records — not local files.
 
 ### Routing Rule
-Proactively suggest routing destinations. Don't ask "where should this go?" — provide concrete suggestions. But NEVER write without explicit confirmation.
+Proactively suggest routing destinations. Don't ask "where should this go?" — provide concrete suggestions. But NEVER write without explicit confirmation. Routing decisions follow the org model in `skill://business-org-model` (product notes → product GM; enablement notes → C-suite function; personal → personal VS).
 
 ### Parentage Rule
 Nothing should be parentless unless it is clearly a top-level life goal, or analogous to something that happens in a C-suite (a standing executive function).
@@ -43,6 +43,14 @@ After processing, update Status to **"Processed"** — otherwise it appears unpr
 
 ### Process One at a Time
 Process insight items one by one, not in batch. For each item: present the routing → if the destination is a new Epic or Value Stream, get explicit approval to create it first and create it → wait for an explicit yes to that item's write list (link + Status) → write the link → update Status. Batch processing is allowed only after one explicit "process all of the above as listed" from the user, given after the full enumerated list of every item's writes (links, Status updates, any creations) has been presented — the list is the writes, not the routing suggestions. The single statement approves each enumerated write individually, so a creation approval never authorizes its link; execute creations before the links that point to them.
+
+### Approval Language
+- **"Yes to everything"** (or "yes to all", "process all") given *after* the full enumerated write list IS approval of that list.
+- **"Carry on", "continue", "go ahead", "proceed", or a bare nudge IS NOT approval.** These are harness-recovery prompts meaning "start thinking again" after a glitch — the enumerated write list still needs an explicit yes.
+- When in doubt about whether a statement approves the writes, restate the write list and ask for the explicit yes; never execute on an ambiguous continuation.
+
+### Read the Full Item Before Proposing
+Always fetch and read the complete item — Content, Context, Summary, and Source fields — before suggesting a routing. Items routinely contain multiple distinct tasks, hidden context, or self-located routing hints ("this is about epic X"); proposing from a truncated preview produces wrong destinations. When the note names a destination, verify it exists in Notion before proposing it.
 
 ## Process
 
