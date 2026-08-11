@@ -140,6 +140,7 @@ Notion relations are **natively bidirectional** — setting a relation on one si
 - **Never hand-maintain a parent's relation array** to "add" or "clean up" back links. The parent's field legitimately contains both its own parent AND its children (mirrored); replacing that array is destructive — it silently drops the mirrored child links (a real failure mode: re-parenting a page dropped its child's link entirely).
 - **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them. Reading a page's own `Parent Epic` field cannot distinguish parent from mirrored child; resolve parentage from the child-side links or numbering.
 - **After any parent-link write, verify**: re-read the parent page and confirm the child appears as a back link. If the mirror is missing, re-set the forward link on the child (don't patch the parent).
+- **Mirroring direction is not symmetric in practice (observed 2026-08-10)**: for epic→VS relations, writes made from the **VS side** (the synced `Related to Epics` field) populate both sides, but writes from the epic's `Parent Value Stream` side did NOT populate the VS mirror. When back-filling or repairing epic→VS links, write from the VS side. (Epic→epic `Parent Epic` relations mirrored correctly from the child side in the same session.)
 - **Hierarchy semantics** live in `skill://epic-quality-standard` (exactly one of `Parent Epic` / `Parent Value Stream` per epic, never both).
 
 ## Error Recovery
