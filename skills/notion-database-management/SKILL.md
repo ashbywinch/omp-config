@@ -136,6 +136,8 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 Notion relations are **natively bidirectional** — setting a relation on one side auto-creates the back link on the other. There is no manual back-link maintenance: never PATCH both sides of the same relation.
 
+- **Tree rendering**: Superseded items go in their own `## Superseded` section at the bottom of any generated tree — never inline in the main tree.
+
 - **Write the parent link on the CHILD page** — the child points up at its parent. Notion mirrors the entry onto the parent's field automatically.
 - **Never hand-maintain a parent's relation array** to "add" or "clean up" back links. The parent's field legitimately contains both its own parent AND its children (mirrored); replacing that array is destructive — it silently drops the mirrored child links (a real failure mode: re-parenting a page dropped its child's link entirely).
 - **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them. Reading a page's own `Parent Epic` field cannot distinguish parent from mirrored child; resolve parentage from the child-side links or numbering.
