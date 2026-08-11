@@ -29,7 +29,6 @@ VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"
 OVERRIDES = {
     "6.1": "6.11", "6.2": "6.11", "6.16": "6.11",
     "6.3": "6.12", "6.10": "6.12",
-    "9": "6",
 }
 
 
@@ -37,7 +36,11 @@ def query(ds):
     r = subprocess.run(
         ["ntn", "datasources", "query", ds, "--limit", "100", "--json"],
         capture_output=True, text=True)
-    return json.loads(r.stdout).get("results", [])
+    obj = json.loads(r.stdout)
+    if obj.get("has_more"):
+        print(f"WARNING: {ds} has more than 100 records — tree may be incomplete",
+              file=sys.stderr)
+    return obj.get("results", [])
 
 
 def title(props, key):
@@ -132,6 +135,13 @@ def build():
 
     roots = [vid for vid in vm if vid not in vs_parent and not is_sup(vm[vid][0])]
 
+    def emit_epic(cid, d):
+        p, nm = em[cid]
+        ind = "  " * d
+        L.append(f"{ind}- {nm} (epic, {st(p)})")
+        for c2 in sorted(kids.get(cid, []), key=lambda c: em[c][1]):
+            emit_epic(c2, d + 1)
+
     def emit_vs(vid, d=0):
         p, nm = vm[vid]
         ind = "  " * d
@@ -139,11 +149,7 @@ def build():
         for cv in sorted(vs_kids.get(vid, []), key=lambda v: vm[v][1]):
             emit_vs(cv, d + 1)
         for cid in sorted(vs_epics.get(vid, []), key=lambda c: em[c][1]):
-            ep, enm = em[cid]
-            L.append(f"{ind}  - {enm} (epic, {st(ep)})")
-            for c2 in sorted(kids.get(cid, []), key=lambda c: em[c][1]):
-                ep2, enm2 = em[c2]
-                L.append(f"{ind}    - {enm2} (epic, {st(ep2)})")
+            emit_epic(cid, d + 1)
 
     for vid in sorted(roots, key=lambda v: vm[v][1]):
         emit_vs(vid)
