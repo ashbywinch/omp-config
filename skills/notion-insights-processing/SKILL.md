@@ -25,6 +25,14 @@ When user says "Epic 1" or "Task 5", these refer to Notion records — not local
 ### Routing Rule
 Proactively suggest routing destinations. Don't ask "where should this go?" — provide concrete suggestions. But NEVER write without explicit confirmation.
 
+### Parentage Rule
+Nothing should be parentless unless it is clearly a top-level life goal, or analogous to something that happens in a C-suite (a standing executive function).
+
+- **Prefer an existing, deep, related parent** over creating a new Epic or Value Stream. Before proposing a new Epic/VS, check the existing tree for a phase-named sub-epic with a concrete deliverable that already covers the item (e.g. a capture-pipeline epic, not the parent app epic).
+- **New Epics must be parented immediately** — exactly one of Parent Epic / Parent Value Stream, never both, never neither (except top-level goals). When creating, set the parent link in the same write as the creation; a new Epic that needs a child Epic of its own gets the child first, then the link.
+- **Sub-epics are named after a phase of the project with a concrete deliverable** — not after the item itself, and not the generic parent name.
+- If the only candidate parent is a Value Stream with the same name as an Epic, prefer the Value Stream (it is the standing home); flag the naming collision for the user.
+
 ### Relation Fields
 - **Epics** use **"Insights"** relation field (not legacy "Key Insights" text field)
 - **Value Streams** use **"Key Insights 2"** relation field

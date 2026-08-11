@@ -126,19 +126,20 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 ## Relation Write Rule (CRITICAL)
 
-**A relation PATCH replaces the whole array — it does not append.** When adding a relation (e.g. a second insight to an epic that already has one):
-1. Read the page first
-2. Build the full array: existing IDs + new ID(s)
-3. PATCH with the complete array
+**A relation PATCH replaces the whole array — it does not append.** Two cases:
 
-Never PATCH a relation with only the new ID — it silently drops the existing links.
+**Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. Never PATCH with only the new ID — it silently drops the existing links.
+
+**Parent links** (`Parent Epic`, `Parent Value Stream` on a child page): single-value, written fresh on the child. Read the child's current field only to preserve its own parent (a child has exactly one parent); never use a parent page's mirrored array as the source of truth, and never PATCH a parent's field to adjust children — that drops the mirrored child links.
 
 ## Parent-field Mirroring
 
-Parent relations (e.g. `Parent Epic`, `Parent Value Stream`) mirror entries onto the *parent's* field when written on the *child*. So a parent page's field can contain both its parent and its children.
+Notion relations are **natively bidirectional** — setting a relation on one side auto-creates the back link on the other. There is no manual back-link maintenance: never PATCH both sides of the same relation.
 
-- **Write the parent link on the CHILD page** — the child points up at its parent.
-- **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them.
+- **Write the parent link on the CHILD page** — the child points up at its parent. Notion mirrors the entry onto the parent's field automatically.
+- **Never hand-maintain a parent's relation array** to "add" or "clean up" back links. The parent's field legitimately contains both its own parent AND its children (mirrored); replacing that array is destructive — it silently drops the mirrored child links (a real failure mode: re-parenting a page dropped its child's link entirely).
+- **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them. Reading a page's own `Parent Epic` field cannot distinguish parent from mirrored child; resolve parentage from the child-side links or numbering.
+- **After any parent-link write, verify**: re-read the parent page and confirm the child appears as a back link. If the mirror is missing, re-set the forward link on the child (don't patch the parent).
 - **Hierarchy semantics** live in `skill://epic-quality-standard` (exactly one of `Parent Epic` / `Parent Value Stream` per epic, never both).
 
 ## Error Recovery
