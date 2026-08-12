@@ -130,7 +130,11 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **A relation PATCH replaces the whole array — it does not append.** Entries MUST be `{"id": "..."}` objects — bare strings fail validation.
 
-**Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. Never PATCH with only the new ID — it silently drops the existing links.
+**Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link (observed 2026-08-12: 100+ single-ID writes across sessions left 62 processed insights unlinked).
+
+**Read at write time, never from a snapshot.** Read the live page (`ntn api v1/pages/<PAGE_ID>`) immediately before each PATCH — never a session-start or shared `/tmp` file, which is stale the moment another session writes.
+
+**Never silence a relation write.** No `> /dev/null`: re-read the page after the PATCH and confirm the array length is exactly existing + new.
 
 **Moving an item between pages** (e.g. re-parenting an insight or task): read-modify-write BOTH arrays — destination gets existing + new, source keeps the remainder. Verify both sides after.
 
@@ -154,6 +158,10 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 - **Never clear or replace a parent's child-side array** (`ChildEpics` / `Child Value Streams`) to "clean up" — and never write children into a page's own `ParentEpic` field. Clearing a page's `ParentEpic` removes its own parent link, which also removes it from its parent's `ChildEpics`.
 - **Verify after any parent-link write**: re-read and confirm both sides of the pair (child's parent field AND parent's child field).
 - **Reading the tree**: parentage resolves from the child side (pages whose `Parent Epic` contains the parent). A page's own fields are unambiguous now, but child-side is still the reliable source for building trees.
+
+## Link Audit (detecting lost links)
+
+An insight is linked if its ID appears in any epic's `Insights` or any VS's `Key Insights 2` / `Key Insights` array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none. Observed 2026-08-12: 62 processed insights were orphaned this way.
 
 ## Error Recovery
 
