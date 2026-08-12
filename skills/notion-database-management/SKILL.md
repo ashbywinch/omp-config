@@ -130,21 +130,24 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. Never PATCH with only the new ID — it silently drops the existing links.
 
-**Parent links** (`Parent Epic`, `Parent Value Stream` on a child page): single-value, written fresh on the child. Read the child's current field only to preserve its own parent (a child has exactly one parent); never use a parent page's mirrored array as the source of truth, and never PATCH a parent's field to adjust children — that drops the mirrored child links.
+**Parent links** (`Parent Epic`, `Parent Value Stream` on a child page): single-value, written fresh on the child. The dual-property sync populates the parent's child-side field (`Child Epics` / `Child Value Streams`) automatically — write the child side, verify both sides, never hand-maintain the parent's child field.
 
-## Parent-field Mirroring
+## Parent-child relations (dual property pairs)
 
-Notion relations are **natively bidirectional** — setting a relation on one side auto-creates the back link on the other. There is no manual back-link maintenance: never PATCH both sides of the same relation.
+Hierarchies use **dual property pairs** — one field per direction, synced automatically:
 
-- **Tree rendering**: Superseded items go in their own `## Superseded` section at the bottom of any generated tree — never inline in the main tree.
+| Relation | Child side | Parent side |
+|---|---|---|
+| epic→epic | `Parent Epic` | `Child Epics` |
+| epic→VS | `Parent Value Stream` | `Child Epics` (on the VS) |
+| VS→VS | `Parent Value Stream` | `Child Value Streams` |
 
-- **Write the parent link on the CHILD page** — the child points up at its parent. Notion mirrors the entry onto the parent's field automatically.
-- **Never hand-maintain a parent's relation array** to "add" or "clean up" back links. The parent's field legitimately contains both its own parent AND its children (mirrored); replacing that array is destructive — it silently drops the mirrored child links (a real failure mode: re-parenting a page dropped its child's link entirely).
-- **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them. Reading a page's own `Parent Epic` field cannot distinguish parent from mirrored child; resolve parentage from the child-side links or numbering.
-- **After any parent-link write, verify**: re-read the parent page and confirm the child appears as a back link. If the mirror is missing, re-set the forward link on the child (don't patch the parent).
-- **Mirroring direction is not symmetric in practice (observed 2026-08-10)**: for epic→VS relations, writes made from the **VS side** (the synced `Related to Epics` field) populate both sides, but writes from the epic's `Parent Value Stream` side did NOT populate the VS mirror. When back-filling or repairing epic→VS links, write from the VS side. (Epic→epic `Parent Epic` relations mirrored correctly from the child side in the same session.)
-- **Re-parenting a page that has children drops the children's links.** Clearing or replacing a page's `Parent Epic`/`Parent Value Stream` array (e.g. to move the page to a new parent) silently deletes the mirrored child links — the children lose their parent entirely (observed twice: a re-parented epic lost all 6 of its child epics; another lost 3). Never PATCH a parent field to empty or to a new parent array on a page with children. Instead: either (a) move the children first — re-parent each child to the new parent before touching the old parent's field, or (b) after re-parenting the parent page, re-set every child's forward link. Then verify: read each child and confirm its parent link survived.
-- **Hierarchy semantics** live in `skill://epic-quality-standard` (exactly one of `Parent Epic` / `Parent Value Stream` per epic, never both).
+- A page's own `Parent Epic` / `Parent Value Stream` field contains **only its parent**; its `Child Epics` / `Child Value Streams` field contains **only its children**. Never mixed.
+- **Write the parent link on the CHILD side** (`child.ParentEpic = [parent]`) — the dual sync populates the parent's `ChildEpics` automatically. Writing either side of a pair populates both; never hand-maintain both sides.
+- **Never clear or replace a parent's child-side array** (`ChildEpics` / `Child Value Streams`) to "clean up" — and never write children into a page's own `ParentEpic` field. Clearing a page's `ParentEpic` removes its own parent link, which also removes it from its parent's `ChildEpics`.
+- **Verify after any parent-link write**: re-read and confirm both sides of the pair (child's parent field AND parent's child field).
+- **Reading the tree**: parentage resolves from the child side (pages whose `Parent Epic` contains the parent). A page's own fields are unambiguous now, but child-side is still the reliable source for building trees.
+- **Historical note (2026-08-10)**: these pairs were single_property relations, which had no separate child-side field — a parent's own `Parent Epic` could contain stored child entries, causing the ambiguity and the dropped-links hazard documented in earlier versions of this skill. The schema was converted to dual pairs and the data rebuilt; the old hazards are gone.
 
 ## Error Recovery
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Generate the Notion structure tree markdown.
 
-Mirror-aware: Notion relations are bidirectional, so a parent's Parent Epic /
-Parent Value Stream field contains BOTH its own parent AND its children
-(mirrors). This script resolves parentage from the child-side links, applies
-explicit re-parent overrides, and renders superseded items in their own
-section at the bottom.
+Parentage comes from the child-side link: a page's own `Parent Epic` /
+`Parent Value Stream` field holds exactly its parent (dual-property pairs,
+see skill://notion-database-management). Superseded items render in their
+own section at the bottom.
 
 Usage:
     python3 generate_tree.py [OUTPUT.md]     # default: notion-structure.md in CWD
@@ -17,19 +16,11 @@ Data sources:
 """
 
 import json
-import re
 import subprocess
 import sys
 
 EPICS_DS = "20d3122e-1a13-81ee-a750-000ba5e61df5"
 VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"
-
-# Explicit re-parents that intentionally break the numbering scheme
-# (child number -> parent number). Keep in sync with the org model.
-OVERRIDES = {
-    "6.1": "6.11", "6.2": "6.11", "6.16": "6.11",
-    "6.3": "6.12", "6.10": "6.12",
-}
 
 
 def query(ds):
@@ -67,35 +58,11 @@ def build():
     em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
     vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
 
-    by_num = {}
-    for cid, (p, nm) in em.items():
-        n = num(nm)
-        if n:
-            by_num.setdefault(n, []).append(cid)
-
     def actual_parent(cid):
+        # child-side link: own Parent Epic field holds exactly the parent
         p, nm = em[cid]
-        cn = num(nm)
-        if cn and ".".join(map(str, cn)) in OVERRIDES:
-            pn = tuple(int(x) for x in OVERRIDES[".".join(map(str, cn))].split("."))
-            if pn in by_num:
-                return by_num[pn][0]
         pe = [x for x in rel(p, "Parent Epic") if x in em and x != cid]
-        if not pe:
-            return None
-        # entries that don't point back at us are the real parent (mirror-aware)
-        real = [x for x in pe if cid not in rel(em[x][0], "Parent Epic")]
-        if real:
-            return real[0]
-        if cn:
-            best, bestn = None, -1
-            for x in pe:
-                xn = num(em[x][1])
-                if xn and len(xn) < len(cn) and cn[:len(xn)] == xn and len(xn) > bestn:
-                    best, bestn = x, len(xn)
-            if best:
-                return best
-        return None
+        return pe[0] if pe else None
 
     def is_sup(p):
         return st(p) == "Superseded"
