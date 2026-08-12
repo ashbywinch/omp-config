@@ -1,0 +1,82 @@
+#!/bin/bash
+# gh shim: omp uses the omp-harness GitHub App; the user's own terminal gh
+# keeps their personal credentials.
+#
+# Rules:
+#   - stdin is a TTY            -> pass through to real gh (user's creds)
+#   - GH_TOKEN/GITHUB_TOKEN set -> pass through untouched (explicit override)
+#   - otherwise (omp, no TTY)   -> mint a fresh app installation token,
+#                                  export GH_TOKEN, exec real gh
+#
+# The app key, app id, and installation id come from ~/.secrets at runtime
+# (sourced here so this works under the Paseo daemon AND a bare terminal).
+# Key material never leaves the key file; nothing here prints it.
+#
+# Source-controlled: tools/gh-app-shim in omp-config. Install via
+# `make install-gh-shim` (see omp-config Makefile).
+
+set -euo pipefail
+
+# Home may be unset or wrong in daemon/bare-env contexts (systemd service,
+# cron, root-run). Resolve from the passwd database for the current uid —
+# reliable regardless of environment.
+if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
+    HOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+fi
+export HOME
+
+SECRETS_FILE="${HOME}/.secrets"
+
+# ---- locate the real gh (skip this shim's own directory) ----
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REAL_GH=""
+IFS=':' read -ra DIRS <<< "${PATH:-}"
+for d in "${DIRS[@]}"; do
+    [ -n "$d" ] || continue
+    if [ "$(cd "$d" 2>/dev/null && pwd)" = "$SELF_DIR" ]; then
+        continue
+    fi
+    if [ -x "$d/gh" ]; then
+        REAL_GH="$d/gh"
+        break
+    fi
+done
+if [ -z "$REAL_GH" ]; then
+    echo "gh shim: could not locate the real gh binary" >&2
+    exit 1
+fi
+
+# ---- pass-through cases ----
+if [ -t 0 ] || [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+    exec "$REAL_GH" "$@"
+fi
+
+# ---- app mode: source secrets, mint JWT, exchange for installation token ----
+# shellcheck disable=SC1090
+source "$SECRETS_FILE"
+
+APP_ID="${GITHUB_APP_ID:-}"
+KEY_FILE="${GITHUB_APP_KEY_FILE:-}"
+INSTALL_ID="${GITHUB_APP_INSTALLATION_ID:-}"
+if [ -z "$APP_ID" ] || [ -z "$KEY_FILE" ] || [ -z "$INSTALL_ID" ] || [ ! -f "$KEY_FILE" ]; then
+    echo "gh shim: GITHUB_APP_ID / GITHUB_APP_KEY_FILE / GITHUB_APP_INSTALLATION_ID required in $SECRETS_FILE" >&2
+    exit 1
+fi
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+
+NOW="$(date +%s)"
+HDR="$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)"
+CLAIMS="$(printf '{"iat":%s,"exp":%s,"iss":"%s"}' "$((NOW - 60))" "$((NOW + 540))" "$APP_ID" | b64url)"
+SIG="$(printf '%s' "$HDR.$CLAIMS" | openssl dgst -sha256 -sign "$KEY_FILE" -binary | b64url)"
+JWT="$HDR.$CLAIMS.$SIG"
+
+TOKEN="$(curl -fsS -X POST \
+    -H "Authorization: Bearer $JWT" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "https://api.github.com/app/installations/$INSTALL_ID/access_tokens" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+
+export GH_TOKEN="$TOKEN"
+exec "$REAL_GH" "$@"
