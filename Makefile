@@ -1,7 +1,9 @@
 # omp-config — the house conventions repo (skills, rules, standards).
 # Single dev entry point per the house standard: every check goes through
-# make. No code lives here, so there is no lint/typecheck/coverage —
-# `test` is the repo's self-check (docs links + skill well-formedness).
+# make. The repo carries a few tools under `tools/` (self-checks, the tree
+# generator, the gh shim) — they are make-adjacent, not a product; there is
+# no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
+# (docs links + skill well-formedness).
 
 .PHONY: help setup install uninstall install-gh-shim test
 

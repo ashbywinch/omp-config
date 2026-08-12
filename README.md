@@ -33,6 +33,7 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 | `profiles/` | User profile |
 | `APPEND_SYSTEM.md` | The system-prompt append |
 | `tools/check_docs_links.py` | The repo self-check (`make test`) |
+| `tools/generate_tree.py` | Notion structure tree generator (mirror-safe, superseded section) |
 | `tools/gh-app-shim` | GitHub App auth shim for `gh` — omp uses the app token, your terminal uses your creds (`make install-gh-shim`) |
 | `tools/secrets.template` | Template for `~/.secrets` — copy, fill, `chmod 600`; never commit values |
 | `.pr_agent.toml` | The review bot's context (`repo_context_files`) and instructions |

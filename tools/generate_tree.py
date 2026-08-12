@@ -80,15 +80,21 @@ def build():
         if cid in epic_vs or is_sup(em[cid][0]):
             continue
         pr = actual_parent(cid)
+        # child of an active parent -> nested; child of a superseded/missing
+        # parent -> root (never silently omitted)
         if pr and not is_sup(em[pr][0]):
             kids.setdefault(pr, []).append(cid)
     vs_kids = {}
     for vid, pid in vs_parent.items():
+        if vid not in vm or pid not in vm:
+            continue  # dangling relation — leave it out rather than crash
         if is_sup(vm[vid][0]) or is_sup(vm[pid][0]):
             continue
         vs_kids.setdefault(pid, []).append(vid)
     vs_epics = {}
     for cid, vid in epic_vs.items():
+        if vid not in vm:
+            continue  # dangling relation — leave it out rather than crash
         if is_sup(em[cid][0]) or is_sup(vm[vid][0]):
             continue
         vs_epics.setdefault(vid, []).append(cid)
@@ -98,6 +104,14 @@ def build():
          "## Value Streams", ""]
 
     roots = [vid for vid in vm if vid not in vs_parent and not is_sup(vm[vid][0])]
+
+    # active epics not under a VS and not under an active epic parent: roots
+    # (covers children whose parent was superseded, and any genuinely
+    # top-level epic)
+    epic_roots = [cid for cid in em
+                  if cid not in epic_vs and not is_sup(em[cid][0])
+                  and (actual_parent(cid) is None
+                       or is_sup(em[actual_parent(cid)][0]))]
 
     def emit_epic(cid, d):
         p, nm = em[cid]
@@ -117,6 +131,11 @@ def build():
 
     for vid in sorted(roots, key=lambda v: vm[v][1]):
         emit_vs(vid)
+
+    if epic_roots:
+        L += ["", "## Top-Level Epics", ""]
+        for cid in sorted(epic_roots, key=lambda c: em[c][1]):
+            emit_epic(cid, 0)
 
     L += ["", "## Superseded", ""]
     for cid in sorted([c for c in em if is_sup(em[c][0])], key=lambda c: em[c][1]):
