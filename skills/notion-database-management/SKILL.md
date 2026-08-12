@@ -147,7 +147,6 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 - **Never clear or replace a parent's child-side array** (`ChildEpics` / `Child Value Streams`) to "clean up" — and never write children into a page's own `ParentEpic` field. Clearing a page's `ParentEpic` removes its own parent link, which also removes it from its parent's `ChildEpics`.
 - **Verify after any parent-link write**: re-read and confirm both sides of the pair (child's parent field AND parent's child field).
 - **Reading the tree**: parentage resolves from the child side (pages whose `Parent Epic` contains the parent). A page's own fields are unambiguous now, but child-side is still the reliable source for building trees.
-- **Historical note (2026-08-10)**: these pairs were single_property relations, which had no separate child-side field — a parent's own `Parent Epic` could contain stored child entries, causing the ambiguity and the dropped-links hazard documented in earlier versions of this skill. The schema was converted to dual pairs and the data rebuilt; the old hazards are gone.
 
 ## Error Recovery
 
