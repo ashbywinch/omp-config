@@ -53,6 +53,7 @@ The Business (CEO)
 - **GMs report to the CTO**, who owns Product P&L across all products. Revenue (the CRO's function) is separate from product P&L.
 - **Enablement orgs** (CMO, CRO, COO, CTO's platform arms) provide support and standards only — GMs may draw on them, but per-product work lives under the GM, never under the enablement function.
 - Per-product value streams are named for the product and parented under the product GM's value stream — NOT under the shared Marketing/Sales/CS functions.
+- **What counts as a business product**: anything intended to generate revenue — including a version of a personal product packaged for sale (e.g. a family-history app's family-agnostic edition). A product used only for personal goals is a personal product, not a business product; the same underlying product can exist on both sides as two value streams (personal use vs revenue edition).
 
 ## Personal value streams (the CEO's life goals)
 
@@ -65,7 +66,7 @@ Top-level, KPI-able, life-goal value streams:
 ## Routing rules
 
 - The **product** a note touches decides its home: business product → under that product's GM (Product & Engineering); personal product → under the matching personal VS.
-- **Per-product marketing/sales/CS notes** go under the product GM's value stream, never the enablement org.
+- **Per-product marketing/sales/CS notes** go under the product GM's value stream, never the enablement org — but only **indirectly**: they land under an epic inside that value stream. A task or epic is never parented directly to a value stream in the routing step; the value stream is the territory, the epic is the container.
 - **Enablement/standards notes** (process, quality, standards, compliance) go under the C-suite function.
 - **Agent-behavior principles** (how the AI should behave, collaborate, take initiative) → AI Agent Design Principles & Core Functionality, or Operating Model as Code for runnable process/playbook work.
 - Strategy notes → Strategy & Business Development.
