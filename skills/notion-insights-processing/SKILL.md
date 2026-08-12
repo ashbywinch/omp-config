@@ -59,12 +59,11 @@ Query the Insights DB for items where Status is empty and Date Deleted is empty 
 
 ### 2. Process Each Insight (One by One)
 For each insight:
-1. Read the raw text
+1. Read the full item (see "Read the Full Item Before Proposing")
 2. Suggest a specific routing destination (Epic or Value Stream)
-3. If the destination is a new Epic or Value Stream: get explicit approval to create it first, create it — the creation approval does not authorize the link
-4. Present the exact writes for THAT item — the destination page (by name), the link to it, and Status set to "Processed" — and wait for an explicit yes to that list; discussion of the routing is not confirmation
-5. Link via relation (see `skill://notion-database-management` for relation PATCH syntax)
-6. Update Status to "Processed"
+3. Follow the per-item approval sequence in "Process One at a Time" above (creation approval → write-list approval → link → Status)
+4. Link via relation (see `skill://notion-database-management` for relation PATCH syntax)
+5. Update Status to "Processed"
 
 ### 3. Confirm
 - [ ] Routed to appropriate Epic or Value Stream

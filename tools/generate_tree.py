@@ -27,6 +27,8 @@ def query(ds):
     r = subprocess.run(
         ["ntn", "datasources", "query", ds, "--limit", "100", "--json"],
         capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"ntn query failed for {ds}: {r.stderr.strip()}")
     obj = json.loads(r.stdout)
     if obj.get("has_more"):
         print(f"WARNING: {ds} has more than 100 records — tree may be incomplete",
@@ -45,11 +47,6 @@ def rel(props, key):
 def st(p):
     s = (p.get("Status") or {}).get("select")
     return s.get("name") if s else "—"
-
-
-def num(x):
-    m = re.match(r"Epic ([\d.]+)", x)
-    return tuple(int(v) for v in m.group(1).split(".")) if m else None
 
 
 def build():

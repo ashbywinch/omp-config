@@ -8,7 +8,7 @@ description: |
 
 # Business Org Model
 
-The org model behind the Notion tree (see `skill://notion-database-management` for mechanics, `skill://epic-quality-standard` for validation). Two worlds: **the business** and **the CEO's personal life**. Top-level pages are value streams only — a life goal or a C-suite responsibility. No product, epic, or mid-level function is ever top-level.
+The org model behind the Notion tree (see `skill://notion-database-management` for mechanics, `skill://epic-quality-standard` for the top-level-page validation rule). Two worlds: **the business** and **the CEO's personal life**.
 
 ## The Business (CEO)
 
