@@ -33,7 +33,30 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 | `profiles/` | User profile |
 | `APPEND_SYSTEM.md` | The system-prompt append |
 | `tools/check_docs_links.py` | The repo self-check (`make test`) |
+| `tools/generate_tree.py` | Notion structure tree generator (mirror-safe, superseded section) |
+| `tools/gh-app-shim` | GitHub App auth shim for `gh` — omp uses the app token, your terminal uses your creds (`make install-gh-shim`) |
+| `tools/secrets.template` | Template for `~/.secrets` — copy, fill, `chmod 600`; never commit values |
 | `.pr_agent.toml` | The review bot's context (`repo_context_files`) and instructions |
+
+## GitHub App auth for gh (omp vs your terminal)
+
+omp shells out to `gh` for GitHub work. The `tools/gh-app-shim` makes omp
+authenticate as the **omp-harness GitHub App** while your own terminal `gh`
+keeps your personal credentials:
+
+- **stdin is a TTY** (you in a terminal) → pass through to real gh (your creds)
+- **`GH_TOKEN`/`GITHUB_TOKEN` set** (your scripts) → pass through untouched
+- **neither** (omp, no TTY) → mint a fresh app installation token, export `GH_TOKEN`, exec real gh
+
+The app id, key file path, and installation id live in `~/.secrets`
+(`GITHUB_APP_ID`, `GITHUB_APP_KEY_FILE`, `GITHUB_APP_INSTALLATION_ID`), sourced
+by the shim at runtime — so it works under the Paseo daemon and a bare
+terminal alike, without the daemon holding a stale token.
+
+New machine: `make install-gh-shim` symlinks the shim to `~/.local/bin/gh`
+and creates `~/.secrets` from `tools/secrets.template` if missing. Fill in
+the values and `chmod 600 ~/.secrets`. Keep the private key at the path in
+`GITHUB_APP_KEY_FILE`, `chmod 600`, never commit it.
 
 ## Updating a skill or rule
 

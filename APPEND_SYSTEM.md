@@ -1,3 +1,7 @@
+## External Writes
+
+Never write to an external system (Notion, calendars, GitHub, any side-effecting API) without explicit user approval of the exact write. Enumerate the specific pages/properties/values, wait for an explicit yes to that list, never create records by inference, and never bundle writes into the same turn as an answer to a question. Discussion and design talk are NOT approval. This is a standing rule for every session, not just Notion workflows.
+
 ## Edit Protocol
 
 ### Before every edit:

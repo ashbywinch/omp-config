@@ -28,34 +28,18 @@ Scaffold in this order: Makefile → CI → coverage → git hygiene → entry d
 
 Every dev action goes through `make`; CI runs make targets, never raw tool commands. energy_envelope states the contract explicitly: "CI runs exactly: `make setup && make lint && make test`".
 
-| Target | Meaning | Notes |
-|---|---|---|
-| `help` | List targets with one-line descriptions | Colored output; default target |
-| `setup` | Install toolchain if missing, sync deps | Idempotent |
-| `lint` | Static checks | Depends on `setup` |
-| `test` | Test suite | Depends on `setup lint` — lint gates test |
-| `coverage` | Tests + coverage report | term-missing / html / xml |
-| `format` | Auto-fix lint + formatting | Depends on `setup` |
-| `clean` | Remove `.venv`, caches, coverage artifacts | Must never delete user data |
-| `run` / `stop` | Dev servers (service repos) | PID files under `.logs/`, port checks |
-| `dist` | Build distributable artifacts | CI uploads these |
+**Template: `skill://scaffold-language-layers/examples/<stack>/Makefile`** — copy it into the new repo, then edit the `CHANGE` points (package name, versions, project targets). Each example file carries a `CHANGE` / `DO NOT CHANGE` comment header — the comments say *what* and *why*; the invariants below say *when* it's OK to deviate. The stack-specific examples (Makefile, pyproject, typechecker config, hooks) live in the language layer's `examples/<stack>/` dir; the general examples (dotfiles, CI, AGENTS.md, review bot) live in `examples/` here. A repo takes the general dir + exactly one stack dir.
 
-Rules:
-- `.PHONY` every target.
-- **Pin the recipe shell** — `SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c` at the top of the Makefile: make's default `/bin/sh` is dash on Debian/Ubuntu (no `pipefail`), so bash-ism recipes fail CI while passing macOS (houses 2026-08).
-- Tool paths as variables at top: `PYTHON := .venv/bin/python`, `RUFF := .venv/bin/ruff`.
-- Colored output via `GREEN/YELLOW/RED/NC` ANSI variables and `@echo`.
-- `clean` removes exactly: `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc`.
-- **Pin the language runtime.** CI (`setup-node`/`setup-python` action) and local dev (`.nvmrc`, `.python-version`) use the **same** version; local dev must match CI — pinning CI only is the smell (side-by-side/houses pin CI only, kilocode pins bun via `packageManager`).
-- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment). **Baseline-locked repos (recommended):** the checker runs against a committed baseline and fails on drift in BOTH directions — a NEW error AND a stale baseline entry (an error the code no longer produces). The stale direction is the one that bites: a fix that removes a diagnostic without refreshing the baseline silently passes checkers whose baseline is a one-way suppression list (pyrefly's built-in baseline — exit 0, "0 errors (N suppressed)"). Only a lock that checks baseline-not-in-current catches it; basedpyright's lock mode has this, pyrefly needs a small wrapper (see `skill://scaffold-language-layers`).
+Targets (template `help` lists them; meaning fixed by the standard):
+- `setup` idempotent toolchain+deps+hooks · `lint` static checks · `test` suite gated by lint · `coverage` XML for CI · `format` auto-fix · `clean` removes only `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data · `run`/`stop` dev servers (service repos) · `dist` build artifacts (CI uploads).
 
-**Working file: `skill://scaffold-language-layers/examples/python/Makefile`** — copy it into the new repo, then edit the `CHANGE` points (package name, versions, project targets). Each file under `examples/` carries a `CHANGE` / `DO NOT CHANGE` comment header — the comments say *what* and *why*; the rules in this section say *when* it's OK to deviate. The stack-specific examples (Makefile, pyproject, typechecker config, hooks) live in the language layer's `examples/<stack>/` dir; the general examples (dotfiles, CI, review bot) live in `examples/` here. A repo takes the general dir + exactly one stack dir.
-
-Key invariants in the Makefile (see the file comments for the full rationale):
-- **`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`** — make's default `/bin/sh` is dash on Debian/Ubuntu (and the CI runners); dash has no `pipefail`, so a bash-ism recipe passes on macOS and dies in CI with "Illegal option -o pipefail" (houses 2026-08: PRs #56/#57 CI failures). Pin the shell once; never add `set -o pipefail` inside individual recipes.
+Deviating from the template is allowed only where the rules say so:
+- **Never change the shell pin** (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — make's default `/bin/sh` is dash on Debian/Ubuntu and the CI runners; dash has no `pipefail`, so a bash-ism recipe passes on macOS and dies in CI with "Illegal option -o pipefail" (houses 2026-08: PRs #56/#57 CI failures). Pin the shell once; never add `set -o pipefail` inside individual recipes.
 - **`deps` never depends on `install-hooks`** — a hook that calls `make check` would re-copy/refuse the very hook file (the pre-push deadlock). Check targets depend on `deps` (uv sync), and `install-hooks` depends on nothing check-related.
 - **`check` = `lint-check typecheck`** — the single gate CI and the pre-push hook both run; same command, no drift. No test run in the hook (too slow; CI's `make test` includes the checks).
-- `clean` removes exactly `.venv`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data.
+- **Tool paths as variables** at top (`PYTHON := .venv/bin/python`, `RUFF := .venv/bin/ruff`).
+- **Pin the language runtime.** CI (`setup-node`/`setup-python` action) and local dev (`.nvmrc`, `.python-version`) use the **same** version; local dev must match CI — pinning CI only is the smell (side-by-side/houses pin CI only, kilocode pins bun via `packageManager`).
+- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment). **Baseline-locked repos (recommended):** the checker runs against a committed baseline and fails on drift in BOTH directions — a NEW error AND a stale baseline entry (an error the code no longer produces). The stale direction is the one that bites: a fix that removes a diagnostic without refreshing the baseline s…
 
 Hooks (`skill://scaffold-language-layers/examples/python/scripts/pre-commit`, `.../pre-push`, installed by `make install-hooks`):
 - pre-commit delegates to `make lint-check` (plus a gitleaks secrets scan); pre-push delegates to `make check` — never duplicate the tool invocations.
@@ -144,7 +128,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 ### 5. Entry docs: README for humans, AGENTS.md for agents
 
 - `README.md` (humans): one-line purpose, Quick Start via `make`, usage examples, docs table.
-- `AGENTS.md` (agents): quick start, Testing Rules mandating make targets, a decision tree routing tasks to `docs/`, tool-selection table, git workflow, secrets rule. The bootloader principle and discoverability rule are in the documentation standard — apply them, don't restate them.
+- `AGENTS.md` (agents): **template: `examples/AGENTS.md`** — copy it; it's the bootloader (quick start, decision tree to `docs/`, tool table, testing/secrets/git rules). The bootloader principle and discoverability rule are in the documentation standard — apply them, don't restate them.
 - `docs/` standards triplet, checked by PR-Agent:
   - `docs/coding-standards.md` — copy the **canonical global standard** (`standards/coding-standards.md` in the omp-config repo, where this skill lives) **in full**, then append the **language layer's conventions for the repo's stack** (per `skill://scaffold-language-layers` — semantic-type libraries, toolchain gates, test-runner conventions), then project rules. The reviewer enforces exactly the rules present in the file — and it reads only `repo_context_files`, so a rule that lives only in this skill is **invisible to review**: language-specific standards must be materialized into the repo copy, never left here alone. The copy must carry the full set: design principles (separation of concerns, cohesion, types over primitives, quantities carry units, Money not float, no over-abstraction, anti-fragile, fail fast with user-visible errors, two-tier messages, no shims, no mystery code, one-way invariants, imports, UTC datetimes, cache hygiene, batch APIs, resume-not-accident, real content never in code, derived data regenerated, established practice, argv forwarding, AI output as proposed), DI, testing, documentation, language conventions.
   - `docs/testing-standards.md` — tests mirror module paths, deterministic (no wall-clock, network, or order dependence; seeded randoms), assert behavior not implementation, DI fakes over `unittest.mock.patch`.

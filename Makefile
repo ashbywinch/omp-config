@@ -1,24 +1,31 @@
 # omp-config — the house conventions repo (skills, rules, standards).
 # Single dev entry point per the house standard: every check goes through
-# make. No code lives here, so there is no lint/typecheck/coverage —
-# `test` is the repo's self-check (docs links + skill well-formedness).
+# make. The repo carries a few tools under `tools/` (self-checks, the tree
+# generator, the gh shim) — they are make-adjacent, not a product; there is
+# no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
+# (docs links + skill well-formedness).
 
-.PHONY: help setup install uninstall test
+.PHONY: help setup install uninstall install-gh-shim test
 
-APPEND_DIR := $(HOME)/.omp/agent
-RULES_DIR  := $(HOME)/.agent/rules
+# Home may be unset or wrong when run from a daemon/bare env; resolve it.
+H := $(if $(HOME),$(HOME),$(shell getent passwd $$(id -u) | cut -d: -f6))
+APPEND_DIR := $(H)/.omp/agent
+RULES_DIR  := $(H)/.agent/rules
 SKILLS_DIR := $(APPEND_DIR)/skills
 HOOKS_DIR  := .githooks
+GH_SHIM_DST := $(H)/.local/bin/gh
 
 help:
 	@echo "omp-config — available commands:"
-	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks"
+	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks + gh shim"
 	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM (restart omp to pick up)"
+	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
 	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + skills well-formed"
 
 setup:
 	@$(MAKE) install
+	@$(MAKE) install-gh-shim
 	@git config core.hooksPath $(HOOKS_DIR)
 	@echo "Hooks installed ($(HOOKS_DIR)/pre-commit)."
 
@@ -37,6 +44,18 @@ install:
 		fi; \
 	done
 	@echo "Installed omp-config. Restart omp to pick up changes."
+
+install-gh-shim:
+	@mkdir -p $(dir $(GH_SHIM_DST))
+	@ln -sf $(CURDIR)/tools/gh-app-shim $(GH_SHIM_DST)
+	@if [ ! -f $(H)/.secrets ]; then \
+		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
+		echo "Created ~/.secrets from template — fill in the values, then chmod 600."; \
+	else \
+		echo "~/.secrets exists — leaving it alone."; \
+	fi
+	@chmod 700 $(GH_SHIM_DST)
+	@echo "gh shim installed -> $(GH_SHIM_DST)"
 
 uninstall:
 	rm -f $(APPEND_DIR)/APPEND_SYSTEM.md

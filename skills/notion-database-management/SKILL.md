@@ -18,6 +18,13 @@ Core patterns for Notion operations via `ntn`. Domain skills reference this for 
 
 **Session expired mid-session?** Re-run `ntn login --no-browser` and poll again. Tokens last ~1 hour.
 
+## Write Permission Gate (CRITICAL)
+
+The general rule is APPEND_SYSTEM.md "External Writes" — apply it to every create, PATCH, delete, and relation change in every database. Notion-specific additions:
+
+- **Create and link are separate approvals.** Routing an insight into a new epic needs (1) approval to create the epic, then (2) approval of the link. A creation approval never authorizes the link.
+- **Every write needs enumerating, including Status updates.** A "mark as processed"-style PATCH is a write like any other and belongs in the approved list.
+
 ## Database IDs
 
 | Database | ID |
@@ -119,20 +126,27 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 ## Relation Write Rule (CRITICAL)
 
-**A relation PATCH replaces the whole array — it does not append.** When adding a relation (e.g. a second insight to an epic that already has one):
-1. Read the page first
-2. Build the full array: existing IDs + new ID(s)
-3. PATCH with the complete array
+**A relation PATCH replaces the whole array — it does not append.** Two cases:
 
-Never PATCH a relation with only the new ID — it silently drops the existing links.
+**Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. Never PATCH with only the new ID — it silently drops the existing links.
 
-## Parent-field Mirroring
+**Parent links** (`Parent Epic`, `Parent Value Stream` on a child page): single-value, written fresh on the child. The dual-property sync populates the parent's child-side field (`Child Epics` / `Child Value Streams`) automatically — write the child side, verify both sides, never hand-maintain the parent's child field.
 
-Parent relations (e.g. `Parent Epic`, `Parent Value Stream`) mirror entries onto the *parent's* field when written on the *child*. So a parent page's field can contain both its parent and its children.
+## Parent-child relations (dual property pairs)
 
-- **Write the parent link on the CHILD page** — the child points up at its parent.
-- **When reading**: if a page's `Parent Epic` field shows pages that point back at it, those are its children, not its parent — ignore them.
-- **Hierarchy semantics** live in `skill://epic-quality-standard` (exactly one of `Parent Epic` / `Parent Value Stream` per epic, never both).
+Hierarchies use **dual property pairs** — one field per direction, synced automatically:
+
+| Relation | Child side | Parent side |
+|---|---|---|
+| epic→epic | `Parent Epic` | `Child Epics` |
+| epic→VS | `Parent Value Stream` | `Child Epics` (on the VS) |
+| VS→VS | `Parent Value Stream` | `Child Value Streams` |
+
+- A page's own `Parent Epic` / `Parent Value Stream` field contains **only its parent**; its `Child Epics` / `Child Value Streams` field contains **only its children**. Never mixed.
+- **Write the parent link on the CHILD side** (`child.ParentEpic = [parent]`) — the dual sync populates the parent's `ChildEpics` automatically. Writing either side of a pair populates both; never hand-maintain both sides.
+- **Never clear or replace a parent's child-side array** (`ChildEpics` / `Child Value Streams`) to "clean up" — and never write children into a page's own `ParentEpic` field. Clearing a page's `ParentEpic` removes its own parent link, which also removes it from its parent's `ChildEpics`.
+- **Verify after any parent-link write**: re-read and confirm both sides of the pair (child's parent field AND parent's child field).
+- **Reading the tree**: parentage resolves from the child side (pages whose `Parent Epic` contains the parent). A page's own fields are unambiguous now, but child-side is still the reliable source for building trees.
 
 ## Error Recovery
 
