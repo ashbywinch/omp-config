@@ -136,6 +136,8 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **Never silence a relation write.** No `> /dev/null`: re-read the page after the PATCH and confirm the array length is exactly existing + new.
 
+**Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks (observed 2026-08-12: a single-block PATCH clobbered a two-block ticket). Never PATCH `Content` with only the new text.
+
 **Moving an item between pages** (e.g. re-parenting an insight or task): read-modify-write BOTH arrays — destination gets existing + new, source keeps the remainder. Verify both sides after.
 
 **Dependencies**: live in the dedicated `Dependencies` relation field on Epics. Value Streams should have one too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
@@ -164,6 +166,10 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 ## Link Audit (detecting lost links)
 
 An insight is linked if its ID appears in any epic's `Insights 1` or any VS's `Insights` array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none. Observed 2026-08-12: 62 processed insights were orphaned this way.
+
+## Bulk Writes (pacing)
+
+Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop (observed 2026-08-12: a 77-write backfill made zero progress until paced).
 
 ## Error Recovery
 
