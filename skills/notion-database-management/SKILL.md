@@ -138,7 +138,7 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks. Never PATCH `Content` with only the new text.
 
-**Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents' child-side arrays after; if one is stale, correct that side.
+**Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents' child-side arrays after; if one is stale, repair it by re-asserting the child-side link (which re-triggers the sync) — never write the parent array directly.
 
 **Dependencies**: live in the dedicated `Dependencies` relation field on Epics. Value Streams should have one too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
 

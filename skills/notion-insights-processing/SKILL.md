@@ -11,8 +11,7 @@ Transform raw inputs from the Notion Insights database into structured, actionab
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
-- Insights DB ID: `20d3122e-1a13-8110-b1c2-fa15ecadde25`
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management` — database IDs live there)
 
 ## Critical Rules
 

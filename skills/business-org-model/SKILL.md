@@ -15,7 +15,7 @@ The org model behind the Notion tree (see `skill://notion-database-management` f
 ## The Business (CEO)
 
 - **Strategy & Business Development** — the CEO's strategy shop (value prop, roadmapping, new offerings, patents, strategy epics).
-- **Product & Engineering (CTO)** — owns Product P&L for ALL products; product GMs report here. Engineering enablement lives here: **Technology Excellence** (renamed from Developer Experience, 2026-08-12) with five child value streams — **Maintainability**, **Agent Autonomy**, **Reliability in Production**, **Process Improvement**, **Cost & Value of the Dev Process** — plus Operating Model as Code & AI Agent Core, and AI Agent Design Principles & Core Functionality.
+- **Product & Engineering (CTO)** — owns Product P&L for ALL products; product GMs report here. Engineering enablement lives here: **Technology Excellence** — child value streams for standards & tooling, agent autonomy, reliability in production, process improvement, and dev-process cost & value (names and parentage live in Notion; query before routing) — plus Operating Model as Code & AI Agent Core, and AI Agent Design Principles & Core Functionality.
 - **Marketing (CMO)** — enablement/standards only (Go-to-Market Strategy, User & Market Discovery).
 - **Sales & Customer Success (CRO)** — enablement + the revenue function (Partnership Strategy, Revenue).
 - **Operations & Quality (COO)** — Continuous Improvement & Quality Management, Operating Model Validation.
@@ -33,17 +33,17 @@ The org model behind the Notion tree (see `skill://notion-database-management` f
 
 ## Numbering
 
-Epics are numbered within their value stream (3.1.x under Maintainability, 3.2.x under Agent Autonomy, …). **The number is a home, not a path** — an epic numbered 3.4.1 under Process Improvement is not under any epic 3.4; the parent value stream in Notion is the source of truth.
+**A dotted number is a path.** `3.4.1` names a child of `3.4`, which names a child of `3` — anything numbered `3.4.1` must sit under a `3.4` under the `3` family (Technology Excellence). Numbered value streams carry their number in the name (`3.1: Maintainability`, `2.4: Houses App Development`); an epic's dotted number must match its parent chain, rename when parentage changes, and an unnumbered page makes no path claim.
 
 ## Personal value streams (the CEO's life goals)
 
-Top-level, KPI-able, life-goal value streams. **Each app has its own dedicated development value stream** — never hijack a life-goal VS as if the app were the only thing fulfilling it. App development value streams (Loft, Houses, Side-by-Side, News, Health Tracking, Freezer & Meal, Learning Notes, Books-to-Anki, Energy-Envelope, Feed-Generator, Chat-Workflow) sit under the matching life-goal VS, each hosting its `<App> Standards & Toolchain Compliance` epic. The current mapping is in Notion.
+Top-level, KPI-able, life-goal value streams. **Each app has its own dedicated development value stream** — never hijack a life-goal VS as if the app were the only thing fulfilling it. App development value streams sit under the matching life-goal VS (the current mapping is in Notion — query before routing), each hosting its `<App> Standards & Toolchain Compliance` epic.
 
 ## Routing rules
 
 - The **product** a note touches decides its home: business product → under that product's GM (Product & Engineering); personal product → under the matching personal VS.
 - **Per-product marketing/sales/CS notes** go under the product GM's value stream, never the enablement org — but only **indirectly**: they land under an epic inside that value stream. A task or epic is never parented directly to a value stream in the routing step; the value stream is the territory, the epic is the container.
-- **Enablement/standards notes** (process, quality, standards, compliance) go under the C-suite function — for engineering standards/tooling, under Technology Excellence's Maintainability; enforcement machinery under Agent Autonomy; deployment under Reliability in Production; review cadence under Process Improvement; dev-process cost and value notes under Cost & Value of the Dev Process.
+- **Enablement/standards notes** (process, quality, standards, compliance) go under the C-suite function — for engineering standards/tooling, under Technology Excellence's standards & tooling stream; enforcement machinery under its agent-autonomy stream; deployment under its reliability stream; review cadence under its process-improvement stream; dev-process cost and value notes under its cost & value stream. Resolve current stream names from Notion.
 - **Per-repo implementation work** goes under the repo's own app value stream (a `<App> Standards & Toolchain Compliance` epic) — never in the enablement tree.
 - **Agent-behavior principles** (how the AI should behave, collaborate, take initiative) → AI Agent Design Principles & Core Functionality, or Operating Model as Code for runnable process/playbook work.
 - Strategy notes → Strategy & Business Development.
