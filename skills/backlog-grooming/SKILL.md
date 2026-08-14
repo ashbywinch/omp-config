@@ -1,8 +1,9 @@
 ---
 name: backlog-grooming
 description: |
-  Backlog grooming session — review processed insights, break down epics
-  into tasks, organize and prioritise the work backlog.
+  Backlog grooming session — review processed insights, organise epics into
+  themed sub-epics, clarify ambiguous tickets, break down epics into tasks,
+  prioritise the work backlog.
 ---
 
 # Backlog Grooming
@@ -17,18 +18,27 @@ Query the Epics and Tasks databases (see `skill://notion-database-management`) t
 ### 2. Identify Work Items
 Review any recently created epics or insights that need task breakdown.
 
-### 3. Task Breakdown
+### 3. Epic Organization & Clarification
+For each epic that has accumulated processed insights, before task breakdown:
+- **Survey the epic fully**: its `Insights`, `Related Tasks`, and `Child Epics` (mechanics: `skill://notion-database-management`).
+- **Read every insight in full** — never propose structure from a truncated preview.
+- **Group into themed sub-epics** when the epic mixes unrelated concerns. Name sub-epics after a phase with a concrete deliverable (`Epic X.Y: <Title>`), parent them at creation (see `skill://epic-quality-standard`), and move insights by read-modify-write on both `Insights` arrays (destination: existing + new; source: existing minus moved).
+- **Flag anything unimplementable** — an insight you could not implement correctly from its text alone. Ask the user one ticket at a time; append the clarification to the ticket's `Content`, keeping the original text. Never guess.
+- **Surface dependencies in dedicated fields** — an insight whose work depends on another's becomes an epic-level `Dependencies` relation (or a task dependency at breakdown, see `skill://task-quality-standard`). Never store dependencies in Processing Notes.
+- **Order the clusters by priority** (urgent items first) before breaking into tasks.
+
+### 4. Task Breakdown
 For each epic or work item:
 - Break into actionable tasks
 - Create tasks in Notion (see `skill://notion-create-task`)
 - Link each to its parent Epic
 
-### 4. Organisation & Prioritisation
+### 5. Organisation & Prioritisation
 - Validate dependencies and sequencing
 - Check scope boundaries
 - Prioritise based on strategic importance
 
-### 5. Integration Validation
+### 6. Integration Validation
 Verify new tasks are properly linked and the backlog is coherent.
 
 ## Scope

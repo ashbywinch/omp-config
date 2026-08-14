@@ -34,8 +34,9 @@ See `skill://epic-quality-standard` for the top-level-page rule (top-level = lif
 - If the only candidate parent is a Value Stream with the same name as an Epic, prefer the Value Stream (it is the standing home); flag the naming collision for the user.
 
 ### Relation Fields
-- **Epics** use **"Insights"** relation field (not legacy "Key Insights" text field)
-- **Value Streams** use **"Key Insights 2"** relation field
+Dual pairs — write the insight side, the parent side syncs (see `skill://notion-database-management`):
+- insight→epic: insight **"Parent Epic"** ↔ epic **"Insights 1"** (legacy epic "Insights" retired 2026-08-12)
+- insight→VS: insight **"Parent Value Stream"** ↔ VS **"Insights"** (formerly "Key Insights 2")
 - Always refer to records using both ID and name: "1. PA Engagement Plans"
 
 ### Status Update
@@ -55,20 +56,20 @@ Always fetch and read the complete item — Content, Context, Summary, and Sourc
 ## Process
 
 ### 1. Fetch Unprocessed Insights
-Query the Insights DB for items where Status is empty and Date Deleted is empty (see `skill://notion-database-management` for query syntax).
+Unprocessed = **unlinked**: query the Insights DB for items with no `Parent Epic` AND no `Parent Value Stream` relation, and Date Deleted empty (see `skill://notion-database-management` for query syntax). Linking the insight is the processing step — Status "Processed" is a convenience marker, not the source of truth.
 
 ### 2. Process Each Insight (One by One)
 For each insight:
 1. Read the full item (see "Read the Full Item Before Proposing")
 2. Suggest a specific routing destination (Epic or Value Stream)
 3. Follow the per-item approval sequence in "Process One at a Time" above (creation approval → write-list approval → link → Status)
-4. Link via relation (see `skill://notion-database-management` for relation PATCH syntax)
+4. Write the insight's `Parent Epic` or `Parent Value Stream` (child side; the parent syncs — see `skill://notion-database-management`)
 5. Update Status to "Processed"
 
 ### 3. Confirm
-- [ ] Routed to appropriate Epic or Value Stream
+- [ ] Insight has a parent link (Parent Epic and/or Parent Value Stream)
+- [ ] Bidirectional: parent side re-read shows the insight
 - [ ] Status updated to "Processed"
-- [ ] Relations properly linked
 
 ## Scope Boundary
 Only process unprocessed, non-deleted items. Don't suggest cleanup unless asked.
