@@ -20,7 +20,7 @@ Review any recently created epics or insights that need task breakdown.
 
 ### 3. Epic Organization & Clarification
 For each epic that has accumulated processed insights, before task breakdown:
-- **Survey the epic fully**: its `Insights 1`, `Related Tasks`, and `Child Epics` (mechanics: `skill://notion-database-management`).
+- **Survey the epic fully**: its insight, task, and child relations (resolve the concrete field names from the data source schema — see `skill://notion-database-management`).
 - **Read every insight in full** — never propose structure from a truncated preview.
 - **Group into themed sub-epics** when the epic mixes unrelated concerns. Name sub-epics after a phase with a concrete deliverable (`Epic X.Y: <Title>`), parent them at creation (see `skill://epic-quality-standard`), and move insights per the relation write rule (see `skill://notion-database-management`).
 - **Flag anything unimplementable** — an insight you could not implement correctly from its text alone. Ask the user one ticket at a time; append the clarification to the ticket's `Content`, re-sending the full existing content (a Content PATCH replaces the whole property — see `skill://notion-database-management`), keeping the original text. Never guess.

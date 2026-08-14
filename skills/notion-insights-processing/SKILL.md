@@ -33,9 +33,9 @@ See `skill://epic-quality-standard` for the top-level-page rule (top-level = lif
 - If the only candidate parent is a Value Stream with the same name as an Epic, prefer the Value Stream (it is the standing home); flag the naming collision for the user.
 
 ### Relation Fields
-Dual pairs — write the insight side, the parent side syncs (see `skill://notion-database-management`):
-- insight→epic: insight **"Parent Epic"** ↔ epic **"Insights 1"**
-- insight→VS: insight **"Parent Value Stream"** ↔ VS **"Insights"**
+Dual pairs — write the insight side, the parent side syncs (resolve the concrete field names from the data source schema, see `skill://notion-database-management`):
+- insight→epic: the insight's parent-epic link ↔ the epic's insight array
+- insight→VS: the insight's parent-VS link ↔ the VS's insight array
 - Always refer to records using both ID and name: "1. PA Engagement Plans"
 
 ### Status Update

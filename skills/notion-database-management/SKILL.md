@@ -154,8 +154,10 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 | epic→VS | `Parent Value Stream` | `Child Epics` (on the VS) |
 | VS→VS | `Parent Value Stream` | `Child Value Streams` |
 | task→epic | `Related to Epics (Related Tasks)` | `Related Tasks` |
-| insight→epic | `Parent Epic` | `Insights 1` |
-| insight→VS | `Parent Value Stream` | `Insights` (VS) |
+| insight→epic | the insight's parent-epic link | the epic's insight array |
+| insight→VS | the insight's parent-VS link | the VS's insight array |
+
+Field names drift — resolve the concrete pair from the data source schema (`ntn api v1/data_sources/<id>`): a relation property exposes its synced partner via `dual_property.synced_property_name`.
 
 - A page's own `Parent Epic` / `Parent Value Stream` field contains **only its parent**; its `Child Epics` / `Child Value Streams` field contains **only its children**. Never mixed.
 - **Write the parent link on the CHILD side** (`child.ParentEpic = [parent]`) — the dual sync populates the parent's `ChildEpics` automatically. Writing either side of a pair populates both; never hand-maintain both sides.
@@ -165,7 +167,7 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 
 ## Link Audit (detecting lost links)
 
-An insight is linked if its ID appears in any epic's `Insights 1` or any VS's `Insights` array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none.
+An insight is linked if its ID appears in any epic's or VS's insight-facing relation array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none.
 
 ## Bulk Writes (pacing)
 
