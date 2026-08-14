@@ -171,6 +171,8 @@ An insight is linked if its ID appears in any epic's `Insights 1` or any VS's `I
 
 Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop (observed 2026-08-12: a 77-write backfill made zero progress until paced).
 
+**ID hygiene in bulk operations** (observed 2026-08-12): resolve every ID from fresh data by name — never reuse a remembered ID (a mis-remembered ID re-parented the wrong epic); when multiple sources map to one target (e.g. two epics folding into one VS), dedupe the target set before creating; after a batch of creates, verify name-uniqueness — duplicate pages with the same name are the failure signature.
+
 ## Error Recovery
 
 | Problem | Fix |
