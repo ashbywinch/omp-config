@@ -14,12 +14,7 @@ The org model behind the Notion tree (see `skill://notion-database-management` f
 
 ## The Business (CEO)
 
-- **Strategy & Business Development** — the CEO's strategy shop (value prop, roadmapping, new offerings, patents, strategy epics).
-- **Product & Engineering (CTO)** — owns Product P&L for ALL products; product GMs report here. Engineering enablement lives here — child value streams for standards & tooling, agent autonomy, reliability in production, process improvement, and dev-process cost & value (names and parentage live in Notion; query before routing) — plus the operating-model/AI-agent-core stream and the AI-agent-principles stream.
-- **Marketing (CMO)** — enablement/standards only (Go-to-Market Strategy, User & Market Discovery).
-- **Sales & Customer Success (CRO)** — enablement + the revenue function (Partnership Strategy, Revenue).
-- **Operations & Quality (COO)** — Continuous Improvement & Quality Management, Operating Model Validation.
-- **Legal, Risk & Compliance (CLO)** and **People & Organization (CHRO)** — direct to CEO.
+The business side's value streams and their parentage live in Notion — query before routing. The rules below decide where things belong.
 
 **Engineering enablement is enablement only**: it produces standards, tooling, and process — it does not do the work in the repos. Repo-implementation work lives under each app's own value stream as a `<App> Standards & Toolchain Compliance` epic.
 
