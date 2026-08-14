@@ -130,15 +130,15 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **A relation PATCH replaces the whole array — it does not append.** Entries MUST be `{"id": "..."}` objects — bare strings fail validation.
 
-**Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link (observed 2026-08-12: 100+ single-ID writes across sessions left 62 processed insights unlinked).
+**Multi-value appends on dual pairs are child-side writes.** For a dual-pair relation (insight↔epic, task↔epic, epic↔epic, epic↔VS, VS↔VS), write the CHILD side and let the parent array sync — never patch the parent side. Read-modify-write applies only to relations with no child-side field (e.g. an epic's `Dependencies`): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link.
 
 **Read at write time, never from a snapshot.** Read the live page (`ntn api v1/pages/<PAGE_ID>`) immediately before each PATCH — never a session-start or shared `/tmp` file, which is stale the moment another session writes.
 
 **Never silence a relation write.** No `> /dev/null`: re-read the page after the PATCH and confirm the array length is exactly existing + new.
 
-**Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks (observed 2026-08-12: a single-block PATCH clobbered a two-block ticket). Never PATCH `Content` with only the new text.
+**Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks. Never PATCH `Content` with only the new text.
 
-**Moving an item between pages** (e.g. re-parenting an insight or task): read-modify-write BOTH arrays — destination gets existing + new, source keeps the remainder. Verify both sides after.
+**Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents after; if a parent array is stale, correct that side.
 
 **Dependencies**: live in the dedicated `Dependencies` relation field on Epics. Value Streams should have one too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
 
@@ -165,13 +165,13 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 
 ## Link Audit (detecting lost links)
 
-An insight is linked if its ID appears in any epic's `Insights 1` or any VS's `Insights` array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none. Observed 2026-08-12: 62 processed insights were orphaned this way.
+An insight is linked if its ID appears in any epic's `Insights 1` or any VS's `Insights` array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none.
 
 ## Bulk Writes (pacing)
 
-Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop (observed 2026-08-12: a 77-write backfill made zero progress until paced).
+Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop.
 
-**ID hygiene in bulk operations** (observed 2026-08-12): resolve every ID from fresh data by name — never reuse a remembered ID (a mis-remembered ID re-parented the wrong epic); when multiple sources map to one target (e.g. two epics folding into one VS), dedupe the target set before creating; after a batch of creates, verify name-uniqueness — duplicate pages with the same name are the failure signature.
+**ID hygiene in bulk operations**: resolve every ID from fresh data by name — never reuse a remembered ID (a mis-remembered ID re-parents the wrong page); when multiple sources map to one target (e.g. two epics folding into one VS), dedupe the target set before creating; after a batch of creates, verify name-uniqueness — duplicate pages with the same name are the failure signature.
 
 ## Error Recovery
 

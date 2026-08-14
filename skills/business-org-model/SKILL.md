@@ -10,68 +10,18 @@ description: |
 
 The org model behind the Notion tree (see `skill://notion-database-management` for mechanics, `skill://epic-quality-standard` for the top-level-page validation rule). Two worlds: **the business** and **the CEO's personal life**.
 
+**The live tree lives in the Notion Epics and Value Streams databases — this skill holds the rules, not the tree.** Query Notion for current parentage before routing or creating; the rules here decide *where* things belong.
+
 ## The Business (CEO)
 
-```
-The Business (CEO)
-├── Strategy & Business Development      ← CEO's strategy shop
-│   ├── Business Model & Idea Validation
-│   ├── Strategic Planning and Roadmapping
-│   ├── New Service Offerings Development
-│   ├── Patent Licensing & MVP Development
-│   └── strategy epics (Business Development, Market Analysis, Innovation Concept, Strategic Foundation, Strategy Execution)
-├── Product & Engineering (CTO)         ← owns Product P&L for ALL products; product GMs report here
-│   ├── AI Platform Development         ← the AI Platform product (GM-owned)
-│   │   ├── AI Platform Marketing      ← per-product, under the GM
-│   │   ├── AI Platform Sales
-│   │   └── AI Platform Customer Success
-│   ├── Loft Product P&L (GM: Loft)    ← product P&L, not revenue
-│   │   ├── Family-Agnostic Product (VS) ← the productized Loft (was Epic 9)
-│   │   └── Marketing (the Loft's)     ← per-product, under the GM
-│   ├── Operating Model as Code & AI Agent Core   ← engineering enablement
-│   │   └── Meta-Process for Document Creation
-│   ├── AI Agent Design Principles & Core Functionality
-│   └── Technology Excellence           ← engineering enablement (renamed from Developer Experience, 2026-08-12)
-│       ├── Maintainability            ← renamed from the Standards VS
-│       │   ├── Epic 3.1.1: Standards Tooling & Distribution
-│       │   ├── Epic 3.1.2: Best-Practice Delta & Hoisting
-│       │   ├── Epic 3.1.3: Dev Machine Setup (complete)
-│       │   ├── Epic 3.1.4: Repo & Toolchain Hygiene
-│       │   ├── Epic 3.1.5: Code Quality Tooling & Refactoring
-│       │   ├── Epic 3.1.6: Review Bot & Enforcement
-│       │   └── Epic 3.1.7: Code Review Tooling
-│       ├── Agent Autonomy
-│       │   ├── Epic 3.2.1: Chat Workflow & Agent Improvement
-│       │   ├── Epic 3.2.2: Custom Harness
-│       │   ├── Epic 3.2.3: Process & Skill Development
-│       │   ├── Epic 3.2.4: Tooling & Cost Efficiency (complete)
-│       │   └── Epic 3.2.5: Agent-owned CI
-│       ├── Reliability in Production
-│       │   └── Epic 3.3.1: Deployment & Rollouts
-│       ├── Process Improvement
-│       │   └── Epic 3.4.1: Standards Re-Review
-│       └── Cost & Value of the Dev Process
-│           ├── Epic 3.5.1: Dev-Process Cost Tracking
-│           └── Epic 3.5.2: Cost-to-Value Improvement
-├── Marketing (CMO)                    ← enablement / standards ONLY
-│   ├── Go-to-Market Strategy
-│   └── User & Market Discovery
-├── Sales & Customer Success (CRO)     ← enablement + the revenue function
-│   ├── Partnership Strategy & Integration
-│   └── Revenue                        ← hosts future product revenue streams
-├── Operations & Quality (COO)
-│   ├── Continuous Improvement & Quality Management
-│   │   └── Business Process Excellence
-│   └── Operating Model Validation
-├── Legal, Risk & Compliance (CLO)     ← direct to CEO
-└── People & Organization (CHRO)       ← direct to CEO
-```
+- **Strategy & Business Development** — the CEO's strategy shop (value prop, roadmapping, new offerings, patents, strategy epics).
+- **Product & Engineering (CTO)** — owns Product P&L for ALL products; product GMs report here. Engineering enablement lives here: **Technology Excellence** (renamed from Developer Experience, 2026-08-12) with five child value streams — **Maintainability**, **Agent Autonomy**, **Reliability in Production**, **Process Improvement**, **Cost & Value of the Dev Process** — plus Operating Model as Code & AI Agent Core, and AI Agent Design Principles & Core Functionality.
+- **Marketing (CMO)** — enablement/standards only (Go-to-Market Strategy, User & Market Discovery).
+- **Sales & Customer Success (CRO)** — enablement + the revenue function (Partnership Strategy, Revenue).
+- **Operations & Quality (COO)** — Continuous Improvement & Quality Management, Operating Model Validation.
+- **Legal, Risk & Compliance (CLO)** and **People & Organization (CHRO)** — direct to CEO.
 
-**Technology Excellence** is enablement only: it produces standards, tooling, and process — it does not do the work in the repos. Repo-implementation work (mise migration, zero baselines, standards copies) lives under each app's own value stream as a `<App> Standards & Toolchain Compliance` epic.
-
-## Numbering
-
-Epics are numbered within their value stream (3.1.x under Maintainability, 3.2.x under Agent Autonomy, …). The number is the epic's home; the tree is the source of truth. Legacy numbers from the pre-2026-08-12 tree (3.3.x, 3.4.x as children of Epics 3.3/3.4) are retired.
+**Technology Excellence is enablement only**: it produces standards, tooling, and process — it does not do the work in the repos. Repo-implementation work lives under each app's own value stream as a `<App> Standards & Toolchain Compliance` epic.
 
 ## GM model (how products are owned)
 
@@ -81,17 +31,13 @@ Epics are numbered within their value stream (3.1.x under Maintainability, 3.2.x
 - Per-product value streams are named for the product and parented under the product GM's value stream — NOT under the shared Marketing/Sales/CS functions.
 - **What counts as a business product**: anything intended to generate revenue — including a version of a personal product packaged for sale (e.g. a family-history app's family-agnostic edition). A product used only for personal goals is a personal product, not a business product; the same underlying product can exist on both sides as two value streams (personal use vs revenue edition).
 
+## Numbering
+
+Epics are numbered within their value stream (3.1.x under Maintainability, 3.2.x under Agent Autonomy, …). **The number is a home, not a path** — an epic numbered 3.4.1 under Process Improvement is not under any epic 3.4; the parent value stream in Notion is the source of truth.
+
 ## Personal value streams (the CEO's life goals)
 
-Top-level, KPI-able, life-goal value streams. **Each app has its own dedicated development value stream** — never hijack the life-goal VS as if the app were the only thing fulfilling it:
-
-- **Connection to Roots** — family history, heritage, heirlooms. Hosts **Loft App Development** (the personal Loft; was Epic 6, converted 2026-08-12) and Accessibility (voice input).
-- **Personal Effectiveness** — the PA (PA Development & Implementation, PA Engagement Plans) and **Chat-Workflow App Development**.
-- **Quality of Life** — Health (→ Manage Long Covid → **Health Tracking App Development**, was Epic 4.1), House Accessibility (→ Epic 2 House Move, **Houses App Development**, was Epic 2.4), Enjoy Food and Cooking (→ **Freezer & Meal App Development**, was Epic 4.2).
-- **Lifelong Learning** — **Side-by-Side App Development** (was Epic 7.1.1), **News App Development** (was Epics 7.2.1 + 7.2.2), **Learning Notes App Development** (was Epic 7.3), Learning Russian, Personal News & Trends, Books-to-Anki App Development, Feed-Generator App Development.
-- **Energy-Envelope App Development** — under Quality of Life.
-
-Every app value stream hosts its `<App> Standards & Toolchain Compliance` epic (mise migration, zero-baseline elimination, standards copy + pin, python version pin, chat-workflow adoption, deployment where applicable).
+Top-level, KPI-able, life-goal value streams. **Each app has its own dedicated development value stream** — never hijack a life-goal VS as if the app were the only thing fulfilling it. App development value streams (Loft, Houses, Side-by-Side, News, Health Tracking, Freezer & Meal, Learning Notes, Books-to-Anki, Energy-Envelope, Feed-Generator, Chat-Workflow) sit under the matching life-goal VS, each hosting its `<App> Standards & Toolchain Compliance` epic. The current mapping is in Notion.
 
 ## Routing rules
 
