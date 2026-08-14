@@ -71,6 +71,7 @@ Rules:
 - `permissions: contents: read` + `pull-requests: write` — the coverage comment step in the template needs the latter; drop both together if you drop the step.
 - `concurrency` group per ref with `cancel-in-progress: true` — every active repo does this.
 - CI steps are exactly the make targets; never inline `pip install`/`npm test` logic into the workflow.
+- **The gate provisions its own environment — system binaries included.** A test that needs a system tool (tesseract, ImageMagick, …) gets it from a make target, installed into the project (a sibling of `.venv`), never assumed preinstalled on the runner or a developer machine, never a step in `ci.yml`. If CI needs a package, the Makefile installs it — project-local (micromamba/conda or a per-user manager, no `sudo`). A machine that genuinely cannot install them fails loudly at that step, not in the middle of the suite.
 - Lint in CI via `make lint-github` (`ruff check --output-format=github`) so findings surface as PR annotations; plain `make lint` stays for local use. The template reflects this.
 - API-key-dependent suites: pass `${{ secrets.* }}` as env, run under a timeout wrapper, upload outputs with `if: always()` so failures are diagnosable (chat-workflow evals).
 
