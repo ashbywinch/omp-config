@@ -34,6 +34,8 @@ An Epic is a tactical work package that converts a Top Level Epic into actionabl
 
 **Superseded** → Replaced (e.g. converted into a value stream — the VS page replaces the epic; children are re-pointed to the VS, then the old epic is marked Superseded for traceability).
 
+**Converting an epic to a value stream** (app epics that become app VSs): re-point the child epics to the new VS (their parent-link field, clearing the old parent); re-point the direct insights the same way; **direct tasks cannot link to a VS — create a task-container epic under the new VS and re-point the tasks there; never leave tasks stranded on the superseded epic**.
+
 ## Required Fields
 
 | Field | Type | Notes |

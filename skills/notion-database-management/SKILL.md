@@ -130,15 +130,15 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **A relation PATCH replaces the whole array — it does not append.** Entries MUST be `{"id": "..."}` objects — bare strings fail validation.
 
-**Multi-value appends** (e.g. a second insight to an epic's `Insights` field): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link (observed 2026-08-12: 100+ single-ID writes across sessions left 62 processed insights unlinked).
+**Multi-value appends on dual pairs are child-side writes.** For a dual-pair relation (insight↔epic, insight↔VS, task↔epic, epic↔epic, epic↔VS, VS↔VS), write the CHILD side and let the parent array sync — never patch the parent side. A child-side PATCH on a multi-valued child field must contain the full desired array (a single-ID write drops the child's other links). Read-modify-write applies only to relations with no child-side field (e.g. an epic's `Dependencies`): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link.
 
 **Read at write time, never from a snapshot.** Read the live page (`ntn api v1/pages/<PAGE_ID>`) immediately before each PATCH — never a session-start or shared `/tmp` file, which is stale the moment another session writes.
 
 **Never silence a relation write.** No `> /dev/null`: re-read the page after the PATCH and confirm the array length is exactly existing + new.
 
-**Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks (observed 2026-08-12: a single-block PATCH clobbered a two-block ticket). Never PATCH `Content` with only the new text.
+**Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks. Never PATCH `Content` with only the new text.
 
-**Moving an item between pages** (e.g. re-parenting an insight or task): read-modify-write BOTH arrays — destination gets existing + new, source keeps the remainder. Verify both sides after.
+**Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents' child-side arrays after; if one is stale, repair it by re-asserting the child-side link (which re-triggers the sync) — never write the parent array directly.
 
 **Dependencies**: live in the dedicated `Dependencies` relation field on Epics. Value Streams should have one too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
 
@@ -154,8 +154,10 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 | epic→VS | `Parent Value Stream` | `Child Epics` (on the VS) |
 | VS→VS | `Parent Value Stream` | `Child Value Streams` |
 | task→epic | `Related to Epics (Related Tasks)` | `Related Tasks` |
-| insight→epic | `Parent Epic` | `Insights 1` (legacy `Insights` retired 2026-08-12) |
-| insight→VS | `Parent Value Stream` | `Insights` (VS; formerly `Key Insights 2`) |
+| insight→epic | the insight's parent-epic link | the epic's insight array |
+| insight→VS | the insight's parent-VS link | the VS's insight array |
+
+Field names drift — resolve the concrete pair from the data source schema (`ntn api v1/data_sources/<id>`): a relation property exposes its synced partner via `dual_property.synced_property_name`.
 
 - A page's own `Parent Epic` / `Parent Value Stream` field contains **only its parent**; its `Child Epics` / `Child Value Streams` field contains **only its children**. Never mixed.
 - **Write the parent link on the CHILD side** (`child.ParentEpic = [parent]`) — the dual sync populates the parent's `ChildEpics` automatically. Writing either side of a pair populates both; never hand-maintain both sides.
@@ -165,11 +167,13 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 
 ## Link Audit (detecting lost links)
 
-An insight is linked if its ID appears in any epic's `Insights 1` or any VS's `Insights` array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none. Observed 2026-08-12: 62 processed insights were orphaned this way.
+An insight is linked if its ID appears in any epic's or VS's insight-facing relation array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none.
 
 ## Bulk Writes (pacing)
 
-Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop (observed 2026-08-12: a 77-write backfill made zero progress until paced).
+Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop.
+
+**ID hygiene in bulk operations**: resolve every ID from fresh data by name — never reuse a remembered ID (a mis-remembered ID re-parents the wrong page); when multiple sources map to one target (e.g. two epics folding into one VS), dedupe the target set before creating; after a batch of creates, verify name-uniqueness — duplicate pages with the same name are the failure signature.
 
 ## Error Recovery
 

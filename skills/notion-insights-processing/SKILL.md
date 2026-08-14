@@ -11,8 +11,7 @@ Transform raw inputs from the Notion Insights database into structured, actionab
 
 ## Prerequisites
 
-- `ntn` CLI installed and authenticated (see `skill://notion-database-management`)
-- Insights DB ID: `20d3122e-1a13-8110-b1c2-fa15ecadde25`
+- `ntn` CLI installed and authenticated (see `skill://notion-database-management` — database IDs live there)
 
 ## Critical Rules
 
@@ -34,9 +33,9 @@ See `skill://epic-quality-standard` for the top-level-page rule (top-level = lif
 - If the only candidate parent is a Value Stream with the same name as an Epic, prefer the Value Stream (it is the standing home); flag the naming collision for the user.
 
 ### Relation Fields
-Dual pairs — write the insight side, the parent side syncs (see `skill://notion-database-management`):
-- insight→epic: insight **"Parent Epic"** ↔ epic **"Insights 1"** (legacy epic "Insights" retired 2026-08-12)
-- insight→VS: insight **"Parent Value Stream"** ↔ VS **"Insights"** (formerly "Key Insights 2")
+Dual pairs — write the insight side, the parent side syncs (resolve the concrete field names from the data source schema, see `skill://notion-database-management`):
+- insight→epic: the insight's parent-epic link ↔ the epic's insight array
+- insight→VS: the insight's parent-VS link ↔ the VS's insight array
 - Always refer to records using both ID and name: "1. PA Engagement Plans"
 
 ### Status Update
