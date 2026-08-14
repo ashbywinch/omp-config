@@ -43,7 +43,7 @@ Top-level, KPI-able, life-goal value streams. **Each app has its own dedicated d
 
 - The **product** a note touches decides its home: business product → under that product's GM (Product & Engineering); personal product → under the matching personal VS.
 - **Per-product marketing/sales/CS notes** go under the product GM's value stream, never the enablement org — but only **indirectly**: they land under an epic inside that value stream. A task or epic is never parented directly to a value stream in the routing step; the value stream is the territory, the epic is the container.
-- **Enablement/standards notes** (process, quality, standards, compliance) go under the C-suite function — for engineering standards/tooling, under Technology Excellence's Maintainability; enforcement machinery under Agent Autonomy; deployment under Reliability in Production; review cadence under Process Improvement.
+- **Enablement/standards notes** (process, quality, standards, compliance) go under the C-suite function — for engineering standards/tooling, under Technology Excellence's Maintainability; enforcement machinery under Agent Autonomy; deployment under Reliability in Production; review cadence under Process Improvement; dev-process cost and value notes under Cost & Value of the Dev Process.
 - **Per-repo implementation work** goes under the repo's own app value stream (a `<App> Standards & Toolchain Compliance` epic) — never in the enablement tree.
 - **Agent-behavior principles** (how the AI should behave, collaborate, take initiative) → AI Agent Design Principles & Core Functionality, or Operating Model as Code for runnable process/playbook work.
 - Strategy notes → Strategy & Business Development.

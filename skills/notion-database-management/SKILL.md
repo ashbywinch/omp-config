@@ -130,7 +130,7 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **A relation PATCH replaces the whole array — it does not append.** Entries MUST be `{"id": "..."}` objects — bare strings fail validation.
 
-**Multi-value appends on dual pairs are child-side writes.** For a dual-pair relation (insight↔epic, task↔epic, epic↔epic, epic↔VS, VS↔VS), write the CHILD side and let the parent array sync — never patch the parent side. Read-modify-write applies only to relations with no child-side field (e.g. an epic's `Dependencies`): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link.
+**Multi-value appends on dual pairs are child-side writes.** For a dual-pair relation (insight↔epic, insight↔VS, task↔epic, epic↔epic, epic↔VS, VS↔VS), write the CHILD side and let the parent array sync — never patch the parent side. A child-side PATCH on a multi-valued child field must contain the full desired array (a single-ID write drops the child's other links). Read-modify-write applies only to relations with no child-side field (e.g. an epic's `Dependencies`): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link.
 
 **Read at write time, never from a snapshot.** Read the live page (`ntn api v1/pages/<PAGE_ID>`) immediately before each PATCH — never a session-start or shared `/tmp` file, which is stale the moment another session writes.
 
@@ -138,7 +138,7 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **Rich-text fields replace too.** PATCHing `Content` (or any rich_text property) replaces the WHOLE property — appending to a multi-block ticket means re-sending all existing blocks. Never PATCH `Content` with only the new text.
 
-**Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents after; if a parent array is stale, correct that side.
+**Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents' child-side arrays after; if one is stale, correct that side.
 
 **Dependencies**: live in the dedicated `Dependencies` relation field on Epics. Value Streams should have one too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
 
