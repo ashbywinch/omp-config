@@ -22,7 +22,7 @@ Review any recently created epics or insights that need task breakdown.
 For each epic that has accumulated processed insights, before task breakdown:
 - **Survey the epic fully**: its `Insights`, `Related Tasks`, and `Child Epics` (mechanics: `skill://notion-database-management`).
 - **Read every insight in full** — never propose structure from a truncated preview.
-- **Group into themed sub-epics** when the epic mixes unrelated concerns. Name sub-epics after a phase with a concrete deliverable (`Epic X.Y: <Title>`), parent them at creation (see `skill://epic-quality-standard`), and move insights by read-modify-write on both `Insights` arrays (destination: existing + new; source: existing minus moved).
+- **Group into themed sub-epics** when the epic mixes unrelated concerns. Name sub-epics after a phase with a concrete deliverable (`Epic X.Y: <Title>`), parent them at creation (see `skill://epic-quality-standard`), and move insights per the relation write rule (see `skill://notion-database-management`).
 - **Flag anything unimplementable** — an insight you could not implement correctly from its text alone. Ask the user one ticket at a time; append the clarification to the ticket's `Content`, keeping the original text. Never guess.
 - **Surface dependencies in dedicated fields** — an insight whose work depends on another's becomes an epic-level `Dependencies` relation (or a task dependency at breakdown, see `skill://task-quality-standard`). Never store dependencies in Processing Notes.
 - **Order the clusters by priority** (urgent items first) before breaking into tasks.
@@ -33,7 +33,7 @@ For each epic that has accumulated processed insights, before task breakdown:
 
 **Never create tickets for making tickets.** Make the correct tickets in the first place — no "we'll make tickets later", no "until a future VS exists". If work is future-gated, the gating ticket is a real ticket with real content.
 
-**Per-repo implementation work lives under the repo's own app value stream** (a `<App> Standards & Toolchain Compliance` epic), never in the enablement tree.
+**Placement of per-repo implementation work** follows `skill://business-org-model` (under the repo's own app value stream, never the enablement tree).
 
 ### 4. Task Breakdown
 For each epic or work item:

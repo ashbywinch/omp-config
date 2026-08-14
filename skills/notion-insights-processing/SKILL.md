@@ -35,8 +35,8 @@ See `skill://epic-quality-standard` for the top-level-page rule (top-level = lif
 
 ### Relation Fields
 Dual pairs — write the insight side, the parent side syncs (see `skill://notion-database-management`):
-- insight→epic: insight **"Parent Epic"** ↔ epic **"Insights 1"** (legacy epic "Insights" retired 2026-08-12)
-- insight→VS: insight **"Parent Value Stream"** ↔ VS **"Insights"** (formerly "Key Insights 2")
+- insight→epic: insight **"Parent Epic"** ↔ epic **"Insights 1"**
+- insight→VS: insight **"Parent Value Stream"** ↔ VS **"Insights"**
 - Always refer to records using both ID and name: "1. PA Engagement Plans"
 
 ### Status Update

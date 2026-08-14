@@ -154,8 +154,8 @@ Hierarchies use **dual property pairs** — one field per direction, synced auto
 | epic→VS | `Parent Value Stream` | `Child Epics` (on the VS) |
 | VS→VS | `Parent Value Stream` | `Child Value Streams` |
 | task→epic | `Related to Epics (Related Tasks)` | `Related Tasks` |
-| insight→epic | `Parent Epic` | `Insights 1` (legacy `Insights` retired 2026-08-12) |
-| insight→VS | `Parent Value Stream` | `Insights` (VS; formerly `Key Insights 2`) |
+| insight→epic | `Parent Epic` | `Insights 1` |
+| insight→VS | `Parent Value Stream` | `Insights` (VS) |
 
 - A page's own `Parent Epic` / `Parent Value Stream` field contains **only its parent**; its `Child Epics` / `Child Value Streams` field contains **only its children**. Never mixed.
 - **Write the parent link on the CHILD side** (`child.ParentEpic = [parent]`) — the dual sync populates the parent's `ChildEpics` automatically. Writing either side of a pair populates both; never hand-maintain both sides.
