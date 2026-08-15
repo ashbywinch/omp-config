@@ -45,6 +45,13 @@ name: AI Code Review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+# One review at a time per PR; a newer push cancels the stale run rather than
+# queueing behind it (rapid fix pushes never stack — the incremental /review
+# -i config in .pr_agent.toml supersedes the cancelled run's review with the
+# new push's incremental review anyway).
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   pr-review:
@@ -70,6 +77,10 @@ jobs:
       # commit: the comment matches by prefix + (SHA in body OR posted after
       # the head commit landed) — the SHA-in-body fallback exists because
       # v0.41.1's first review on a PR is posted without the SHA marker.
+      # Match BOTH headers: the regular review posts "## PR Reviewer Guide"
+      # and the incremental (-i) review posts "## Incremental PR Reviewer
+      # Guide" — the check must not fail a review that succeeded (2026-08-11:
+      # the first incremental run was missed exactly this way).
       - name: Check review succeeded
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
@@ -85,7 +96,7 @@ jobs:
             exit 0
           fi
           head_date="$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq .commit.committer.date)"
-          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date"             '[.[] | select(.body | startswith("## PR Reviewer Guide"))]
+          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date"             '[.[] | select(.body | startswith("## PR Reviewer Guide") or .body | startswith("## Incremental PR Reviewer Guide"))]
              | any(.created_at >= $hd or (.body | contains($sha)))')"
           if [ "$covered" != "true" ]; then
             echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
