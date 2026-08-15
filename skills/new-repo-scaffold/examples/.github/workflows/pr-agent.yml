@@ -65,7 +65,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: the-pr-agent/pr-agent@b249e568e0c0fb6c674ace55fe95d02f62f8f3b3   # pin a real release SHA — @latest does not resolve
+      - uses: the-pr-agent/pr-agent@f6af7d77554ff8d26adffded077e6461329e92fa   # v0.42.0 tag SHA — pin a real release SHA, @latest does not resolve
         id: pr-agent
         env:
           OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
