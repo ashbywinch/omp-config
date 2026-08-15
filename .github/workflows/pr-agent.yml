@@ -27,4 +27,11 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 tools/check_review_posted.py
+        # Single source of truth: the script lives in build-tools, fetched at
+        # a pinned SHA (never the PR head) — matches build-tools' own
+        # workflow and the omp-config dedup intent. Re-pin when the script
+        # evolves (incremental header matcher + run-log diagnosis since d2be496).
+        run: |
+          curl -fsSL -o check_review_posted.py \
+            https://raw.githubusercontent.com/ashbywinch/build-tools/57cdad8d40443a576c4b6eb2e65428662bd00c38/check_review_posted.py
+          python3 check_review_posted.py
