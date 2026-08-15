@@ -1,0 +1,29 @@
+# Cargo.toml for <crate> — working template
+#
+# CHANGE: crate name/description, edition (current stable at scaffold time),
+# dependencies, the release profile (drop lto for a library or a
+# non-performance-critical binary).
+#
+# DO NOT CHANGE:
+# - Cargo.lock is COMMITTED (reproducible builds — the same rule that
+#   commits uv.lock/package-lock.json; the lockfile rule in the general
+#   layer).
+# - Fast-moving crates get an EXACT pin + a comment why (build-tools pins
+#   ruff_python_* = "=0.0.9" — the parity gate depends on the parser
+#   semantics staying fixed; bump deliberately, never blindly).
+# - Clippy runs with -D warnings (the Makefile); an #[allow(...)] carries a
+#   reason comment — the anti-fragile rule, mirroring `# type: ignore`.
+
+[package]
+name = "<crate>"
+version = "0.1.0"
+edition = "2021"  # CHANGE: current stable edition at scaffold time
+description = "<one-line purpose>"
+
+[dependencies]
+# Pin deliberately; comment the pin's why for anything that moves fast.
+
+[dev-dependencies]
+
+[profile.release]
+lto = true  # CHANGE: only for performance-critical binaries

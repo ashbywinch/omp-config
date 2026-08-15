@@ -1,0 +1,58 @@
+# CI — delegates to make, never raw cargo commands (Rust variant).
+#
+# CHANGE: adjust the coverage thresholds to your repo's measured number
+# (65 floor / 80 goal is the sane starting point for an EXISTING codebase
+# — a hard 80 gate on day one is a broken CI).
+#
+# DO NOT CHANGE:
+# - `permissions: contents: read` (+ `pull-requests: write` only while the
+#   coverage-comment step is present — drop both together if you drop it).
+# - The concurrency group: every active repo uses cancel-in-progress.
+# - Steps are exactly make targets. Never inline cargo logic into the
+#   workflow — CI and local dev must run the same recipes.
+# - The toolchain comes from rust-toolchain.toml (dtolnay/rust-toolchain
+#   reads it) — the same version local rustup uses. Never a separate
+#   `rustup toolchain install` line that can drift from the pin.
+# - Lint runs via `make lint-github` so clippy findings surface as PR
+#   annotations.
+
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: write   # the coverage comment step needs it; drop if you drop that step
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain (rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - run: make setup
+      - run: make lint-github
+      - run: make test
+      - run: make coverage
+      - name: Coverage summary
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: lcov.info
+          badge: true
+          fail_below_min: true
+          thresholds: '80 90'
+          format: markdown
+          output: both
+      - name: Post coverage comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md
