@@ -289,3 +289,15 @@ without a check is a wish:
   Prefer libraries over reinvention — a library call that replaces 30 lines
   of well-known computation is worth it; one that adds more complexity than
   the code it replaces is not.
+- **A port mirrors the reference; deviations are commented, not silent.**
+  When porting code from another language or project, match the original's
+  structure and tests as closely as the new language allows — same module
+  layout, same public names, the reference's own test cases with their
+  original expected values. Updating the port when the reference changes,
+  or handing it to the original maintainers, must be a diff, not a
+  rewrite. Where the language boundary forces a deviation, comment it at
+  the point of divergence with the reason; a port that "improves" the
+  original's behavior or cleans its test data is a silent divergence. A
+  mirrored test that fails means the port is wrong until verified against
+  the reference — never edit the reference's expected values to match the
+  port.
