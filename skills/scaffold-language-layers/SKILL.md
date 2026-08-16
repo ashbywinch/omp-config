@@ -154,7 +154,7 @@ equivalent.
   `src/**/*.rs` and asserts the forbidden `use` paths are absent per layer
   (the archunitpython intent, Rust-native: the module system plus a
   source-scan test — no house Rust archunit exists yet, and the vacuous-
-  pass trap from '/home/ashby/.omp/agent/skills/archunitpython-glob-rules' applies to any glob-
+  pass trap from `skill://archunitpython-glob-rules` applies to any glob-
   based variant, so assert on exact paths).
 - **Materialization.** These Rust conventions — the toolchain pin, the
   clippy `-D warnings` + rustfmt 120 gates, `cargo check` as the type gate,

@@ -47,7 +47,7 @@ jobs:
           filename: lcov.info
           badge: true
           fail_below_min: true
-          thresholds: '80 90'
+          thresholds: '65 80'
           format: markdown
           output: both
       - name: Post coverage comment

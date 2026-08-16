@@ -81,7 +81,7 @@ lint-check: deps  # Shared with the pre-commit hook — single source of truth f
 
 lint-github: deps   # CI only: clippy's JSON messages -> PR annotations
 	$(CARGO) fmt -- --check
-	$(CLIPPY) --message-format json
+	$(CARGO) clippy --all-targets --message-format json -- -D warnings
 
 # The type gate: rustc's borrow checker is deterministic for a pinned
 # toolchain, so this needs no baseline lock (see the header note).
