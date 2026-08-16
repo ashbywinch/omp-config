@@ -9,6 +9,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      actions: read   # check_review_posted.py reads the bot's run log for the failure reason
     steps:
       - uses: actions/checkout@v4
       - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
