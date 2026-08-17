@@ -1,20 +1,24 @@
 #!/bin/bash
 # git shim: omp agents authenticate to GitHub as the omp-harness app (bot),
-# never as the human user. Mirrors tools/gh-app-shim:
-#   - OMP_GIT_IDENTITY=user   -> pass through to real git (explicit human)
-#   - GH_TOKEN/GITHUB_TOKEN   -> pass through untouched (explicit override)
-#   - stdin is a TTY          -> pass through (user's own terminal; agent
-#                                runners must not allocate a PTY for git)
-#   - otherwise (agent)       -> force the bot credential helper for
-#                                github.com + the bot commit identity
+# never as the human user.
 #
-# The gh shim covers the `gh` CLI; git is a separate binary whose credentials
-# come from git's own credential helpers (the user's keyring found their
-# stored credentials — pushes went out as the user). This shim closes that
-# gap: in agent contexts every github.com HTTPS operation uses a freshly
-# minted omp-harness app installation token, and every commit is authored
-# `omp-harness[bot]`. SSH remotes are out of scope (credential helpers apply
-# only to HTTPS) — agent repos must use HTTPS remotes.
+# Context detection is explicit, not TTY-based:
+#   - OMP_GIT_IDENTITY=user   -> pass through to real git (explicit human)
+#   - OMP_GIT_IDENTITY=bot    -> agent mode (explicit bot)
+#   - PASEO_AGENT_ID set      -> agent mode (the omp harness sets this for
+#                                every agent process, PTY or not)
+#   - otherwise               -> pass through (user's terminal, IDE, scripts,
+#                                CI jobs — none of them are the omp agent)
+#
+# In agent mode the shim forces the bot credential helper for github.com and
+# the omp-harness[bot] commit identity, and replaces the user's global
+# gitconfig (whose `credential.https://github.com.helper = !/usr/bin/gh auth
+# git-credential` absolute path bypasses the gh shim and would return the
+# user's stored token). -c values only APPEND to that helper chain, so the
+# replacement is done via GIT_CONFIG_GLOBAL (git >= 2.32).
+#
+# SSH remotes are out of scope: credential helpers apply only to HTTPS, so
+# agent repos must use HTTPS remotes.
 #
 # Installed as ~/.local/bin/git (earlier in PATH than real git) via
 # `make install-git-shim`. Source-controlled: tools/git-app-shim.
@@ -46,49 +50,51 @@ if [ -z "$REAL_GIT" ]; then
     exit 1
 fi
 
-# ---- minimum git version: GIT_CONFIG_GLOBAL needs 2.32+ ----
-GIT_VERSION="$("$REAL_GIT" --version | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')"
-GIT_MAJOR="${GIT_VERSION% *}"
-GIT_MINOR="${GIT_VERSION#* }"
-if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
-    echo "git shim: git >= 2.32 required (GIT_CONFIG_GLOBAL); found $("$REAL_GIT" --version) — refusing to run against the user's credential config" >&2
-    exit 1
-fi
-
-# ---- pass-through cases (explicit overrides and the user's own terminal) ----
-if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
-    exec "$REAL_GIT" "$@"
-fi
-if [ -t 0 ] && [ "${OMP_GIT_IDENTITY:-}" != "bot" ]; then
+# ---- explicit human override ----
+if [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
     exec "$REAL_GIT" "$@"
 fi
 
-# ---- agent mode: bot identity + bot credentials for github.com ----
-HELPER="${HOME}/.local/libexec/omp-bot-credential-helper"
-if [ ! -x "$HELPER" ]; then
-    echo "git shim: bot credential helper missing at $HELPER — run make install-git-shim" >&2
-    exit 1
-fi
+# ---- agent mode: the omp harness agent, or an explicit bot opt-in ----
+if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+    # GIT_CONFIG_GLOBAL is honored only by git >= 2.32; older git would keep
+    # the user's gitconfig and leak their token. Fail closed.
+    GIT_VERSION="$("$REAL_GIT" --version | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')"
+    GIT_MAJOR="${GIT_VERSION% *}"
+    GIT_MINOR="${GIT_VERSION#* }"
+    if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
+        echo "git shim: agent mode requires git >= 2.32 (GIT_CONFIG_GLOBAL); found $("$REAL_GIT" --version) — refusing to run against the user's credential config" >&2
+        exit 1
+    fi
 
-# The user's ~/.gitconfig pins `credential.https://github.com.helper =
-# !/usr/bin/gh auth git-credential` — an ABSOLUTE path that bypasses the gh
-# shim and returns the user's stored token, so agents would push as the user.
-# -c values only APPEND to that chain, so the shim replaces the global config
-# entirely (generated once, preserving init.defaultBranch) and sets the bot
-# identity explicitly.
-AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
-if [ ! -f "$AGENT_CONFIG" ]; then
+    HELPER="${HOME}/.local/libexec/omp-bot-credential-helper"
+    if [ ! -x "$HELPER" ]; then
+        echo "git shim: bot credential helper missing at $HELPER — run make install-git-shim" >&2
+        exit 1
+    fi
+
+    # The user's ~/.gitconfig pins an absolute-path gh credential helper that
+    # bypasses the gh shim; replace the global config entirely. Preserve the
+    # user's init.defaultBranch (read live; fall back to main).
+    DBRANCH="$("$REAL_GIT" config --global init.defaultBranch 2>/dev/null || true)"
+    [ -n "$DBRANCH" ] || DBRANCH="main"
+    AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
     mkdir -p "$(dirname "$AGENT_CONFIG")"
-    cat > "$AGENT_CONFIG" <<EOF
+    if [ ! -f "$AGENT_CONFIG" ] || ! grep -q "defaultBranch = $DBRANCH" "$AGENT_CONFIG"; then
+        cat > "$AGENT_CONFIG" <<EOF
 [init]
-	defaultBranch = main
+	defaultBranch = ${DBRANCH}
 [credential "https://github.com"]
 	helper = ${HELPER}
 EOF
+    fi
+    export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
+    exec "$REAL_GIT" \
+        -c "credential.https://github.com.helper=${HELPER}" \
+        -c user.name="omp-harness[bot]" \
+        -c user.email="316112947+omp-harness[bot]@users.noreply.github.com" \
+        "$@"
 fi
-export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
-exec "$REAL_GIT" \
-    -c "credential.https://github.com.helper=${HELPER}" \
-    -c user.name="omp-harness[bot]" \
-    -c user.email="316112947+omp-harness[bot]@users.noreply.github.com" \
-    "$@"
+
+# ---- user context (terminal, IDE, scripts, CI): untouched ----
+exec "$REAL_GIT" "$@"
