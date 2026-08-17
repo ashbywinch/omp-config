@@ -58,12 +58,21 @@ fi
 # ---- agent mode: the omp harness agent, or an explicit bot opt-in ----
 if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
     # GIT_CONFIG_GLOBAL is honored only by git >= 2.32; older git would keep
-    # the user's gitconfig and leak their token. Fail closed.
-    GIT_VERSION="$("$REAL_GIT" --version | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')"
-    GIT_MAJOR="${GIT_VERSION% *}"
-    GIT_MINOR="${GIT_VERSION#* }"
+    # the user's gitconfig and leak their token. Fail closed — including on
+    # any version string that cannot be parsed.
+    GIT_VERSION="$("$REAL_GIT" --version 2>/dev/null || true)"
+    case "$GIT_VERSION" in
+        git\ version\ [0-9]*.[0-9]*.*)
+            GIT_MAJOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1/p')"
+            GIT_MINOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\2/p')"
+            ;;
+        *)
+            echo "git shim: cannot parse git version ('$GIT_VERSION') — refusing agent mode (fail closed)" >&2
+            exit 1
+            ;;
+    esac
     if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
-        echo "git shim: agent mode requires git >= 2.32 (GIT_CONFIG_GLOBAL); found $("$REAL_GIT" --version) — refusing to run against the user's credential config" >&2
+        echo "git shim: agent mode requires git >= 2.32 (GIT_CONFIG_GLOBAL); found $GIT_VERSION — refusing to run against the user's credential config" >&2
         exit 1
     fi
 
