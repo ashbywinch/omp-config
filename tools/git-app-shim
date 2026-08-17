@@ -114,21 +114,27 @@ if [ -n "$AGENT_MODE" ]; then
         mkdir -p "$(dirname "$AGENT_CONFIG")"
         if [ -f "$USER_GLOBAL" ]; then
             # Copy the user's global config minus anything that could answer a
-            # github.com credential request: the generic [credential] helper
-            # (runs BEFORE the URL-specific bot helper — verified empirically),
-            # every github.com-scoped [credential "..."] section, and
-            # include.path (an include could reintroduce a helper).
+            # github.com credential request. The generic [credential] section
+            # (its helper runs BEFORE the URL-specific bot helper — verified
+            # empirically), every [credential "..."] section naming github.com
+            # (protocol, host-only, ssh, any case, CRLF), and [include...]
+            # sections (an include could reintroduce a helper). Everything else
+            # — proxy, sslCAInfo, url.*.insteadOf, non-GitHub helpers,
+            # init.defaultBranch — is preserved.
             awk '
-                /^\[credential\]$/ { gen=1; next }
-                gen && /^[[:space:]]*helper[[:space:]]*=/ { next }
-                gen && /^\[/ { gen=0 }
-                /^\[credential "https:\/\/github\.com/ { skip=1; next }
-                skip && /^\[/ { skip=0 }
+                {
+                    line = $0
+                    sub(/\r$/, "", line)
+                }
+                line ~ /^\[/ {
+                    lc = tolower(line)
+                    skip = (lc ~ /^\[credential\]$/ || lc ~ /^\[credential[^]]*github\.com/ || lc ~ /^\[include/)
+                    if (skip) next
+                    print line
+                    next
+                }
                 skip { next }
-                /^\[include/ { skipinc=1; next }
-                skipinc && /^\[/ { skipinc=0 }
-                skipinc { next }
-                { print }
+                { print line }
             ' "$USER_GLOBAL" > "$AGENT_CONFIG"
         else
             : > "$AGENT_CONFIG"
@@ -145,7 +151,6 @@ if [ -n "$AGENT_MODE" ]; then
     exec env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL \
         -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
         "$REAL_GIT" \
-        -c "credential.https://github.com.helper=${HELPER}" \
         -c user.name="omp-harness[bot]" \
         -c user.email="316112947+omp-harness[bot]@users.noreply.github.com" \
         "$@"
