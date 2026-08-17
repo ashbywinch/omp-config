@@ -41,7 +41,7 @@ help:
 	@echo "  lint           cargo fmt --check + clippy -D warnings"
 	@echo "  typecheck      cargo check --all-targets (the borrow-checker gate)"
 	@echo "  test           Lint + typecheck + cargo test"
-	@echo "  coverage       lcov report via cargo llvm-cov (CI gate)"
+	@echo "  coverage       cobertura.xml via cargo llvm-cov (CI gate)"
 	@echo "  format         cargo fmt"
 	@echo "  dist           cargo build --release (CI uploads the binary)"
 	@echo "  clean          Remove target/ + generated reports"
@@ -96,4 +96,4 @@ dist: deps
 
 clean:
 	$(CARGO) clean
-	rm -rf lcov.info coverage/
+	rm -rf cobertura.xml coverage/
