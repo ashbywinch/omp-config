@@ -111,7 +111,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 - Never commit to main; branch off main, PR required, protected origin/main (rule://session-start; chat-workflow/houses AGENTS.md).
 - Atomic commits; reference issues with `Fixes #N`.
 - **Working files: `examples/.gitignore`, `examples/.editorconfig`, `examples/.gitattributes`, `examples/.env.example`** — copy them; the rules below say what each guards and when deviation is OK.
-- `.gitignore` must cover (each pattern observed in 3+ repos): env/secrets (`.env`, `.env.local`, `*.keystore`); envs/deps (`.venv/`, `venv/`, `node_modules/`, `dist/`); caches (`__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.coverage`, `htmlcov/`, `coverage.xml`); build artifacts (`dist/`, `*.egg-info/` — `uv sync` generates `<pkg>.egg-info/`; omit it and verification step 4 fails); agent/tool state (`.sisyphus/`, `.opencode/`, `.code-review-graph/`, `.logs/`); IDE/OS (`.vscode/`, `.idea/`, `.DS_Store`, `*.log` — with a `!.vscode/extensions.json` negation when committing one); recreatable data caches only (houses: `data/api_cache/`) — test fixtures are committed under `tests/fixtures/`
+- `.gitignore` must cover (each pattern observed in 3+ repos): env/secrets (`.env`, `.env.local`, `*.keystore`); envs/deps (`.venv/`, `venv/`, `node_modules/`, `dist/`); caches (`__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.coverage`, `htmlcov/`, `coverage.xml`); build artifacts (`dist/`, `*.egg-info/` — `uv sync` generates `<pkg>.egg-info/`; omit it and verification step 4 fails; `target/` and `cobertura.xml` in a Rust repo — `make coverage` writes cobertura.xml and `cargo build` writes `target/`); agent/tool state (`.sisyphus/`, `.opencode/`, `.code-review-graph/`, `.logs/`); IDE/OS (`.vscode/`, `.idea/`, `.DS_Store`, `*.log` — with a `!.vscode/extensions.json` negation when committing one); recreatable data caches only (houses: `data/api_cache/`) — test fixtures are committed under `tests/fixtures/`
 - Lockfiles (`uv.lock`, `package-lock.json`) are committed, never ignored. books_to_anki ignores `uv.lock` — that kills reproducibility; don't copy it. Keep the list curated: books_to_anki ships the kitchen-sink GitHub template (Django/Flask/PyInstaller/poetry sections it doesn't need); the newer repos use a short alphabetized list.
 - `.gitattributes`: `* text=auto eol=lf`; mark generated files `linguist-generated` (kilocode).
 - `.editorconfig`: `root = true`, `utf-8`, `insert_final_newline = true`, `eol = lf`, 2-space indent default, per-language overrides (kilocode). `max_line_length` must match the formatter (120 for ruff/prettier) — kilocode's editorconfig 80-vs-prettier-120 mismatch is a smell to avoid.
@@ -196,7 +196,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] Makefile pins the recipe shell (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — recipes can't diverge between macOS and CI
 - [ ] `make test` depends on `make lint`; CI runs only make targets
 - [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
-- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail)
+- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail) — EXCEPT where the toolchain is pinned and deterministic (Rust under `rust-toolchain.toml`: clippy/rustc need no baseline, per the language layer)
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
@@ -239,11 +239,11 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] husky pre-commit: lint + typecheck + gitleaks
 
 ### Rust
-- [ ] `rust-toolchain.toml` pins the exact stable channel at scaffold time; CI (`dtolnay/rust-toolchain@stable`) and local rustup read the same file — components `clippy`, `rustfmt`, `llvm-tools`
+- [ ] `rust-toolchain.toml` pins the exact stable channel at scaffold time; CI (`dtolnay/rust-toolchain@stable` — installs rustup; the file's channel is honored in-dir) and local rustup use the same file — components `clippy`, `rustfmt`, `llvm-tools`
 - [ ] `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` inside `make lint`; rustfmt `max_width = 120` matching `.editorconfig` (one formatter per artifact — generated code excluded, not re-formatted)
 - [ ] Type gate = `cargo check --all-targets` inside `make test` (the borrow checker is the type checker; deterministic under the toolchain pin — no baseline needed, stated in the Makefile)
-- [ ] `cargo test` runner; coverage via `cargo llvm-cov --lcov` → `lcov.info` for the CI gate (fail below floor, track goal)
-- [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` for PR annotations
+- [ ] `cargo test` runner; coverage via `cargo llvm-cov --cobertura` → `cobertura.xml` for the CI gate (fail below floor, track goal)
+- [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` (clippy -D warnings, JSON in the step log)
 - [ ] Raw hooks: pre-commit (make lint-check + gitleaks) + pre-push (make check), watch scope `*.rs Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml`
 - [ ] `#[allow(...)]` carries a reason comment (no blanket `#![allow]`); newtypes over primitives (units in the type name, Money never bare float)
 - [ ] Repo self-checks: std-only `#[test]`s for docs links and for architecture layers (forbidden `use` paths — exact paths, never the vacuous glob form)

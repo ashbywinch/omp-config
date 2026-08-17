@@ -105,7 +105,12 @@ def _bot_failure_reason(repo: str, token: str) -> str:
     bot said."""
     log = _job_log(repo, token)
     if log is None:
-        return "the bot's log could not be read from the checks API"
+        # the fail-loud step runs inside the bot's OWN job — GitHub does not
+        # serve a job's log until the job completes, so the reason extractor
+        # can never see it here. Run this check from a SEPARATE job (needs:
+        # the bot job) for the real reason; this fallback is the honest
+        # admission that the review did not post.
+        return "the bot's job log is not served while the job is still running (run this check from a separate job)"
     # The raw job blob is TIMESTAMPZ + message lines with no step prefixes
     # (the runner's processed view adds them); the bot's own records are the
     # structured JSON lines with a "text" field — those carry the markers.
@@ -150,7 +155,11 @@ def main() -> int:
         return 1
     head_committed_at = commit["commit"]["committer"]["date"]
 
-    comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments", token)
+    try:
+        comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments", token)
+    except HTTPError as e:
+        print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
+        return 1
     # the review posts with the regular header ("## PR Reviewer Guide") or
     # the incremental form ("## Incremental PR Reviewer Guide" — the -i
     # path, 2026-08-11: the first incremental run posted exactly that and

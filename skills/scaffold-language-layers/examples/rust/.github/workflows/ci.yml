@@ -10,11 +10,12 @@
 # - The concurrency group: every active repo uses cancel-in-progress.
 # - Steps are exactly make targets. Never inline cargo logic into the
 #   workflow — CI and local dev must run the same recipes.
-# - The toolchain comes from rust-toolchain.toml (dtolnay/rust-toolchain
-#   reads it) — the same version local rustup uses. Never a separate
-#   `rustup toolchain install` line that can drift from the pin.
-# - Lint runs via `make lint-github` so clippy findings surface as PR
-#   annotations.
+# - The toolchain comes from rust-toolchain.toml — the action only ensures
+#   rustup is present; rustup honors the file's channel in this directory,
+#   the same version local rustup uses. Never a separate `rustup toolchain
+#   install` line that can drift from the pin.
+# - Lint runs via `make lint-github` (clippy -D warnings, JSON diagnostics in
+#   the step log) — it fails the build on any clippy warning.
 
 name: CI
 on:
@@ -44,7 +45,7 @@ jobs:
       - name: Coverage summary
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: lcov.info
+          filename: cobertura.xml
           badge: true
           fail_below_min: true
           thresholds: '65 80'

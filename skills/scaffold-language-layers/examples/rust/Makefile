@@ -70,8 +70,8 @@ test: deps lint-check typecheck
 	$(CARGO) test
 
 coverage: deps
-	$(COV) --lcov --output-path lcov.info
-	@echo "${GREEN}✓ lcov.info written — CI gate: fail below floor, track the goal${NC}"
+	$(COV) --cobertura --output-path cobertura.xml
+	@echo "${GREEN}✓ cobertura.xml written — CI gate: fail below floor, track the goal${NC}"
 
 lint: deps lint-check
 

@@ -9,7 +9,6 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-      actions: read   # check_review_posted.py reads the bot's run log for the failure reason
     steps:
       - uses: actions/checkout@v4
       - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
@@ -23,6 +22,20 @@ jobs:
           # .pr_agent.toml (e.g. api_base pointing at an attacker endpoint)
           # and exfiltrate OPENCODE_GO_OMP_CONFIG_API_KEY.
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
+  verify:
+    # A SEPARATE job that runs AFTER the bot job completes: GitHub does not
+    # serve a job's log until it finishes, so check_review_posted.py can only
+    # read the bot's failure reason from here — inside the bot's own job the
+    # log endpoint returns 409 and the reason is always the generic fallback.
+    needs: pr-review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read   # read the bot's completed run log for the failure reason
+    steps:
+      - uses: actions/checkout@v4
       - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
