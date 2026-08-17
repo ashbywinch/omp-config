@@ -19,7 +19,7 @@ makes it pass (`rule://test-first`). For LLM behaviour, write evals instead
 ## Test properties
 
 - Tests mirror module paths.
-- Deterministic: no wall-clock, network, or order dependence. Randomness: **fake RNG is fixed-seeded** (test doubles over `random`/fakers — a failure reproduces on every machine and hash seed); **real RNG is never seeded** — calling `random.seed()` or `numpy.random.seed()` on a real RNG anywhere (crypto, tokens, ids — seeding a production path is a security bug) is a finding. Never assert iteration order of sets — `list(some_set) == [...]` or comparing two sets' iteration order is a finding — or of dicts built from sets or other hash-dependent iteration: hash order varies with `PYTHONHASHSEED` (a set-order test passed locally and failed in CI on a different seed).
+- Deterministic: no wall-clock, network, or order dependence. Randomness: **fake RNG is fixed-seeded** (test doubles over `random`/fakers — a failure reproduces on every machine and hash seed); **a real RNG is never seeded in a production path** — calling `random.seed()` or `numpy.random.seed()` on a real RNG in code that produces crypto, tokens, or ids is a security finding (tests may seed a real RNG only when the test is not checking security-sensitive output). Never assert iteration order of sets — `list(some_set) == [...]` or comparing two sets' iteration order is a finding — or of dicts built from sets or other hash-dependent iteration: hash order varies with `PYTHONHASHSEED` (a set-order test passed locally and failed in CI on a different seed).
 - Assert behaviour, not implementation.
 - Sort file listings before processing — `glob` order is filesystem-dependent.
 - A test that cannot fail on a plausible bug is not a test (no tautological
