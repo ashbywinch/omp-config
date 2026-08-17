@@ -58,6 +58,13 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
   this repo (it is the conventions source, not a config store).
 - In shell: `test -n "$VAR"` to check a variable — NEVER `echo $VAR` (leaks).
 - `.pr_agent.toml` templates and examples in skills use placeholders only.
+- **Git/GitHub auth is the bot's, never the user's.** Agents' `gh` calls use
+  `tools/gh-app-shim` (`~/.local/bin/gh`); agents' `git` operations use
+  `tools/git-app-shim` (`~/.local/bin/git`, installed by `make
+  install-git-shim`), which forces the `omp-bot-credential-helper` for
+  github.com and the `omp-harness[bot]` commit identity. NEVER let git fall
+  back to the user's personal credentials, and NEVER commit as the user — the
+  user's own terminal is the only place their identity is used.
 
 ## Git workflow
 

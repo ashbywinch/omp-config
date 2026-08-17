@@ -1,0 +1,62 @@
+#!/bin/bash
+# git shim: omp agents authenticate to GitHub as the omp-harness app (bot),
+# never as the human user. Mirrors tools/gh-app-shim:
+#   - stdin is a TTY            -> pass through to real git (user's terminal
+#                                  keeps their personal credentials)
+#   - GH_TOKEN/GITHUB_TOKEN set -> pass through untouched (explicit override)
+#   - otherwise (omp, no TTY)   -> force the bot credential helper for
+#                                  github.com + the bot commit identity
+#
+# The gh shim covers the `gh` CLI; git is a separate binary whose credentials
+# come from git's own credential helpers (the user's keyring found their
+# stored credentials — pushes went out as the user). This shim closes that
+# gap: in agent contexts every github.com HTTPS operation uses a freshly
+# minted omp-harness app installation token, and every commit is authored
+# `omp-harness[bot]`.
+#
+# Installed as ~/.local/bin/git (earlier in PATH than real git) via
+# `make install-git-shim`. Source-controlled: tools/git-app-shim.
+
+set -euo pipefail
+
+# Home may be unset or wrong in daemon/bare-env contexts; resolve it.
+if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
+    HOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+fi
+export HOME
+
+# ---- locate the real git (skip this shim's own directory) ----
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REAL_GIT=""
+IFS=':' read -ra DIRS <<< "${PATH:-}"
+for d in "${DIRS[@]}"; do
+    [ -n "$d" ] || continue
+    if [ "$(cd "$d" 2>/dev/null && pwd)" = "$SELF_DIR" ]; then
+        continue
+    fi
+    if [ -x "$d/git" ]; then
+        REAL_GIT="$d/git"
+        break
+    fi
+done
+if [ -z "$REAL_GIT" ]; then
+    echo "git shim: could not locate the real git binary" >&2
+    exit 1
+fi
+
+# ---- pass-through cases ----
+if [ -t 0 ] || [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+    exec "$REAL_GIT" "$@"
+fi
+
+# ---- agent mode: bot identity + bot credentials for github.com ----
+HELPER="${HOME}/.local/libexec/omp-bot-credential-helper"
+if [ ! -x "$HELPER" ]; then
+    echo "git shim: bot credential helper missing at $HELPER — run make install-git-shim" >&2
+    exit 1
+fi
+exec "$REAL_GIT" \
+    -c "credential.https://github.com.helper=${HELPER}" \
+    -c user.name="omp-harness[bot]" \
+    -c user.email="316112947+omp-harness[bot]@users.noreply.github.com" \
+    "$@"
