@@ -55,6 +55,24 @@ if [ ! -x "$HELPER" ]; then
     echo "git shim: bot credential helper missing at $HELPER — run make install-git-shim" >&2
     exit 1
 fi
+
+# The user's ~/.gitconfig pins `credential.https://github.com.helper =
+# !/usr/bin/gh auth git-credential` — an ABSOLUTE path that bypasses the gh
+# shim and returns the user's stored token, so agents would push as the user.
+# -c values only APPEND to that chain, so the shim replaces the global config
+# entirely (generated once, preserving init.defaultBranch) and sets the bot
+# identity explicitly.
+AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
+if [ ! -f "$AGENT_CONFIG" ]; then
+    mkdir -p "$(dirname "$AGENT_CONFIG")"
+    cat > "$AGENT_CONFIG" <<EOF
+[init]
+	defaultBranch = main
+[credential "https://github.com"]
+	helper = ${HELPER}
+EOF
+fi
+export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
 exec "$REAL_GIT" \
     -c "credential.https://github.com.helper=${HELPER}" \
     -c user.name="omp-harness[bot]" \
