@@ -243,7 +243,8 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` inside `make lint`; rustfmt `max_width = 120` matching `.editorconfig` (one formatter per artifact — generated code excluded, not re-formatted)
 - [ ] Type gate = `cargo check --all-targets` inside `make test` (the borrow checker is the type checker; deterministic under the toolchain pin — no baseline needed, stated in the Makefile)
 - [ ] `cargo test` runner; coverage via `cargo llvm-cov --cobertura` → `cobertura.xml` for the CI gate (fail below floor, track goal)
-- [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` (clippy -D warnings, JSON in the step log)
+- [ ] `target/` and `cobertura.xml` gitignored (Rust build + coverage artifacts — `cargo build` writes `target/`, `make coverage` writes cobertura.xml; the general `.gitignore` set §4 covers the Python/JS artifacts)
+- [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` (clippy -D warnings — human-readable output feeds GitHub's built-in matcher for inline annotations)
 - [ ] Raw hooks: pre-commit (make lint-check + gitleaks) + pre-push (make check), watch scope `*.rs Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml`
 - [ ] `#[allow(...)]` carries a reason comment (no blanket `#![allow]`); newtypes over primitives (units in the type name, Money never bare float)
 - [ ] Repo self-checks: std-only `#[test]`s for docs links and for architecture layers (forbidden `use` paths — exact paths, never the vacuous glob form)

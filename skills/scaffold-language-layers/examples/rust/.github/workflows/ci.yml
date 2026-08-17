@@ -14,8 +14,9 @@
 #   rustup is present; rustup honors the file's channel in this directory,
 #   the same version local rustup uses. Never a separate `rustup toolchain
 #   install` line that can drift from the pin.
-# - Lint runs via `make lint-github` (clippy -D warnings, JSON diagnostics in
-#   the step log) — it fails the build on any clippy warning.
+# - Lint runs via `make lint-github` (clippy -D warnings, human-readable
+#   diagnostics) — GitHub's built-in Rust problem matcher turns them into
+#   inline PR annotations; it fails the build on any clippy warning.
 
 name: CI
 on:

@@ -79,9 +79,10 @@ lint-check: deps  # Shared with the pre-commit hook — single source of truth f
 	$(CARGO) fmt -- --check
 	$(CLIPPY)
 
-lint-github: deps   # CI only: clippy's JSON messages -> PR annotations
-	$(CARGO) fmt -- --check
-	$(CARGO) clippy --all-targets --message-format json -- -D warnings
+# CI only: same gate as lint-check — clippy's human-readable output is what
+# GitHub's built-in Rust problem matcher turns into inline PR annotations
+# (JSON has no converter step, so a warning would fail CI with no annotation).
+lint-github: lint-check
 
 # The type gate: rustc's borrow checker is deterministic for a pinned
 # toolchain, so this needs no baseline lock (see the header note).
