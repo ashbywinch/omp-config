@@ -28,8 +28,8 @@ links to.
 | How the standards deploy to new repos | `docs/standards-deployment.md` |
 | Trigger rules | `rules/*.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
-|GitHub App auth for gh (omp vs terminal)|`tools/gh-app-shim` + `tools/secrets.template` (README section)|
-|Agent git auth (bot identity, contract)|`tools/git-app-shim` + `tools/gen-agent-gitconfig.py` (contract in the tool headers)|
+| GitHub App auth for gh (omp vs terminal) | `tools/gh-app-shim` + `tools/secrets.template` (README section) |
+| Agent git auth (bot identity, contract) | `tools/git-app-shim` + `tools/gen-agent-gitconfig.py` (contract in the tool headers) |
 | The repo scaffold (how new repos are built) | `skills/new-repo-scaffold/SKILL.md` |
 
 Read the relevant doc before changing behavior. **Before writing or editing any doc, skill, or APPEND_SYSTEM.md, read `docs/writing-documentation.md` first** — skills are documentation, and every rule there (single source of truth, density, one topic per file) applies to them. The canonical standards are the source — a repo's `docs/coding-standards.md` is a copy of `standards/coding-standards.md` that must be refreshed when the canonical changes (the scaffold skill says so).
