@@ -98,25 +98,42 @@ if [ -n "$AGENT_MODE" ]; then
     fi
 
     # The user's ~/.gitconfig pins an absolute-path gh credential helper that
-    # bypasses the gh shim; replace the global config entirely. Preserve the
-    # user's init.defaultBranch (read live; fall back to main).
-    DBRANCH="$("$REAL_GIT" config --global init.defaultBranch 2>/dev/null || true)"
-    [ -n "$DBRANCH" ] || DBRANCH="main"
+    # bypasses the gh shim. The agent config is DERIVED from the user's own
+    # ~/.gitconfig — preserving http.proxy, sslCAInfo, url.*.insteadOf,
+    # non-GitHub helpers, init.defaultBranch, etc. — with ONLY that github.com
+    # helper pin replaced by the bot helper. Regenerated when the user's
+    # config changes (mtime).
+    USER_GLOBAL="${HOME}/.gitconfig"
     AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
-    mkdir -p "$(dirname "$AGENT_CONFIG")"
-    if [ ! -f "$AGENT_CONFIG" ] || ! grep -q "defaultBranch = $DBRANCH" "$AGENT_CONFIG"; then
-        cat > "$AGENT_CONFIG" <<EOF
-[init]
-	defaultBranch = ${DBRANCH}
-[credential "https://github.com"]
-	helper = ${HELPER}
-EOF
+    REGEN=0
+    [ -f "$AGENT_CONFIG" ] || REGEN=1
+    if [ -f "$USER_GLOBAL" ] && [ "$USER_GLOBAL" -nt "$AGENT_CONFIG" ]; then
+        REGEN=1
+    fi
+    if [ "$REGEN" = 1 ]; then
+        mkdir -p "$(dirname "$AGENT_CONFIG")"
+        if [ -f "$USER_GLOBAL" ]; then
+            awk '
+                /^\[credential "https:\/\/github\.com"\]/ { skip=1; next }
+                skip && /^\[/ { skip=0 }
+                skip { next }
+                { print }
+            ' "$USER_GLOBAL" > "$AGENT_CONFIG"
+        else
+            : > "$AGENT_CONFIG"
+        fi
+        printf '[credential "https://github.com"]\n\thelper = %s\n' "$HELPER" >> "$AGENT_CONFIG"
     fi
     export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
     # Drop the system scope too (/etc/gitconfig): a system-level credential
     # helper would stay in the chain ahead of the bot helper.
     export GIT_CONFIG_NOSYSTEM=1
-    exec "$REAL_GIT" \
+    # GIT_AUTHOR_*/GIT_COMMITTER_* env vars override any config, so an
+    # inherited attribution-oriented environment would author commits as the
+    # user; strip them so the -c identity below is authoritative.
+    exec env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL \
+        -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
+        "$REAL_GIT" \
         -c "credential.https://github.com.helper=${HELPER}" \
         -c user.name="omp-harness[bot]" \
         -c user.email="316112947+omp-harness[bot]@users.noreply.github.com" \
