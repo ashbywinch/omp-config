@@ -50,13 +50,23 @@ if [ -z "$REAL_GIT" ]; then
     exit 1
 fi
 
-# ---- explicit human override ----
-if [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
+# ---- identity decision ----
+# Agent context (PASEO_AGENT_ID, set by the omp harness for every agent
+# process) ALWAYS wins: a user-exported OMP_GIT_IDENTITY cannot disable it.
+# Outside agent context, OMP_GIT_IDENTITY is the explicit override; with no
+# explicit identity it is a user context (terminal, IDE, scripts, CI).
+AGENT_MODE=""
+if [ -n "${PASEO_AGENT_ID:-}" ]; then
+    AGENT_MODE=1
+elif [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+    AGENT_MODE=1
+elif [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
+    exec "$REAL_GIT" "$@"
+else
     exec "$REAL_GIT" "$@"
 fi
 
-# ---- agent mode: the omp harness agent, or an explicit bot opt-in ----
-if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+if [ -n "$AGENT_MODE" ]; then
     # GIT_CONFIG_GLOBAL is honored only by git >= 2.32; older git would keep
     # the user's gitconfig and leak their token. Fail closed — including on
     # any version string that cannot be parsed.
@@ -98,6 +108,9 @@ if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
 EOF
     fi
     export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
+    # Drop the system scope too (/etc/gitconfig): a system-level credential
+    # helper would stay in the chain ahead of the bot helper.
+    export GIT_CONFIG_NOSYSTEM=1
     exec "$REAL_GIT" \
         -c "credential.https://github.com.helper=${HELPER}" \
         -c user.name="omp-harness[bot]" \

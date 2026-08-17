@@ -61,13 +61,13 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 - **Git/GitHub auth is the bot's, never the user's.** Agents' `gh` calls use
   `tools/gh-app-shim` (`~/.local/bin/gh`); agents' `git` operations use
   `tools/git-app-shim` (`~/.local/bin/git`, installed by `make
-  install-git-shim`), which forces the `omp-bot-credential-helper` for
-  github.com and the `omp-harness[bot]` commit identity. NEVER let git fall
-  back to the user's personal credentials, and NEVER commit as the user — the
-  user's own terminal is the only place their identity is used. The shim
-  covers HTTPS remotes only (credential helpers do not apply to SSH) — use
-  HTTPS remotes; `OMP_GIT_IDENTITY=user` explicitly opts a non-TTY call into
-  the user's identity, and `OMP_GIT_IDENTITY=bot` forces the bot under a PTY.
+  install-git-shim`). In agent context (`PASEO_AGENT_ID` set by the harness)
+  it forces the `omp-bot-credential-helper` for github.com and the
+  `omp-harness[bot]` commit identity; the user's terminal and non-agent
+  scripts keep their own identity. The shim is an anti-accident guardrail for
+  instruction-following agents, scoped to github.com HTTPS remotes (SSH and
+  other hosts are not provisioned) — agents MUST NOT bypass it (absolute-path
+  git, unsetting `PASEO_AGENT_ID`, or `-c` credential/identity overrides).
 
 ## Git workflow
 
