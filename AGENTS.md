@@ -64,7 +64,10 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
   install-git-shim`), which forces the `omp-bot-credential-helper` for
   github.com and the `omp-harness[bot]` commit identity. NEVER let git fall
   back to the user's personal credentials, and NEVER commit as the user — the
-  user's own terminal is the only place their identity is used.
+  user's own terminal is the only place their identity is used. The shim
+  covers HTTPS remotes only (credential helpers do not apply to SSH) — use
+  HTTPS remotes; `OMP_GIT_IDENTITY=user` explicitly opts a non-TTY call into
+  the user's identity, and `OMP_GIT_IDENTITY=bot` forces the bot under a PTY.
 
 ## Git workflow
 

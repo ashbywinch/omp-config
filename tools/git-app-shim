@@ -1,18 +1,20 @@
 #!/bin/bash
 # git shim: omp agents authenticate to GitHub as the omp-harness app (bot),
 # never as the human user. Mirrors tools/gh-app-shim:
-#   - stdin is a TTY            -> pass through to real git (user's terminal
-#                                  keeps their personal credentials)
-#   - GH_TOKEN/GITHUB_TOKEN set -> pass through untouched (explicit override)
-#   - otherwise (omp, no TTY)   -> force the bot credential helper for
-#                                  github.com + the bot commit identity
+#   - OMP_GIT_IDENTITY=user   -> pass through to real git (explicit human)
+#   - GH_TOKEN/GITHUB_TOKEN   -> pass through untouched (explicit override)
+#   - stdin is a TTY          -> pass through (user's own terminal; agent
+#                                runners must not allocate a PTY for git)
+#   - otherwise (agent)       -> force the bot credential helper for
+#                                github.com + the bot commit identity
 #
 # The gh shim covers the `gh` CLI; git is a separate binary whose credentials
 # come from git's own credential helpers (the user's keyring found their
 # stored credentials — pushes went out as the user). This shim closes that
 # gap: in agent contexts every github.com HTTPS operation uses a freshly
 # minted omp-harness app installation token, and every commit is authored
-# `omp-harness[bot]`.
+# `omp-harness[bot]`. SSH remotes are out of scope (credential helpers apply
+# only to HTTPS) — agent repos must use HTTPS remotes.
 #
 # Installed as ~/.local/bin/git (earlier in PATH than real git) via
 # `make install-git-shim`. Source-controlled: tools/git-app-shim.
@@ -44,8 +46,20 @@ if [ -z "$REAL_GIT" ]; then
     exit 1
 fi
 
-# ---- pass-through cases ----
-if [ -t 0 ] || [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+# ---- minimum git version: GIT_CONFIG_GLOBAL needs 2.32+ ----
+GIT_VERSION="$("$REAL_GIT" --version | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')"
+GIT_MAJOR="${GIT_VERSION% *}"
+GIT_MINOR="${GIT_VERSION#* }"
+if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
+    echo "git shim: git >= 2.32 required (GIT_CONFIG_GLOBAL); found $("$REAL_GIT" --version) — refusing to run against the user's credential config" >&2
+    exit 1
+fi
+
+# ---- pass-through cases (explicit overrides and the user's own terminal) ----
+if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
+    exec "$REAL_GIT" "$@"
+fi
+if [ -t 0 ] && [ "${OMP_GIT_IDENTITY:-}" != "bot" ]; then
     exec "$REAL_GIT" "$@"
 fi
 
