@@ -289,13 +289,3 @@ without a check is a wish:
   Prefer libraries over reinvention — a library call that replaces 30 lines
   of well-known computation is worth it; one that adds more complexity than
   the code it replaces is not.
-- **`make setup` provisions the whole environment.** The Makefile's setup
-  target installs everything a repo needs — system binaries (tesseract,
-  ImageMagick, …), project-local tools, pinned toolchains — into the
-  project (gitignored `.tools/`, via a single no-`sudo` package manager
-  chosen once by the scaffold). Never assume a tool is preinstalled on a
-  runner or a developer machine, and never document a manual install step
-  that CI does not execute: CI and a fresh clone run the same
-  `make setup && make lint && make test`, so both get the same exact
-  environment, and a machine that cannot install something fails loudly at
-  that step, not mid-suite.

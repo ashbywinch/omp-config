@@ -71,7 +71,7 @@ Rules:
 - `permissions: contents: read` + `pull-requests: write` — the coverage comment step in the template needs the latter; drop both together if you drop the step.
 - `concurrency` group per ref with `cancel-in-progress: true` — every active repo does this.
 - CI steps are exactly the make targets; never inline `pip install`/`npm test` logic into the workflow.
-- **`make setup` provisions the whole environment — system binaries included.** Scaffold action: the Makefile's `setup` target installs every tool the repo needs (canonical rule: `standards/coding-standards.md` → `make setup` provisions the whole environment); materialize that standard into repo docs.
+- **System binaries come from a make target, never the environment.** A tool that needs a system binary (tesseract, ImageMagick, …) gets it installed by a make target into the project's gitignored `.tools/` (via a single no-`sudo` package manager chosen once by the scaffold) — never assumed preinstalled on the runner or a dev machine, and never an ad-hoc `ci.yml` step (per the make/CI rule above); a machine that cannot install them fails loudly at that step, not mid-suite.
 - Lint in CI via `make lint-github` (`ruff check --output-format=github`) so findings surface as PR annotations; plain `make lint` stays for local use. The template reflects this.
 - API-key-dependent suites: pass `${{ secrets.* }}` as env, run under a timeout wrapper, upload outputs with `if: always()` so failures are diagnosable (chat-workflow evals).
 
