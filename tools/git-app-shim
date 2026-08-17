@@ -2,11 +2,14 @@
 # git shim: omp agents authenticate to GitHub as the omp-harness app (bot),
 # never as the human user.
 #
-# Context detection is explicit, not TTY-based:
-#   - OMP_GIT_IDENTITY=user   -> pass through to real git (explicit human)
-#   - OMP_GIT_IDENTITY=bot    -> agent mode (explicit bot)
-#   - PASEO_AGENT_ID set      -> agent mode (the omp harness sets this for
-#                                every agent process, PTY or not)
+# Context detection:
+#   - PASEO_AGENT_ID set AND stdin not a TTY -> agent mode (bot): the omp
+#     harness sets PASEO_AGENT_ID on what it spawns; an interactive human
+#     shell that inherited it still has a TTY, so it stays on the user's
+#     identity
+#   - OMP_GIT_IDENTITY=bot    -> agent mode (explicit, e.g. an agent running
+#                                git under a PTY)
+#   - OMP_GIT_IDENTITY=user   -> pass through (explicit human, e.g. a script)
 #   - otherwise               -> pass through (user's terminal, IDE, scripts,
 #                                CI jobs — none of them are the omp agent)
 #
@@ -51,12 +54,13 @@ if [ -z "$REAL_GIT" ]; then
 fi
 
 # ---- identity decision ----
-# Agent context (PASEO_AGENT_ID, set by the omp harness for every agent
-# process) ALWAYS wins: a user-exported OMP_GIT_IDENTITY cannot disable it.
-# Outside agent context, OMP_GIT_IDENTITY is the explicit override; with no
-# explicit identity it is a user context (terminal, IDE, scripts, CI).
+# Agent context: PASEO_AGENT_ID set by the harness AND stdin is not a TTY.
+# An interactive human shell — even one that inherited PASEO_AGENT_ID from a
+# paseo-managed session — stays on the user's identity; only non-interactive
+# agent processes are the bot. OMP_GIT_IDENTITY overrides explicitly in both
+# directions; agent context wins over an exported OMP_GIT_IDENTITY=user.
 AGENT_MODE=""
-if [ -n "${PASEO_AGENT_ID:-}" ]; then
+if [ -n "${PASEO_AGENT_ID:-}" ] && [ ! -t 0 ]; then
     AGENT_MODE=1
 elif [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
     AGENT_MODE=1
