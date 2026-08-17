@@ -105,7 +105,7 @@ is what stops the loop from going round in circles.
 
 The reviewer interacts with a site exactly as the persona could — that one
 rule, its rationale (Perception-Fusion Gap), the capture/zoom protocol, and
-the fallback evidence chain are **P16–P17 in `standards/ux-standards.md`**;
+the fallback evidence chain are **P14–P18 in `standards/ux-standards.md`**;
 the walker rules above are this rule in operation.
 
 
