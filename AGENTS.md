@@ -29,6 +29,7 @@ links to.
 | Trigger rules | `rules/*.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
 | GitHub App auth for gh (omp vs terminal) | `tools/gh-app-shim` + `tools/secrets.template` (README section) |
+| Agent git auth (bot identity, contract) | `tools/git-app-shim` + `tools/gen-agent-gitconfig.py` (contract in the tool headers) |
 | The repo scaffold (how new repos are built) | `skills/new-repo-scaffold/SKILL.md` |
 
 Read the relevant doc before changing behavior. **Before writing or editing any doc, skill, or APPEND_SYSTEM.md, read `docs/writing-documentation.md` first** — skills are documentation, and every rule there (single source of truth, density, one topic per file) applies to them. The canonical standards are the source — a repo's `docs/coding-standards.md` is a copy of `standards/coding-standards.md` that must be refreshed when the canonical changes (the scaffold skill says so).
@@ -62,5 +63,7 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 ## Git workflow
 
 - NEVER commit to main. Branch off main, PR required, protected main.
+- Agent commits are authored `omp-harness[bot]` (the git shim enforces it) —
+  never the user's identity. Mechanics: the `Agent git auth` row above.
 - A skills/standards change is not live until `make install` + omp restart
   (the fact, stated here — nobody reads the PR description; 2026-08-08).

@@ -1,0 +1,107 @@
+#!/bin/bash
+# git shim: agent-mode git authenticates as omp-harness[bot], never the user.
+#
+# Contract (documented in AGENTS.md):
+#   - OMP_GIT_IDENTITY=bot  -> agent mode (exported by the paseo agent
+#                              wrapper, ~/.paseo/omp-yolo.sh)
+#   - PASEO_AGENT_ID        -> agent mode (compatibility bridge; the daemon
+#                              sets it only on agent processes)
+#   - OMP_GIT_IDENTITY=user -> explicit human (outside agent context)
+#   - otherwise             -> pass through
+#
+# Agent mode points git at the generated agent gitconfig (NO user
+# credentials — see tools/gen-agent-gitconfig.py), drops the system scope,
+# and pins the bot commit identity via GIT_AUTHOR_*/GIT_COMMITTER_* env
+# (stronger than config; inherited values are stripped first).
+#
+# Installed as ~/.local/bin/git (earlier in PATH than real git) via
+# `make install-git-shim`. Source-controlled: tools/git-app-shim.
+
+set -euo pipefail
+
+# Home may be unset or wrong in daemon/bare-env contexts; resolve it.
+if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
+    HOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+fi
+export HOME
+
+# ---- locate the real git (skip this shim's own directory) ----
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REAL_GIT=""
+IFS=':' read -ra DIRS <<< "${PATH:-}"
+for d in "${DIRS[@]}"; do
+    [ -n "$d" ] || continue
+    if [ "$(cd "$d" 2>/dev/null && pwd)" = "$SELF_DIR" ]; then
+        continue
+    fi
+    if [ -x "$d/git" ]; then
+        REAL_GIT="$d/git"
+        break
+    fi
+done
+if [ -z "$REAL_GIT" ]; then
+    echo "git shim: could not locate the real git binary" >&2
+    exit 1
+fi
+
+# ---- identity decision (contract only; no TTY heuristics) ----
+# Agent context falls through to agent mode below; the other branches exec.
+if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+    :
+elif [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
+    exec "$REAL_GIT" "$@"
+else
+    exec "$REAL_GIT" "$@"
+fi
+
+# ---- agent mode ----
+# GIT_CONFIG_GLOBAL is honored only by git >= 2.32; older git would keep the
+# user's config and leak their token. Fail closed, including on unparseable
+# versions.
+GIT_VERSION="$("$REAL_GIT" --version 2>/dev/null || true)"
+case "$GIT_VERSION" in
+    git\ version\ [0-9]*.[0-9]*.*)
+        GIT_MAJOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1/p')"
+        GIT_MINOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\2/p')"
+        ;;
+    *)
+        echo "git shim: cannot parse git version ('$GIT_VERSION') — refusing agent mode (fail closed)" >&2
+        exit 1
+        ;;
+esac
+if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
+    echo "git shim: agent mode requires git >= 2.32 (GIT_CONFIG_GLOBAL); found $GIT_VERSION — refusing to run against the user's credential config" >&2
+    exit 1
+fi
+
+AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
+if [ ! -f "$AGENT_CONFIG" ]; then
+    echo "git shim: agent gitconfig missing at $AGENT_CONFIG — run make install-git-shim" >&2
+    exit 1
+fi
+
+export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
+# Drop the system scope: a system-level credential helper must not answer.
+export GIT_CONFIG_NOSYSTEM=1
+# Agent mode never uses SSH: the bot authenticates via HTTPS, and SSH keys
+# would authenticate as the user. Fail loudly instead of falling through.
+export GIT_SSH_COMMAND='echo "agent-mode git does not use SSH — the bot authenticates via HTTPS; use an HTTPS remote" >&2; exit 1'
+
+# Bot identity: ~/.secrets may override the defaults (GIT_BOT_NAME/EMAIL).
+BOT_NAME="${GIT_BOT_NAME:-omp-harness[bot]}"
+BOT_EMAIL="${GIT_BOT_EMAIL:-316112947+omp-harness[bot]@users.noreply.github.com}"
+if [ -f "${HOME}/.secrets" ]; then
+    # shellcheck disable=SC1090
+    source "${HOME}/.secrets"
+    BOT_NAME="${GIT_BOT_NAME:-$BOT_NAME}"
+    BOT_EMAIL="${GIT_BOT_EMAIL:-$BOT_EMAIL}"
+fi
+
+# GIT_AUTHOR_*/GIT_COMMITTER_* env beats any config; strip inherited values
+# (an attribution-oriented environment would otherwise author as the user)
+# and export the bot identity.
+exec env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL \
+    -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
+    GIT_AUTHOR_NAME="$BOT_NAME" GIT_AUTHOR_EMAIL="$BOT_EMAIL" \
+    GIT_COMMITTER_NAME="$BOT_NAME" GIT_COMMITTER_EMAIL="$BOT_EMAIL" \
+    "$REAL_GIT" "$@"
