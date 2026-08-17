@@ -28,7 +28,8 @@ links to.
 | How the standards deploy to new repos | `docs/standards-deployment.md` |
 | Trigger rules | `rules/*.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
-| GitHub App auth for gh (omp vs terminal) | `tools/gh-app-shim` + `tools/secrets.template` (README section) |
+|GitHub App auth for gh (omp vs terminal)|`tools/gh-app-shim` + `tools/secrets.template` (README section)|
+|Agent git auth (bot identity, contract)|`tools/git-app-shim` + `tools/gen-agent-gitconfig.py` (contract in the tool headers)|
 | The repo scaffold (how new repos are built) | `skills/new-repo-scaffold/SKILL.md` |
 
 Read the relevant doc before changing behavior. **Before writing or editing any doc, skill, or APPEND_SYSTEM.md, read `docs/writing-documentation.md` first** — skills are documentation, and every rule there (single source of truth, density, one topic per file) applies to them. The canonical standards are the source — a repo's `docs/coding-standards.md` is a copy of `standards/coding-standards.md` that must be refreshed when the canonical changes (the scaffold skill says so).
@@ -58,22 +59,11 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
   this repo (it is the conventions source, not a config store).
 - In shell: `test -n "$VAR"` to check a variable — NEVER `echo $VAR` (leaks).
 - `.pr_agent.toml` templates and examples in skills use placeholders only.
-- **Git/GitHub auth is the bot's, never the user's.** Agent git runs under a
-  contract, not a heuristic: the paseo agent wrapper (`~/.paseo/omp-yolo.sh`)
-  exports `OMP_GIT_IDENTITY=bot`, and `tools/git-app-shim`
-  (`~/.local/bin/git`, installed by `make install-git-shim`) honors it —
-  pointing git at a generated agent gitconfig (`tools/gen-agent-gitconfig.py`)
-  that contains NO user credentials and pins the `omp-harness[bot]` commit
-  identity. Agents authenticate ONLY as the bot on github.com; any other
-  host fails loudly with a message telling you to give the bot its own
-  service account there. Your own terminal and non-agent scripts are
-  untouched (`OMP_GIT_IDENTITY=user` forces your identity explicitly). The
-  shim is an anti-accident guardrail — agents MUST NOT bypass it
-  (absolute-path git, unsetting the env, or `-c`/`--author` identity
-  overrides).
 
 ## Git workflow
 
 - NEVER commit to main. Branch off main, PR required, protected main.
+- Agent commits are authored `omp-harness[bot]` (the git shim enforces it) —
+  never the user's identity. Mechanics: the `Agent git auth` row above.
 - A skills/standards change is not live until `make install` + omp restart
   (the fact, stated here — nobody reads the PR description; 2026-08-08).
