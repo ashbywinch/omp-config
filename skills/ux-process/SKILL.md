@@ -103,13 +103,10 @@ is what stops the loop from going round in circles.
 
 ## How reviewers interact (one rule)
 
-The reviewer interacts with a site exactly as the persona could: through the
-visible surface, at the persona's real device, with the persona's real
-input, and the rendered pixels are the ground truth — never the DOM,
-console, or state. That rule, its rationale (including the
-Perception-Fusion Gap), the capture/zoom protocol, and the fallback
-evidence chain are **P16–P17 in `standards/ux-standards.md`**; the walker
-rules above are this rule in operation.
+The reviewer interacts with a site exactly as the persona could — that one
+rule, its rationale (Perception-Fusion Gap), the capture/zoom protocol, and
+the fallback evidence chain are **P16–P17 in `standards/ux-standards.md`**;
+the walker rules above are this rule in operation.
 
 
 

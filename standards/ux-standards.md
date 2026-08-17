@@ -134,7 +134,9 @@ narrated a reading it never performed.)
 screen they came from.** The screenshot is the ground truth of a review,
 because the alternative is worse than a missing screenshot: a structural
 channel (DOM/a11y tree) demonstrably overrides correct pixel perception in
-multimodal agents' beliefs (the Perception-Fusion Gap, arXiv:2607.04334),
+multimodal agents' beliefs (the Perception-Fusion Gap — "Do GUI Agents
+Believe Their Eyes? Diagnosing State-Belief Reliance on Pixels versus
+Structure", arXiv:2607.04334),
 so the reviewer must not receive it. Screenshots must come from a browser
 that composites the real rendered pixels (headed, or headless=new with GPU —
 real Chromium composites canvas/WebGL); a capture environment that produces
@@ -156,8 +158,9 @@ user's point of attention without a path is a finding. Synchronised
 movements (a dual-pane scroll link, an auto-follow) ease out in roughly
 150–300 ms; the user's own direct manipulation (a drag, a finger pan)
 tracks the input 1:1 with no easing. (2026-08-16: the dual-pane scroll
-sync jumped the reading position instantly; NN/g's motion guidance —
-"abrupt jumps disorient users", 100–500 ms ease-out transitions.)
+sync jumped the reading position instantly; NN/g's motion guidance
+(nngroup.com/articles/animation-duration/) — "abrupt jumps disorient
+users", 100–500 ms ease-out transitions.)
 
 ## Language
 
