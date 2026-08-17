@@ -16,6 +16,7 @@ HOOKS_DIR  := .githooks
 GH_SHIM_DST := $(H)/.local/bin/gh
 GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
+GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 
 help:
 	@echo "omp-config — available commands:"
@@ -62,17 +63,18 @@ install-gh-shim:
 	@echo "gh shim installed -> $(GH_SHIM_DST)"
 
 install-git-shim:
-	@mkdir -p $(dir $(GIT_SHIM_DST)) $(dir $(GIT_HELPER_DST))
+	@mkdir -p $(dir $(GIT_SHIM_DST)) $(dir $(GIT_HELPER_DST)) $(dir $(GIT_AGENT_CFG))
 	@ln -sf $(CURDIR)/tools/git-app-shim $(GIT_SHIM_DST)
 	@ln -sf $(CURDIR)/tools/omp-bot-credential-helper $(GIT_HELPER_DST)
 	@chmod 700 $(GIT_SHIM_DST) $(GIT_HELPER_DST)
+	@python3 $(CURDIR)/tools/gen-agent-gitconfig.py $(GIT_AGENT_CFG) $(GIT_HELPER_DST)
 	@if [ ! -f $(H)/.secrets ]; then \
 		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
 		echo "Created ~/.secrets from template — fill in the values, then chmod 600."; \
 	else \
 		echo "~/.secrets exists — leaving it alone."; \
 	fi
-	@echo "git shim installed -> $(GIT_SHIM_DST) (+ $(GIT_HELPER_DST))"
+	@echo "git shim installed -> $(GIT_SHIM_DST) (+ $(GIT_HELPER_DST), $(GIT_AGENT_CFG))"
 
 uninstall:
 	rm -f $(APPEND_DIR)/APPEND_SYSTEM.md
@@ -85,7 +87,7 @@ uninstall:
 		rm -rf $(SKILLS_DIR)/$$name/examples; \
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
-	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST)
+	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
 	@echo "Removed omp-config symlinks."
 
 test:

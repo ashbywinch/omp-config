@@ -1,27 +1,18 @@
 #!/bin/bash
-# git shim: omp agents authenticate to GitHub as the omp-harness app (bot),
-# never as the human user.
+# git shim: agent-mode git authenticates as omp-harness[bot], never the user.
 #
-# Context detection:
-#   - PASEO_AGENT_ID set -> agent mode (bot). The paseo daemon sets it ONLY
-#     on agent processes (its own env does not carry it), so it is a reliable
-#     agent marker regardless of TTY; an interactive human shell never has it.
-#   - OMP_GIT_IDENTITY=bot  -> agent mode (explicit)
-#   - OMP_GIT_IDENTITY=user -> pass through (explicit human), but only
-#     outside agent context — agent context wins, so an exported
-#     OMP_GIT_IDENTITY=user cannot disable agent protection
-#   - otherwise             -> pass through (user's terminal, IDE, scripts,
-#                              CI jobs — none of them are the omp agent)
+# Contract (documented in AGENTS.md):
+#   - OMP_GIT_IDENTITY=bot  -> agent mode (exported by the paseo agent
+#                              wrapper, ~/.paseo/omp-yolo.sh)
+#   - PASEO_AGENT_ID        -> agent mode (compatibility bridge; the daemon
+#                              sets it only on agent processes)
+#   - OMP_GIT_IDENTITY=user -> explicit human (outside agent context)
+#   - otherwise             -> pass through
 #
-# In agent mode the shim forces the bot credential helper for github.com and
-# the omp-harness[bot] commit identity, and replaces the user's global
-# gitconfig (whose `credential.https://github.com.helper = !/usr/bin/gh auth
-# git-credential` absolute path bypasses the gh shim and would return the
-# user's stored token). -c values only APPEND to that helper chain, so the
-# replacement is done via GIT_CONFIG_GLOBAL (git >= 2.32).
-#
-# SSH remotes are out of scope: credential helpers apply only to HTTPS, so
-# agent repos must use HTTPS remotes.
+# Agent mode points git at the generated agent gitconfig (NO user
+# credentials — see tools/gen-agent-gitconfig.py), drops the system scope,
+# and pins the bot commit identity via GIT_AUTHOR_*/GIT_COMMITTER_* env
+# (stronger than config; inherited values are stripped first).
 #
 # Installed as ~/.local/bin/git (earlier in PATH than real git) via
 # `make install-git-shim`. Source-controlled: tools/git-app-shim.
@@ -53,108 +44,61 @@ if [ -z "$REAL_GIT" ]; then
     exit 1
 fi
 
-# ---- identity decision ----
-# PASEO_AGENT_ID is set by the paseo daemon ONLY on agent processes (the
-# daemon's own environment does not carry it), so it is a reliable agent
-# marker regardless of TTY — a PTY-spawned agent stays the bot. An
-# interactive human shell never carries it. OMP_GIT_IDENTITY is the explicit
-# override, but only outside agent context: an exported OMP_GIT_IDENTITY=user
-# must not silently disable the protection for agents.
-AGENT_MODE=""
-if [ -n "${PASEO_AGENT_ID:-}" ]; then
-    AGENT_MODE=1
-elif [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
-    AGENT_MODE=1
+# ---- identity decision (contract only; no TTY heuristics) ----
+# Agent context falls through to agent mode below; the other branches exec.
+if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+    :
 elif [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
     exec "$REAL_GIT" "$@"
 else
     exec "$REAL_GIT" "$@"
 fi
 
-if [ -n "$AGENT_MODE" ]; then
-    # GIT_CONFIG_GLOBAL is honored only by git >= 2.32; older git would keep
-    # the user's gitconfig and leak their token. Fail closed — including on
-    # any version string that cannot be parsed.
-    GIT_VERSION="$("$REAL_GIT" --version 2>/dev/null || true)"
-    case "$GIT_VERSION" in
-        git\ version\ [0-9]*.[0-9]*.*)
-            GIT_MAJOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1/p')"
-            GIT_MINOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\2/p')"
-            ;;
-        *)
-            echo "git shim: cannot parse git version ('$GIT_VERSION') — refusing agent mode (fail closed)" >&2
-            exit 1
-            ;;
-    esac
-    if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
-        echo "git shim: agent mode requires git >= 2.32 (GIT_CONFIG_GLOBAL); found $GIT_VERSION — refusing to run against the user's credential config" >&2
+# ---- agent mode ----
+# GIT_CONFIG_GLOBAL is honored only by git >= 2.32; older git would keep the
+# user's config and leak their token. Fail closed, including on unparseable
+# versions.
+GIT_VERSION="$("$REAL_GIT" --version 2>/dev/null || true)"
+case "$GIT_VERSION" in
+    git\ version\ [0-9]*.[0-9]*.*)
+        GIT_MAJOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1/p')"
+        GIT_MINOR="$(printf '%s' "$GIT_VERSION" | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\2/p')"
+        ;;
+    *)
+        echo "git shim: cannot parse git version ('$GIT_VERSION') — refusing agent mode (fail closed)" >&2
         exit 1
-    fi
-
-    HELPER="${HOME}/.local/libexec/omp-bot-credential-helper"
-    if [ ! -x "$HELPER" ]; then
-        echo "git shim: bot credential helper missing at $HELPER — run make install-git-shim" >&2
-        exit 1
-    fi
-
-    # The user's ~/.gitconfig pins an absolute-path gh credential helper that
-    # bypasses the gh shim. The agent config is DERIVED from the user's own
-    # ~/.gitconfig — preserving http.proxy, sslCAInfo, url.*.insteadOf,
-    # non-GitHub helpers, init.defaultBranch, etc. — with ONLY that github.com
-    # helper pin replaced by the bot helper. Regenerated when the user's
-    # config changes (mtime).
-    USER_GLOBAL="${HOME}/.gitconfig"
-    AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
-    REGEN=0
-    [ -f "$AGENT_CONFIG" ] || REGEN=1
-    if [ -f "$USER_GLOBAL" ] && [ "$USER_GLOBAL" -nt "$AGENT_CONFIG" ]; then
-        REGEN=1
-    fi
-    if [ "$REGEN" = 1 ]; then
-        mkdir -p "$(dirname "$AGENT_CONFIG")"
-        if [ -f "$USER_GLOBAL" ]; then
-            # Copy the user's global config minus anything that could answer a
-            # github.com credential request. The generic [credential] section
-            # (its helper runs BEFORE the URL-specific bot helper — verified
-            # empirically), every [credential "..."] section naming github.com
-            # (protocol, host-only, ssh, any case, CRLF), and [include...]
-            # sections (an include could reintroduce a helper). Everything else
-            # — proxy, sslCAInfo, url.*.insteadOf, non-GitHub helpers,
-            # init.defaultBranch — is preserved.
-            awk '
-                {
-                    line = $0
-                    sub(/\r$/, "", line)
-                }
-                line ~ /^\[/ {
-                    lc = tolower(line)
-                    skip = (lc ~ /^\[credential\]$/ || lc ~ /^\[credential[^]]*github\.com/ || lc ~ /^\[include/)
-                    if (skip) next
-                    print line
-                    next
-                }
-                skip { next }
-                { print line }
-            ' "$USER_GLOBAL" > "$AGENT_CONFIG"
-        else
-            : > "$AGENT_CONFIG"
-        fi
-        printf '[credential "https://github.com"]\n\thelper = %s\n' "$HELPER" >> "$AGENT_CONFIG"
-    fi
-    export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
-    # Drop the system scope too (/etc/gitconfig): a system-level credential
-    # helper would stay in the chain ahead of the bot helper.
-    export GIT_CONFIG_NOSYSTEM=1
-    # GIT_AUTHOR_*/GIT_COMMITTER_* env vars override any config, so an
-    # inherited attribution-oriented environment would author commits as the
-    # user; strip them so the -c identity below is authoritative.
-    exec env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL \
-        -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
-        "$REAL_GIT" \
-        -c user.name="omp-harness[bot]" \
-        -c user.email="316112947+omp-harness[bot]@users.noreply.github.com" \
-        "$@"
+        ;;
+esac
+if [ "${GIT_MAJOR:-0}" -lt 2 ] || { [ "${GIT_MAJOR:-0}" -eq 2 ] && [ "${GIT_MINOR:-0}" -lt 32 ]; }; then
+    echo "git shim: agent mode requires git >= 2.32 (GIT_CONFIG_GLOBAL); found $GIT_VERSION — refusing to run against the user's credential config" >&2
+    exit 1
 fi
 
-# ---- user context (terminal, IDE, scripts, CI): untouched ----
-exec "$REAL_GIT" "$@"
+AGENT_CONFIG="${HOME}/.local/etc/gitconfig-agent"
+if [ ! -f "$AGENT_CONFIG" ]; then
+    echo "git shim: agent gitconfig missing at $AGENT_CONFIG — run make install-git-shim" >&2
+    exit 1
+fi
+
+export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
+# Drop the system scope: a system-level credential helper must not answer.
+export GIT_CONFIG_NOSYSTEM=1
+
+# Bot identity: ~/.secrets may override the defaults (GIT_BOT_NAME/EMAIL).
+BOT_NAME="${GIT_BOT_NAME:-omp-harness[bot]}"
+BOT_EMAIL="${GIT_BOT_EMAIL:-316112947+omp-harness[bot]@users.noreply.github.com}"
+if [ -f "${HOME}/.secrets" ]; then
+    # shellcheck disable=SC1090
+    source "${HOME}/.secrets"
+    BOT_NAME="${GIT_BOT_NAME:-$BOT_NAME}"
+    BOT_EMAIL="${GIT_BOT_EMAIL:-$BOT_EMAIL}"
+fi
+
+# GIT_AUTHOR_*/GIT_COMMITTER_* env beats any config; strip inherited values
+# (an attribution-oriented environment would otherwise author as the user)
+# and export the bot identity.
+exec env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL \
+    -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
+    GIT_AUTHOR_NAME="$BOT_NAME" GIT_AUTHOR_EMAIL="$BOT_EMAIL" \
+    GIT_COMMITTER_NAME="$BOT_NAME" GIT_COMMITTER_EMAIL="$BOT_EMAIL" \
+    "$REAL_GIT" "$@"

@@ -58,18 +58,19 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
   this repo (it is the conventions source, not a config store).
 - In shell: `test -n "$VAR"` to check a variable — NEVER `echo $VAR` (leaks).
 - `.pr_agent.toml` templates and examples in skills use placeholders only.
-- **Git/GitHub auth is the bot's, never the user's.** Agents' `gh` calls use
-  `tools/gh-app-shim` (`~/.local/bin/gh`); agents' `git` operations use
-  `tools/git-app-shim` (`~/.local/bin/git`, installed by `make
-  install-git-shim`). In agent context (`PASEO_AGENT_ID` set by the harness)
-  it forces the `omp-bot-credential-helper` for github.com and the
-  `omp-harness[bot]` commit identity; the user's terminal and non-agent
-  scripts keep their own identity (`OMP_GIT_IDENTITY=user` forces it
-  explicitly, outside agent context). The shim is an anti-accident guardrail
-  for instruction-following agents, scoped to github.com HTTPS remotes (SSH
-  and other hosts are not provisioned) — agents MUST NOT bypass it
-  (absolute-path git, unsetting `PASEO_AGENT_ID`, or `-c`
-  credential/identity overrides).
+- **Git/GitHub auth is the bot's, never the user's.** Agent git runs under a
+  contract, not a heuristic: the paseo agent wrapper (`~/.paseo/omp-yolo.sh`)
+  exports `OMP_GIT_IDENTITY=bot`, and `tools/git-app-shim`
+  (`~/.local/bin/git`, installed by `make install-git-shim`) honors it —
+  pointing git at a generated agent gitconfig (`tools/gen-agent-gitconfig.py`)
+  that contains NO user credentials and pins the `omp-harness[bot]` commit
+  identity. Agents authenticate ONLY as the bot on github.com; any other
+  host fails loudly with a message telling you to give the bot its own
+  service account there. Your own terminal and non-agent scripts are
+  untouched (`OMP_GIT_IDENTITY=user` forces your identity explicitly). The
+  shim is an anti-accident guardrail — agents MUST NOT bypass it
+  (absolute-path git, unsetting the env, or `-c`/`--author` identity
+  overrides).
 
 ## Git workflow
 
