@@ -17,7 +17,7 @@
 [package]
 name = "<crate>"
 version = "0.1.0"
-edition = "2021"  # CHANGE: current stable edition at scaffold time
+edition = "2024"  # CHANGE: current stable edition at scaffold time
 description = "<one-line purpose>"
 
 [dependencies]

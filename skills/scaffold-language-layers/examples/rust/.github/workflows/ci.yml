@@ -32,6 +32,13 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      # Rust project root; set to the crate's subdirectory if the crate is
+      # not at the repository root (all make/coverage steps run here).
+      WORKDIR: .
+    defaults:
+      run:
+        working-directory: ${{ env.WORKDIR }}
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain (rust-toolchain.toml)

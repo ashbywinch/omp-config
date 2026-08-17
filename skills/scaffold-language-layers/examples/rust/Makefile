@@ -52,7 +52,7 @@ setup: deps install-hooks
 # never depend on install-hooks (see the deadlock note at the top).
 deps:
 	@rustc --version >/dev/null 2>&1 || { echo "${RED}rustup missing — install it (https://rustup.rs)${NC}"; exit 1; }
-	@cargo llvm-cov --version >/dev/null 2>&1 || { echo "${YELLOW}cargo llvm-cov missing — run: cargo install cargo-llvm-cov${NC}"; }
+	@cargo llvm-cov --version >/dev/null 2>&1 || { echo "${RED}cargo llvm-cov missing — run: cargo install cargo-llvm-cov${NC}"; exit 1; }
 
 install-hooks:
 	@for hook in pre-commit pre-push; do \

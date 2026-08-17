@@ -94,8 +94,11 @@ def _job_log(repo: str, token: str) -> str | None:
         except HTTPError as e:
             if e.code != 302:
                 raise
-            return urllib.request.urlopen(e.headers["Location"]).read().decode("utf-8", errors="replace")
-    except (HTTPError, KeyError, ValueError):
+            location = e.headers.get("Location")
+            if not location:
+                return None
+            return urllib.request.urlopen(location).read().decode("utf-8", errors="replace")
+    except (HTTPError, KeyError, ValueError, urllib.error.URLError):
         return None
 
 
