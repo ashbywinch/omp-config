@@ -71,7 +71,7 @@ Rules:
 - `permissions: contents: read` + `pull-requests: write` — the coverage comment step in the template needs the latter; drop both together if you drop the step.
 - `concurrency` group per ref with `cancel-in-progress: true` — every active repo does this.
 - CI steps are exactly the make targets; never inline `pip install`/`npm test` logic into the workflow.
-- **The gate provisions its own environment — system binaries included.** Scaffold action: materialize the canonical rule (`standards/testing-standards.md` → The gate provisions its own environment) into repo docs.
+- **`make setup` provisions the whole environment — system binaries included.** Scaffold action: the Makefile's `setup` target installs every tool the repo needs (canonical rule: `standards/coding-standards.md` → `make setup` provisions the whole environment); materialize that standard into repo docs.
 - Lint in CI via `make lint-github` (`ruff check --output-format=github`) so findings surface as PR annotations; plain `make lint` stays for local use. The template reflects this.
 - API-key-dependent suites: pass `${{ secrets.* }}` as env, run under a timeout wrapper, upload outputs with `if: always()` so failures are diagnosable (chat-workflow evals).
 

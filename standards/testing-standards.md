@@ -40,16 +40,6 @@ see Organisation). Everything else fakes, with the fake injected per the
 Mocking section (parameter injection first — never `monkeypatch` a module
 constant to point at a tmp dir; make the dependency a parameter).
 
-## The gate provisions its own environment — system binaries included
-
-Never assume a system tool (tesseract, ImageMagick, …) is preinstalled on
-the runner or a developer machine: a test that needs one gets it from a
-make target, installed into the project's gitignored `.tools/` directory
-via a single no-`sudo` package manager chosen once by the scaffold — never
-an ad-hoc step in `ci.yml` (CI steps are exactly the make targets). A
-machine that cannot install them fails loudly at that step, not in the
-middle of the suite.
-
 ## Organisation
 
 - **Unit tests:** one function/module in isolation, no API calls.
