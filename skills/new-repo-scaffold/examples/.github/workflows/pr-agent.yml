@@ -96,8 +96,7 @@ jobs:
             exit 0
           fi
           head_date="$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq .commit.committer.date)"
-          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date"             '[.[] | select(.body | startswith("## PR Reviewer Guide") or .body | startswith("## Incremental PR Reviewer Guide"))]
-             | any(.created_at >= $hd or (.body | contains($sha)))')"
+          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date" '[.[] | select((.body | startswith("## PR Reviewer Guide")) or (.body | startswith("## Incremental PR Reviewer Guide"))) | any(.created_at >= $hd or (.body | contains($sha)))] | any')"
           if [ "$covered" != "true" ]; then
             echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
             exit 1
