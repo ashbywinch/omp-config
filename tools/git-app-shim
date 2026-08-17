@@ -113,10 +113,21 @@ if [ -n "$AGENT_MODE" ]; then
     if [ "$REGEN" = 1 ]; then
         mkdir -p "$(dirname "$AGENT_CONFIG")"
         if [ -f "$USER_GLOBAL" ]; then
+            # Copy the user's global config minus anything that could answer a
+            # github.com credential request: the generic [credential] helper
+            # (runs BEFORE the URL-specific bot helper — verified empirically),
+            # every github.com-scoped [credential "..."] section, and
+            # include.path (an include could reintroduce a helper).
             awk '
-                /^\[credential "https:\/\/github\.com"\]/ { skip=1; next }
+                /^\[credential\]$/ { gen=1; next }
+                gen && /^[[:space:]]*helper[[:space:]]*=/ { next }
+                gen && /^\[/ { gen=0 }
+                /^\[credential "https:\/\/github\.com/ { skip=1; next }
                 skip && /^\[/ { skip=0 }
                 skip { next }
+                /^\[include/ { skipinc=1; next }
+                skipinc && /^\[/ { skipinc=0 }
+                skipinc { next }
                 { print }
             ' "$USER_GLOBAL" > "$AGENT_CONFIG"
         else
