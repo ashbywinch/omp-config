@@ -25,6 +25,9 @@ extra_instructions = "Check the PR against each file in repo_context_files. Add 
 
 [github_action_config]
 handle_push_trigger = true
+# Don't skip push synchronize events from bot senders: omp-harness's
+# commits get the same review as human ones.
+push_trigger_ignore_bot_commits = false
 push_commands = ["/review", "/improve"]
 
 [pr_code_suggestions]
