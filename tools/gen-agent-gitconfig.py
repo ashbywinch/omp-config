@@ -18,6 +18,7 @@ other host fails loudly with a helpful message.
 Usage: gen-agent-gitconfig.py <out-file> <bot-helper-path>
 """
 
+import os
 import subprocess
 import sys
 
@@ -30,18 +31,30 @@ def main() -> int:
     out, helper = sys.argv[1], sys.argv[2]
 
     settings: list[tuple[str, str]] = []
+    # Read the USER's global config, never the agent config: when this runs
+    # inside agent context the shim exports GIT_CONFIG_GLOBAL/GIT_CONFIG_NOSYSTEM,
+    # which would make the regeneration derive from itself.
+    env = dict(os.environ)
+    env.pop("GIT_CONFIG_GLOBAL", None)
+    env.pop("GIT_CONFIG_NOSYSTEM", None)
     r = subprocess.run(
         ["git", "config", "--global", "--null", "--list"],
         capture_output=True,
         text=True,
+        env=env,
     )
     if r.returncode == 0 and r.stdout:
-        # --null --list emits pairs as key\nvalue\0
+        # --null --list emits pairs as key\nvalue\0. credential.* is dropped
+        # (agents see no user credentials), include* too (an include could
+        # reintroduce a helper), and url.* (insteadOf rules rewrite
+        # github.com URLs to SSH or other hosts, bypassing the helper).
         for pair in r.stdout.split("\0"):
             if not pair or "\n" not in pair:
                 continue
             key, value = pair.split("\n", 1)
-            if key.startswith("credential.") or key.startswith("include"):
+            if (key.startswith("credential.")
+                    or key.startswith("include")
+                    or key.startswith("url.")):
                 continue
             settings.append((key, value))
 

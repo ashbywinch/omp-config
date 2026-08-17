@@ -83,6 +83,9 @@ fi
 export GIT_CONFIG_GLOBAL="$AGENT_CONFIG"
 # Drop the system scope: a system-level credential helper must not answer.
 export GIT_CONFIG_NOSYSTEM=1
+# Agent mode never uses SSH: the bot authenticates via HTTPS, and SSH keys
+# would authenticate as the user. Fail loudly instead of falling through.
+export GIT_SSH_COMMAND='echo "agent-mode git does not use SSH — the bot authenticates via HTTPS; use an HTTPS remote" >&2; exit 1'
 
 # Bot identity: ~/.secrets may override the defaults (GIT_BOT_NAME/EMAIL).
 BOT_NAME="${GIT_BOT_NAME:-omp-harness[bot]}"
