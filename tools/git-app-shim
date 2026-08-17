@@ -3,15 +3,15 @@
 # never as the human user.
 #
 # Context detection:
-#   - PASEO_AGENT_ID set AND stdin not a TTY -> agent mode (bot): the omp
-#     harness sets PASEO_AGENT_ID on what it spawns; an interactive human
-#     shell that inherited it still has a TTY, so it stays on the user's
-#     identity
-#   - OMP_GIT_IDENTITY=bot    -> agent mode (explicit, e.g. an agent running
-#                                git under a PTY)
-#   - OMP_GIT_IDENTITY=user   -> pass through (explicit human, e.g. a script)
-#   - otherwise               -> pass through (user's terminal, IDE, scripts,
-#                                CI jobs — none of them are the omp agent)
+#   - PASEO_AGENT_ID set -> agent mode (bot). The paseo daemon sets it ONLY
+#     on agent processes (its own env does not carry it), so it is a reliable
+#     agent marker regardless of TTY; an interactive human shell never has it.
+#   - OMP_GIT_IDENTITY=bot  -> agent mode (explicit)
+#   - OMP_GIT_IDENTITY=user -> pass through (explicit human), but only
+#     outside agent context — agent context wins, so an exported
+#     OMP_GIT_IDENTITY=user cannot disable agent protection
+#   - otherwise             -> pass through (user's terminal, IDE, scripts,
+#                              CI jobs — none of them are the omp agent)
 #
 # In agent mode the shim forces the bot credential helper for github.com and
 # the omp-harness[bot] commit identity, and replaces the user's global
@@ -54,13 +54,14 @@ if [ -z "$REAL_GIT" ]; then
 fi
 
 # ---- identity decision ----
-# Agent context: PASEO_AGENT_ID set by the harness AND stdin is not a TTY.
-# An interactive human shell — even one that inherited PASEO_AGENT_ID from a
-# paseo-managed session — stays on the user's identity; only non-interactive
-# agent processes are the bot. OMP_GIT_IDENTITY overrides explicitly in both
-# directions; agent context wins over an exported OMP_GIT_IDENTITY=user.
+# PASEO_AGENT_ID is set by the paseo daemon ONLY on agent processes (the
+# daemon's own environment does not carry it), so it is a reliable agent
+# marker regardless of TTY — a PTY-spawned agent stays the bot. An
+# interactive human shell never carries it. OMP_GIT_IDENTITY is the explicit
+# override, but only outside agent context: an exported OMP_GIT_IDENTITY=user
+# must not silently disable the protection for agents.
 AGENT_MODE=""
-if [ -n "${PASEO_AGENT_ID:-}" ] && [ ! -t 0 ]; then
+if [ -n "${PASEO_AGENT_ID:-}" ]; then
     AGENT_MODE=1
 elif [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
     AGENT_MODE=1

@@ -64,10 +64,12 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
   install-git-shim`). In agent context (`PASEO_AGENT_ID` set by the harness)
   it forces the `omp-bot-credential-helper` for github.com and the
   `omp-harness[bot]` commit identity; the user's terminal and non-agent
-  scripts keep their own identity. The shim is an anti-accident guardrail for
-  instruction-following agents, scoped to github.com HTTPS remotes (SSH and
-  other hosts are not provisioned) — agents MUST NOT bypass it (absolute-path
-  git, unsetting `PASEO_AGENT_ID`, or `-c` credential/identity overrides).
+  scripts keep their own identity (`OMP_GIT_IDENTITY=user` forces it
+  explicitly, outside agent context). The shim is an anti-accident guardrail
+  for instruction-following agents, scoped to github.com HTTPS remotes (SSH
+  and other hosts are not provisioned) — agents MUST NOT bypass it
+  (absolute-path git, unsetting `PASEO_AGENT_ID`, or `-c`
+  credential/identity overrides).
 
 ## Git workflow
 
