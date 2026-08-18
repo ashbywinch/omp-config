@@ -1,13 +1,9 @@
 # AI Code Review (the-pr-agent) — the house review bot.
 #
 # CHANGE: `<PROJECT>_API_KEY` -> your repo secret name. The secret value is
-# the house provider key for THIS project (the "opencode-go" entry from the
-# account's auth file). Set it BEFORE the first PR — the job fails fast
-# without it (observed: secret created after the PR-open event, run dead in
-# 6s). A wrong entry (another provider's key) fails every run with
-# "Incorrect API key provided: sk-..." — the endpoint says exactly that, so
-# when the check step errors with it, verify the secret's value, not the
-# model or the endpoint (the-loft 2026-08-08).
+# the Cloudflare AI Gateway token (same for all projects). Set it BEFORE
+# the first PR — the job fails fast without it. For forkers: use your own
+# provider's API key and update api_base / model in .pr_agent.toml.
 #
 # DO NOT CHANGE:
 # - NO actions/checkout here — deliberate. PR-Agent fetches everything via
@@ -61,8 +57,10 @@ jobs:
       - uses: the-pr-agent/pr-agent@b249e568e0c0fb6c674ace55fe95d02f62f8f3b3   # pin a real release SHA — @latest does not resolve
         id: pr-agent
         env:
+          # Cloudflare AI Gateway: routes OpenCode -> DeepSeek fallback.
+          # For forkers: set your own OPENAI_KEY and OPENAI_BASE_URL.
           OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
-          OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
+          OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
 

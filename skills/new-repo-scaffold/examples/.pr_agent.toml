@@ -3,14 +3,16 @@
 # CHANGE: `<PROJECT>_API_KEY` -> repo secret name; add/remove docs from
 # repo_context_files as the repo's doc set changes.
 #
+# The house provider is Cloudflare AI Gateway: routes through OpenCode Go
+# (primary) with automatic failover to DeepSeek-direct. For forkers: set
+# your own api_base, model, and OPENAI_KEY secret.
+#
 # DO NOT CHANGE:
 # - api_base points at the house provider. Never let a PR branch override
 #   it (the workflow has no checkout for exactly this reason).
-# - model stays "openai/deepseek-v4-flash": the action's handler strips the
-#   openai/ (and azure/) prefix and sends the bare name to api_base. Any
-#   OTHER prefix (e.g. "opencode-go/deepseek-v4-flash") goes to the endpoint
-#   verbatim and 401s with "Model ... is not supported" — silently, every
-#   run (the-loft 2026-08-08: hours of failed reviews from exactly this).
+# - model stays "openai/dynamic/fallback2": the action's handler strips the
+#   openai/ prefix and sends "dynamic/fallback2" to api_base. Cloudflare
+#   routes this to the fallback2 dynamic route (OpenCode -> DeepSeek).
 # - This file applies ONLY when the workflow pins PR_AGENT_CONFIG_BRANCH to
 #   a branch holding it: the action gates repo .pr_agent.toml keys by
 #   per-host allowed-keys, so without the pin the image defaults run
@@ -25,10 +27,10 @@
 
 [openai]
 custom_llm_provider = "openai"
-api_base = "https://opencode.ai/zen/go/v1"
+api_base = "https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat"
 
 [config]
-model = "openai/deepseek-v4-flash"
+model = "openai/dynamic/fallback2"
 custom_model_max_tokens = 128000
 max_model_tokens = 128000
 ai_timeout = 600
