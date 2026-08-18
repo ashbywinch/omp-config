@@ -1,9 +1,9 @@
 [openai]
 custom_llm_provider = "openai"
-api_base = "https://opencode.ai/zen/go/v1"
+api_base = "https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat"
 
 [config]
-model = "openai/deepseek-v4-flash"
+model = "openai/dynamic/fallback2"
 custom_model_max_tokens = 16384
 max_model_tokens = 128000
 ai_timeout = 300
@@ -16,10 +16,12 @@ repo_context_files = [
 ]
 
 [pr_reviewer]
+enable_incremental = true
+persistent_comment = true  # update the same review comment instead of posting a new one
 require_tests_review = true
 require_security_review = true
 num_max_findings = 50
-extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (docs failing the documentation-quality checklist — context efficiency, density, no-duplication, one topic per file — including that every doc is discoverable from AGENTS.md), and folder-structure deviations from docs/documentation-structure.md (missing or malformed required docs, or a doc that AGENTS.md cannot lead to). The canonical code-repo standards (coding, testing, UX) live in standards/ and are scaffolded into code repos — they do not govern omp-config's own docs, but a PR that edits one must keep it consistent with the rest of the canonical set. A change to a skill or standard must keep the repo self-check (make test) green and mention that the change needs make install + omp restart to take effect."
+extra_instructions = "Check the PR against each file in repo_context_files. Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (docs failing the documentation-quality checklist — context efficiency, density, no-duplication, one topic per file — including that every doc is discoverable from AGENTS.md; skills are exempt from reachability — the harness discovers them (see docs/documentation-structure.md)), and folder-structure deviations from docs/documentation-structure.md (missing or malformed required docs, or a doc that AGENTS.md cannot lead to). The canonical code-repo standards (coding, testing, UX) live in standards/ and are scaffolded into code repos — they do not govern omp-config's own docs, but a PR that edits one must keep it consistent with the rest of the canonical set. A change to a skill or standard must keep the repo self-check (make test) green and mention that the change needs make install + omp restart to take effect."
 
 [github_action_config]
 handle_push_trigger = true
@@ -27,3 +29,6 @@ handle_push_trigger = true
 # commits get the same review as human ones.
 push_trigger_ignore_bot_commits = false
 push_commands = ["/review", "/improve"]
+
+[pr_code_suggestions]
+persistent_comment = true
