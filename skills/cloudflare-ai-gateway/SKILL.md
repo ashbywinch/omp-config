@@ -43,7 +43,7 @@ Routes all AI API calls through Cloudflare AI Gateway with OpenCode (primary) �
 
 ### Two env vars — single source of truth
 
-Every environment reads LLM provider config from the same two env vars:
+The convention is `OPENAI_BASE_URL` + `OPENAI_API_KEY`. PR-Agent is an exception: it reads `OPENAI_KEY` (the OpenAI Python SDK env var, not the litellm one). The workflow env sets `OPENAI_KEY` for PR-Agent; all other clients use `OPENAI_API_KEY`.
 
 | Env var | Purpose | Set where |
 |---|---|---|
@@ -115,7 +115,14 @@ Cloudflare's model node retries ALL errors — it can't distinguish between:
 - **Non-retryable**: 402 billing, 401 auth, 400 invalid request, 404 model not found (retrying wastes time)
 - **Retryable**: 429 rate limit, 500/502/503 transient, 529 overloaded, timeouts (retrying helps)
 
-The "out of credits" error from OpenCode is a fast error response, so the 2 retries complete instantly (~3s total) before falling back to DeepSeek. This is harmless but wasteful. A better approach would be to skip retries on billing errors, but Cloudflare's dynamic route doesn't support error-type-aware retry logic.
+**Decision (2026-08-19): Cloudflare-side retries are DISABLED (`retries: 0` on model nodes, `cf-aig-max-attempts: 0` header). The client owns retries.**
+
+Rationale:
+- A review timing out will fail again on retry — the same large diff, the same cost. Retrying at the gateway wastes tokens.
+- A transient provider error IS worth retrying, and the client (PR-Agent, Paseo/OMP) does that with full context about whether it's a long-running review or a genuine error.
+- The client can distinguish "this is a complex request that needs more time" (no retry, wait longer) from "the provider errored" (retry). The gateway cannot.
+
+Cloudflare's model node retries on all errors equally, so it would waste attempts on both non-retryable errors AND on long-running reviews that simply need more time.
 
 **The timeout ambiguity problem** — it's a known industry issue (see A Field Guide to LLM API Error Messages, Multigrid). A timeout can mean either:
 - The provider is broken (should retry/failover)
@@ -267,15 +274,19 @@ api_base = "https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3
 model = "openai/dynamic/fallback2"    # openai/ prefix is stripped before sending
 custom_model_max_tokens = 128000
 max_model_tokens = 128000
-ai_timeout = 300                       # client-side timeout (seconds)
+ai_timeout = 600                       # client-side timeout (seconds); must cover attempts × per-attempt timeout
 
 [litellm]
 # Cloudflare timeout/retry headers — sent as HTTP headers to the gateway.
-# 5 min timeout, 5 retries with exponential backoff.
-# NOTE: this feature exists in the PR-Agent source code (reads LITELLM.EXTRA_HEADERS
-# from settings) but we haven't confirmed it works in the pragent/pr-agent Docker image
-# used by the GitHub Action. Set OPENAI_CUSTOM_HEADERS in the workflow env as well
-# (see below) — it's read by the OpenAI Python SDK but litellm might not use it.
+# 10 min timeout gives DeepSeek time for large PR diffs.
+# NO Cloudflare-side retries (cf-aig-max-attempts: 0): the client owns retries.
+#   - A review timing out will fail again on retry (same large diff, same cost)
+#     — retrying wastes tokens. No point.
+#   - A transient provider error IS worth retrying, and the client
+#     (PR-Agent, Paseo/OMP) does that with full context.
+# cf-aig-metadata tags the request for Cloudflare analytics.
+# CHANGE: set repo to the project name.
+extra_headers = '{"cf-aig-request-timeout": "600000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"<project-name>\"}"}'
 ```
 
 ### GitHub workflow
@@ -346,7 +357,9 @@ Check `PR_AGENT_CONFIG_BRANCH` pin first, not the key. Without the pin, the imag
 - Delete/overwrite `cf-proxy.ts` without creating a systemd service replacement
 - Expose `CLOUDFLARE_AIGATEWAY_TOKEN` in logs, code, or docs
 - Expect `PATCH` on a route to update its elements — it only renames the route. Creating a new version (`POST .../versions`) and deploying it (`POST .../deployments`) is the correct way to update timeouts and model nodes.
-- Use `OPENAI_CUSTOM_HEADERS` env var as the sole mechanism for Cloudflare headers — it's read by the OpenAI Python SDK, but PR-Agent uses litellm which might not use it. Set both `[litellm] extra_headers` AND `OPENAI_CUSTOM_HEADERS` until confirmed working.
 - Assume the model node `timeout` is first-byte or last-byte — set it generously (~300s) to cover both cases.
+- Set `tier.openai = none` (disables the OpenAI provider entirely)
+- Skip the `pr-agent-config` branch pin — any PR branch could ship its own `api_base`
+- Forget `make install` + restart omp after editing this skill — changes are not live until installed
 - Set `tier.openai = none` (disables the OpenAI provider entirely)
 - Skip the `pr-agent-config` branch pin — any PR branch could ship its own `api_base`
