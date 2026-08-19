@@ -61,7 +61,8 @@ for log in logs:
 
 for key in sorted(by_source):
     s = by_source[key]
-    print(f'{key:30s} {s[\"count\"]:3d} req  ${s[\"cost\"]:.4f}  {s[\"duration\"]/1000:.0f}s total')
+    cost_str = f\"\${s['cost']:.4f}\"
+    print(f'{key:30s} {s[\"count\"]:3d} req  {cost_str}  {s[\"duration\"]/1000:.0f}s total')
 "
 ```
 

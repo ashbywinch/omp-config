@@ -1,6 +1,6 @@
-# lucidlint: ignore-file class-module the class is a small HTTP-redirect helper
-# (urllib's auto-follow would leak the Authorization header to the signed blob
-# host); the script is one unit with one reason to change, not a model module.
+# lucidlint: ignore-file class-module
+# COPY of tools/check_review_posted.py — canonical source for scaffolding.
+# Keep in sync with the repo-root copy. Changes to one must reach the other.
 """Called by .github/workflows/pr-agent.yml — fail the PR if the review bot
 did not post a "PR Reviewer Guide" comment covering the head commit.
 The review may have failed silently; this check prevents merging unreviewed.

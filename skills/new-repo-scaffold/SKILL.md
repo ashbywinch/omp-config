@@ -133,7 +133,7 @@ layer test worthless, so follow the skill, not any repo's existing test):
 
 ### 6. PR review, dependency automation & LLM provider config
 
-**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml`** — copy both into the new repo, create the `pr-agent-config` branch holding the `.pr_agent.toml`, and set the `<PROJECT>_API_KEY` secret (the Cloudflare AI Gateway token) BEFORE the first PR. The example file comments explain the security invariants and failure modes — read them.
+**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml` + `examples/tools/check_review_posted.py`** — copy them into the new repo, create the `pr-agent-config` branch holding the `.pr_agent.toml`, and set the `<PROJECT>_API_KEY` secret (the Cloudflare AI Gateway token) BEFORE the first PR. The example file comments explain the security invariants and failure modes — read them.
 
 ### 6b. LLM provider convention
 
