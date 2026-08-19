@@ -61,11 +61,6 @@ jobs:
           # For forkers: set your own OPENAI_KEY and OPENAI_BASE_URL.
           OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
           OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY}/compat
-          # Timeout and retry headers for Cloudflare — DeepSeek fallback can be slow.
-          OPENAI_CUSTOM_HEADERS: |
-            cf-aig-request-timeout: 300000
-            cf-aig-max-attempts: 5
-            cf-aig-backoff: exponential
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
 

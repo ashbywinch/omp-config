@@ -64,3 +64,10 @@ push_commands = ["/review", "/improve"]
 # default is that every PR gets reviewed. Do NOT use /skip on your own
 # initiative; only when the user explicitly asks.
 skip_commands = ["/skip"]
+
+[litellm]
+# Cloudflare timeout/retry headers — sent as HTTP headers to the gateway.
+# 10 min timeout, 0 retries (client owns retries — see skill://cloudflare-ai-gateway).
+# cf-aig-metadata tags requests for Cloudflare analytics.
+# CHANGE: set repo to the project name and ACCOUNT_ID/GATEWAY to match your Cloudflare gateway.
+extra_headers = '{"cf-aig-request-timeout": "600000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"<project-name>\"}"}'
