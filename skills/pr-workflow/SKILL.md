@@ -160,10 +160,10 @@ issue comments, and review threads:
 
 ```bash
 echo "=== INLINE ===" && gh api repos/<owner>/<repo>/pulls/<n>/comments \
-  --jq '.[] | "\(.user.login) @ \(.path):\(.line) — \(.body[:200])"' \
-  && echo "=== ISSUE ===" && gh api repos/<owner>/<repo>/issues/<n>/comments \
-  --jq '.[] | "\(.user.login) @ \(.created_at) — \(.body[:200])"' \
-  && echo "=== REVIEWS ===" && gh pr view <n> --json reviews \
+  --jq '.[] | "\(.user.login) @ \(.path):\(.line) — \(.body[:200])"'
+echo "=== ISSUE ===" && gh api repos/<owner>/<repo>/issues/<n>/comments \
+  --jq '.[] | "\(.user.login) @ \(.created_at) — \(.body[:200])"'
+echo "=== REVIEWS ===" && gh pr view <n> --json reviews \
   --jq '.reviews[] | "\(.author.login) (\(.state)) — \(.body[:200])"'
 ```
 
