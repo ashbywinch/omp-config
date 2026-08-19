@@ -18,7 +18,7 @@ makes it pass (`rule://test-first`). For LLM behaviour, write evals instead
 ## Verify behaviour, not render — for UI, exercise the interactions
 
 A UI change is not done because it renders; it is done because its
-interactions work (see P14 in `docs/ux-standards.md`). Before claiming a UI
+interactions work (see P14 in `standards/ux-standards.md`). Before claiming a UI
 works, exercise each
 changed interaction and assert the observable outcome, not the DOM's
 existence: a scrollable pane's `scrollTop` must actually move (the flexbox
