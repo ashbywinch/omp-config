@@ -133,20 +133,11 @@ layer test worthless, so follow the skill, not any repo's existing test):
 
 ### 6. PR review, dependency automation & LLM provider config
 
-- `.pr_agent.toml` + `.github/workflows/pr-agent.yml`: the-pr-agent action with the house provider, standards docs in `repo_context_files`, a per-doc Compliance instruction, and a "check review succeeded" step that fails the PR when no review comment covers the head commit (books_to_anki's attribution logic).
-
-**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml`** — copy both into the new repo, create the `pr-agent-config` branch holding the `.pr_agent.toml`, and set the `<PROJECT>_API_KEY` secret (the Cloudflare AI Gateway token) BEFORE the first PR. The security invariants (no checkout, config from a maintainer branch, pinned SHA) are documented in the workflow file's comment header and are non-negotiable: a PR branch could otherwise ship its own `.pr_agent.toml` pointing `api_base` at an attacker endpoint, and the API key would be sent there as the Bearer token. The workflow also skips the whole job on dependabot PRs (`if: github.event.pull_request.user.login != 'dependabot[bot]'`) — mechanical bumps don't need an AI review, and the ticket-compliance step chokes on their no-ticket descriptions.
-
-The silent-failure modes (all hit on the-loft 2026-08-08, hours of "the review is broken" before the cause was found) — each has ONE first thing to check:
-- **"Incorrect API key provided: sk-..."** in the run — check `PR_AGENT_CONFIG_BRANCH` first, not the key: without the pin the action's per-host allowed-keys gate blocks the repo `.pr_agent.toml` entirely, so the image defaults run (`model gpt-5.6`, `api_base api.openai.com`) and the key is rejected there. With the pin in place, then check the secret's value (the Cloudflare AI Gateway token).
-- **"Model ... is not supported"** — the `model` line lost its `openai/` prefix (the handler strips only `openai/`/`azure/`; anything else goes to the endpoint verbatim). Keep `model = "openai/dynamic/fallback2"` verbatim.
-- **The review posts but the check fails** — the check must match "## PR Reviewer Guide" by prefix + (SHA in body OR posted after the head commit landed): v0.41.1 reviews never contain the head SHA, so a SHA-in-body-only matcher fails even on a successful review.
-
-Deliberate duplication exception (2026-08-08): the examples' `DO NOT CHANGE` headers restate the failure modes verbatim — intentional, since the examples are copied standalone; SKILL.md is the canonical home when behavior changes.
+**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml`** — copy both into the new repo, create the `pr-agent-config` branch holding the `.pr_agent.toml`, and set the `<PROJECT>_API_KEY` secret (the Cloudflare AI Gateway token) BEFORE the first PR. The example file comments explain the security invariants and failure modes — read them.
 
 ### 6b. LLM provider convention
 
-All code reads LLM provider config from two env vars: `OPENAI_BASE_URL` + `OPENAI_API_KEY`. The house provider is Cloudflare AI Gateway — see `skill://cloudflare-ai-gateway` for the current gateway URL, model names, and configuration. Forkers change these two env vars and model names; no other config needed.
+All code reads LLM provider config from `OPENAI_BASE_URL` + `OPENAI_API_KEY`. See `skill://cloudflare-ai-gateway` for the gateway URL, model names, and configuration. Forkers change these two env vars and model names.
 
 - `.github/dependabot.yml` — **working file: `examples/.github/dependabot.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence.
 
