@@ -37,10 +37,12 @@ is what stops the loop from going round in circles.
    - **Take a screenshot of every screen you see**, stored in a shared
      location (e.g. `/tmp/ux-walkthrough/`), named in visit order.
    - **Be verbose, in the persona's voice**, about first impressions,
-     reasoning, confusions, and whether and why they give up.
+     reasoning, confusions (grounded in the exact label or location),
+     and whether and why they give up (and at what point).
    - **The walker rules above are the operational form of P14–P18 in
-     `standards/ux-standards.md`** — the principles are there; the
-     rules here are the walker's checklist.
+     `docs/ux-standards.md`** — the principles are there; the rules
+     here are the walker's checklist. See also the "How reviewers
+     interact" section below for the reviewer's single rule.
    - The transcript is the raw material; do not let the fake user
      self-diagnose or propose fixes — they report experience, not design.
 
@@ -75,10 +77,8 @@ is what stops the loop from going round in circles.
 
 ## How reviewers interact (one rule)
 
-The reviewer interacts with a site exactly as the persona could — that one
-rule, its rationale (Perception-Fusion Gap), the capture/zoom protocol, and
-the fallback evidence chain are **P14–P18 in `standards/ux-standards.md`**;
-the walker rules above are this rule in operation.
+The reviewer interacts with a site exactly as the persona could — see the
+walker rules above (the operational form of P14–P18 in `docs/ux-standards.md`).
 
 
 
