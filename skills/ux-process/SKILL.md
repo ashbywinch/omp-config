@@ -35,32 +35,25 @@ is what stops the loop from going round in circles.
      for tasks that genuinely require it, "you may complete the task fully,
      including saving" — say which, don't leave it ambiguous.
    - **Navigate by LOOKING, like a human — never by inspecting the page.**
-     Decide from what is visible — the rendered page and its screenshots.
-     Never read the DOM, console, source, or devtools to discover state or
-     actions. If a step cannot be done without inspecting page internals,
-     that is a finding: the interface failed to show the way. (The walker
-     discipline of P14 in `standards/ux-standards.md`.)
+     Decide from what is visible; never the DOM, console, source, or
+     devtools (P16 in `standards/ux-standards.md`). If a step cannot be
+     done without inspecting page internals, that is a finding.
    - **Take a screenshot of every screen you see**, stored in a shared
-     location the next agent can read (e.g. `/tmp/ux-walkthrough/`), named
-     in visit order. Screenshots are the evidence; the transcript is the
-     reasoning.
+     location (e.g. `/tmp/ux-walkthrough/`), named in visit order.
    - **Success is perceptual, never operational** (P15). The walk passes
      only when the persona could complete the task from what they could SEE
      and UNDERSTAND — never because the records changed. If the walker
-     cannot see or read the material a real user needs, the walk FAILS at
-     that point and reports it; updating records the persona could not see
-     is a FALSE PASS, not success.
-   - **Exercise the interactions with the persona's REAL input — never just
-     look** (P14). A screenshot proves a screen rendered, not that it
-     works: scroll the scrollable panes, pan and zoom the pannable views,
-     tap the buttons, submit the forms — with the input a real user of that
+     cannot see the material, the walk FAILS and reports it.
+   - **Exercise the interactions with the persona's REAL input** (P14).
+     Scroll, pan, zoom, tap, submit — with the input a real user of that
      device would use — and observe each outcome. A silently failing
-     interaction (a pane that won't scroll, a drag that does nothing) is a
-     FINDING.
-   - **Walk at the REAL devices the PRD names — never a default desktop
-     viewport** (P17's device framing). The primary posture AND the
-     secondary, AND the transitions between them (portrait → landscape). A
-     screen that only looks right at 1024×768 has not been tested.
+     interaction is a FINDING.
+   - **Walk at the REAL devices the PRD names** — the primary posture AND
+     the secondary, AND the transitions between them (portrait →
+     landscape). A screen that only looks right at 1024×768 has not been
+     tested. (Device-framing rule; the walker has no dedicated principle
+     — the relevant standards are P14's input modality and P17's
+     capture protocol.)
    - Be **verbose, in the persona's voice**, about:
      - first impressions of each screen (what jumps out, what feels
        welcoming or off),
