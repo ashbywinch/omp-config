@@ -31,7 +31,7 @@ push_trigger_ignore_bot_commits = false
 push_commands = ["/review", "/improve"]
 
 [litellm]
-extra_headers = '{"cf-aig-request-timeout": "600000", "cf-aig-max-attempts": "5", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"omp-config\"}"}'
+extra_headers = '{"cf-aig-request-timeout": "600000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"omp-config\"}"}'
 
 [pr_code_suggestions]
 persistent_comment = true
