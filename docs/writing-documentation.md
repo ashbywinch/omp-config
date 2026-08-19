@@ -136,6 +136,13 @@ fact and decision.
 - **Link, don't paste.** A fact lives in exactly one place; other docs link
   to it. References one level deep — a doc points to another doc, not
   through a chain.
+- **Code in code files, not inline in docs.** A doc that contains a
+  multi-line code block (config file, script, workflow) should move that
+  code to a separate file and reference it. Inline snippets for
+  illustration are fine (one-liners, key flags). Full config files and
+  runnable scripts belong in `examples/` or `scripts/` directories, not
+  in the doc body. Agents read the referenced files when they need them;
+  the doc stays dense and doesn't duplicate the code's job.
 - **Task-shaped sections.** When a doc describes how to do something, use
   the task-card shape: goal (one verb), scope (exact paths), constraints
   (must / never), acceptance (verifiable command).

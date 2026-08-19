@@ -167,8 +167,11 @@ echo "=== INLINE ===" && gh api repos/<owner>/<repo>/pulls/<n>/comments \
   --jq '.reviews[] | "\(.author.login) (\(.state)) — \(.body[:200])"'
 ```
 
-This catches **all three sources** — inline file comments, issue/PR comments,
-and review thread comments — in one call. Run it before fixing anything.
+**CRITICAL: Human reviewers (including the user who opened the PR) may leave
+inline comments on specific lines of the changed files. The INLINE section
+above catches them — it is the `pulls/<n>/comments` endpoint, which is the
+ONLY place inline file comments appear. If you skip the INLINE section, you
+will miss the user's feedback entirely.**
 
 ### 8. Parse AI Review Comments Thoroughly
 
