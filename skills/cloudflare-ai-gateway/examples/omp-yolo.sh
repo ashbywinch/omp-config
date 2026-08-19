@@ -12,5 +12,5 @@ for arg in "$@"; do
     if [ "$arg" = "--approval-mode" ]; then SKIP=true; continue; fi
     ARGS+=("$arg")
 done
-OMP=$(command -v omp 2>/dev/null || echo "/home/ashby/.bun/bin/omp")
+OMP=$(command -v omp 2>/dev/null || echo "$HOME/.bun/bin/omp")
 exec "$OMP" "${ARGS[@]}" --approval-mode yolo
