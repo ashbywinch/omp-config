@@ -200,64 +200,31 @@ Health check: `curl http://localhost:9123/health` → `ok`
 
 ### config.json
 
-The Paseo daemon passes the model to OMP. The model ID must be resolvable in OMP's model registry (see `models.yml` below).
-
-```json
-{
-  "models": [{
-    "id": "cloudflare-gateway/dynamic/fallback2",
-    "label": "DeepSeek V4 Flash (via Cloudflare)",
-    "isDefault": true
-  }]
-}
-```
+See `skill://cloudflare-ai-gateway/examples/paseo-config.json`. The model ID must be resolvable in OMP's model registry (see `models.yml` above).
 
 ### omp-yolo.sh
 
-The launcher script sets env vars and tags the proxy with the repo name:
-
-```bash
-export OPENAI_BASE_URL="http://localhost:9123/v1"
-export OPENAI_API_KEY="$CLOUDFLARE_AIGATEWAY_TOKEN"
-```
+See `skill://cloudflare-ai-gateway/examples/omp-yolo.sh`. Sets `OPENAI_BASE_URL` to the proxy and tags the proxy with the repo name.
 
 ## Standalone OMP Integration
 
 ### config.yml
 
-Model roles select which Cloudflare dynamic route to use:
+See `skill://cloudflare-ai-gateway/examples/config.yml` for the full file. Key points:
 
-```yaml
-modelRoles:
-  default: cloudflare-gateway/dynamic/fallback2   # text
-  advisor: cloudflare-gateway/dynamic/fallback2
-  designer: cloudflare-gateway/dynamic/image       # vision
-  vision: cloudflare-gateway/dynamic/image
-```
+- `modelRoles` use the `cloudflare-gateway` provider with dynamic route names
+- `retry.modelFallback` is `false` — the Cloudflare dynamic route handles failover
+- `tier.openai` must be `auto`
 
 ### models.yml
 
-Custom provider registered in OMP's model registry. The `cloudflare-gateway` provider points at the local proxy with its own `apiKey`:
+Custom provider registered in OMP's model registry. See `skill://cloudflare-ai-gateway/examples/models.yml` for the full file. Key points:
 
-```yaml
-providers:
-  cloudflare-gateway:
-    baseUrl: http://localhost:9123/v1
-    apiKey: CLOUDFLARE_AIGATEWAY_TOKEN
-    api: openai-completions
-    models:
-      - id: dynamic/fallback2
-        name: DeepSeek V4 Flash (via Cloudflare)
-        contextWindow: 1000000
-        maxTokens: 128000
-      - id: dynamic/image
-        name: Mimo V2.5 Vision (via Cloudflare)
-        contextWindow: 1000000
-        maxTokens: 128000
-        input: [text, image]
-```
+- `baseUrl` points at the local proxy (`http://localhost:9123/v1`)
+- `apiKey` reads from `CLOUDFLARE_AIGATEWAY_TOKEN` env var
+- Two models: `dynamic/fallback2` (text) and `dynamic/image` (vision, supports images)
 
-Settings: `tier.openai = auto` (not `none` — that disables OpenAI provider).
+`tier.openai` must be `auto` (not `none` — that disables the OpenAI provider).
 
 ## PR-Agent Integration
 
@@ -265,39 +232,21 @@ PR-Agent runs in GitHub Actions and uses litellm (not the OpenAI SDK directly). 
 
 ### .pr_agent.toml
 
+See `skill://new-repo-scaffold/examples/.pr_agent.toml` for the full template. The Cloudflare-specific section to add or modify:
+
 ```toml
-[openai]
-custom_llm_provider = "openai"
-api_base = "https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat"
-
-[config]
-model = "openai/dynamic/fallback2"    # openai/ prefix is stripped before sending
-custom_model_max_tokens = 128000
-max_model_tokens = 128000
-ai_timeout = 600                       # client-side timeout (seconds); must cover attempts × per-attempt timeout
-
 [litellm]
-# Cloudflare timeout/retry headers — sent as HTTP headers to the gateway.
-# 10 min timeout gives DeepSeek time for large PR diffs.
-# NO Cloudflare-side retries (cf-aig-max-attempts: 0): the client owns retries.
-#   - A review timing out will fail again on retry (same large diff, same cost)
-#     — retrying wastes tokens. No point.
-#   - A transient provider error IS worth retrying, and the client
-#     (PR-Agent, Paseo/OMP) does that with full context.
-# cf-aig-metadata tags the request for Cloudflare analytics.
-# CHANGE: set repo to the project name.
 extra_headers = '{"cf-aig-request-timeout": "600000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"<project-name>\"}"}'
 ```
 
 ### GitHub workflow
 
+See `skill://new-repo-scaffold/examples/.github/workflows/pr-agent.yml` for the full template. The Cloudflare-specific env vars to set:
+
 ```yaml
-steps:
-  - uses: the-pr-agent/pr-agent@<pinned-sha>
-    env:
-      OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
-      OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
-      PR_AGENT_CONFIG_BRANCH: pr-agent-config
+OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
+OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
+PR_AGENT_CONFIG_BRANCH: pr-agent-config
 ```
 
 ### Security

@@ -1,0 +1,15 @@
+{
+  "agents": {
+    "providers": {
+      "omp": {
+        "command": ["~/.paseo/omp-yolo.sh"],
+        "models": [{
+          "id": "cloudflare-gateway/dynamic/fallback2",
+          "label": "DeepSeek V4 Flash (via Cloudflare)",
+          "isDefault": true
+        }],
+        "enabled": true
+      }
+    }
+  }
+}
