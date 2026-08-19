@@ -8,8 +8,6 @@
 
 **Workers 100s limit disproven**: The review ran for 10 minutes through the gateway without issue. The AI Gateway does not inherit the Workers 100s execution limit.
 
-**If 504s persist**: Route PR-Agent directly to DeepSeek by setting `OPENAI_BASE_URL` to `https://api.deepseek.com/v1` and `OPENAI_KEY` to the `DEEPSEEK_API_KEY` env var value.
-
 ## 502 / "Failed to get response from provider"
 
 - Check proxy running: `systemctl --user is-active cf-gateway-proxy.service`
