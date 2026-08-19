@@ -19,6 +19,7 @@ jobs:
           OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
           OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
           # Timeout and retry headers for Cloudflare — DeepSeek fallback can be slow.
+          # Set via env var (OpenAI SDK path) and via .pr_agent.toml [litellm] extra_headers.
           OPENAI_CUSTOM_HEADERS: |
             cf-aig-request-timeout: 300000
             cf-aig-max-attempts: 5
