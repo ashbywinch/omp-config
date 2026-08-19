@@ -2,8 +2,8 @@
 name: scaffold-language-layers
 description: |
   The per-stack toolchain layers for skill://new-repo-scaffold — Python
-  (uv/ruff/pytest), JS/TS (npm/vitest/eslint), other — materialized into a new
-  repo's docs/coding-standards.md copy. The generic rules live in the General
+  (uv/ruff/pytest), JS/TS (npm/vitest/eslint), Rust (cargo/clippy/rustfmt),
+  other — materialized into a new repo's docs/coding-standards.md copy. The generic rules live in the General
   layer of skill://new-repo-scaffold and the standards docs; each layer fills
   in the toolchain implementation of those rules for one stack.
 ---
@@ -101,6 +101,71 @@ equivalent.
 - Releases (monorepos): `.changeset` with restricted access, baseBranch main (kilocode).
 - Git hooks: husky pre-commit running lint + typecheck + **gitleaks** (kilocode's pre-push adds a toolchain-version check against `packageManager`). Fast checks only.
 - **Materialization.** These JS/TS conventions — vitest/istanbul, the eslint/oxlint + prettier setup, `strict: true` + `vue-tsc` gate, the Node pin — are appended to the repo's `docs/coding-standards.md` as a "JS/TS conventions" section when scaffolding. The review bot reads only `repo_context_files`; a toolchain rule that stays only in this skill is invisible to review.
+
+### Rust (build-tools — the house's reference Rust repo)
+
+- **Toolchain pin: `rust-toolchain.toml`** — the Rust analog of
+  `.python-version`/`.nvmrc`: CI (`dtolnay/rust-toolchain@stable`, which
+  reads the file) and local rustup use the SAME exact channel. Pin the
+  current stable at scaffold time (`rustc --version` — never guess from
+  training data). **Working file: `examples/rust/rust-toolchain.toml`** —
+  components `clippy`, `rustfmt`, and `llvm-tools` (the last is what
+  `cargo llvm-cov` needs). The exact pin also makes clippy deterministic,
+  which is why the lint gate needs no baseline lock (the generic rule's
+  baseline exists for checkers whose diagnostics drift across environments;
+  a pinned toolchain does not — state that reasoning in the Makefile).
+- **Lint + format: `cargo fmt` (rustfmt) + `cargo clippy --all-targets --
+  -D warnings`** — the formatter is rustfmt with `max_width = 120`
+  (matching the house `.editorconfig` 120 — the "max_line_length must
+  match the formatter" rule); one formatter per artifact (§1b — generated
+  code is excluded via rustfmt.toml `ignore` or owned by its generator,
+  never re-formatted). The anti-fragile rule maps to clippy: an
+  `#[allow(...)]` carries a reason comment, mirroring `# type: ignore`.
+  **Working files: `examples/rust/rustfmt.toml`**.
+- **The type gate: `cargo check --all-targets`** (the borrow checker IS the
+  type checker — rustc's errors are deterministic for the pinned toolchain,
+  so the gate needs no error-count baseline; it is a bare gate by
+  construction). Wired into `make test` before the tests, like the Python
+  typecheck target.
+- **Test + coverage: `cargo test`; `cargo llvm-cov --cobertura --output-path
+  cobertura.xml`** (tarpaulin is the fallback; llvm-cov is the modern default).
+  CI consumes `cobertura.xml` with the same `irongut/CodeCoverageSummary`
+  action (it reads Cobertura format) — fail below floor, track the goal.
+- **CI: the Rust workflow variant (`examples/rust/.github/workflows/ci.yml`)** —
+  `dtolnay/rust-toolchain@stable` (reads the pin — never a separate
+  toolchain-install line that can drift) + `taiki-e/install-action` for
+  `cargo-llvm-cov`; steps are exactly make targets.
+- **.gitignore: `target/` + `cobertura.xml`** — `cargo build` writes
+  `target/`, `make coverage` writes `cobertura.xml`; both belong in the
+  repo's `.gitignore` (the general layer's §4 set covers the Python/JS
+  artifacts — reference it rather than restate the pattern list).
+- **Git hooks: raw `scripts/pre-commit` + `scripts/pre-push`** — the same
+  mechanism as Python (they delegate to make, so hook and CI can't drift);
+  the watch scope is `*.rs Cargo.toml Cargo.lock rust-toolchain.toml
+  rustfmt.toml` (a toolchain change alters the clippy diagnostic set).
+  Gitleaks on any staged change, failing loudly when missing.
+- **Semantic types, Rust-native** (the generic rules are in the global
+  standard): newtype wrappers over primitives are the default (`struct
+  Meters(f64)` + derive — the "types over primitives" rule IS the Rust
+  idiom); quantities via newtypes with unit-named types, or the `uom`
+  crate when real unit arithmetic is needed; a Money newtype (never bare
+  float — the generic Money rule). Units in the type name, conversions at
+  the boundary.
+- **Repo self-checks (§3b)**: the docs-links check ships as a std-only
+  `#[test]` (walk `docs/**/*.md` + `AGENTS.md`, resolve relative markdown
+  links, fail on a target that doesn't exist — the houses pattern, no
+  deps); the architecture-layer check is a std-only `#[test]` that reads
+  `src/**/*.rs` and asserts the forbidden `use` paths are absent per layer
+  (the archunitpython intent, Rust-native: the module system plus a
+  source-scan test — no house Rust archunit exists yet, and the vacuous-
+  pass trap from `skill://archunitpython-glob-rules` applies to any glob-
+  based variant, so assert on exact paths).
+- **Materialization.** These Rust conventions — the toolchain pin, the
+  clippy `-D warnings` + rustfmt 120 gates, `cargo check` as the type gate,
+  llvm-cov coverage, newtype semantics, the self-check tests — are appended
+  to the repo's `docs/coding-standards.md` as a "Rust conventions" section
+  when scaffolding. The review bot reads only `repo_context_files`; a
+  toolchain rule that stays only in this skill is invisible to review.
 
 ### Other languages
 

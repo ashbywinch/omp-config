@@ -161,6 +161,9 @@ Findings can come from multiple places. Read **all of them** before deciding wha
 | PR review comments (AI)| `gh api repos/<owner>/<repo>/issues/<number>/comments` — filter for bot user |
 | PR review thread (human) | `gh pr view <number> --comments` |
 | Inline PR review comments | `gh api repos/<owner>/<repo>/pulls/<number>/comments` |
+| **Inline review comments on changed files (human)** | `gh api repos/<owner>/<repo>/pulls/<number>/comments` — **check EVERY comment, not just the bot's. Human reviewers leave inline comments on specific lines of the diff. These are NOT in the issues/comments endpoint.** |
+
+**CRITICAL: Human reviewers (including the user who opened the PR) may leave inline comments on specific lines of the changed files. These are NOT included in the PR review summary comment. You MUST check `pulls/<number>/comments` for ALL comments, not just the bot's. If you only read the bot's summary comment, you will miss the user's feedback entirely.**
 
 ### 8. Parse AI Review Comments Thoroughly
 

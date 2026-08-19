@@ -1,0 +1,15 @@
+# Toolchain pin — the Rust analog of .python-version / .nvmrc: CI
+# (dtolnay/rust-toolchain) and local rustup both read this exact file, so
+# local dev matches CI (the "pin CI AND local" rule).
+#
+# CHANGE: channel = the current stable at scaffold time — find it with
+# `rustc --version` / `rustup check`; never guess from training data.
+# An exact pin also makes clippy deterministic, which is why the lint gate
+# (-D warnings) needs no baseline lock.
+#
+# DO NOT CHANGE: components — clippy/rustfmt are the lint/format gates and
+# llvm-tools is what cargo llvm-cov needs (the coverage gate).
+
+[toolchain]
+channel = "1.XX.0"  # CHANGE: current stable
+components = ["clippy", "rustfmt", "llvm-tools"]

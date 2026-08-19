@@ -14,17 +14,41 @@ jobs:
       - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
         id: pr-agent
         env:
-          OPENAI_KEY: ${{ secrets.OPENCODE_GO_OMP_CONFIG_API_KEY }}
-          OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
+          # Cloudflare AI Gateway (OpenCode → DeepSeek fallback).
+          # Secret value: the CLOUDFLARE_AIGATEWAY_TOKEN from ~/.secrets.
+          OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
+          OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SECURITY: pin the config to a maintainer-controlled branch. Using
           # ${{ github.head_ref }} lets any same-repo branch ship its own
           # .pr_agent.toml (e.g. api_base pointing at an attacker endpoint)
-          # and exfiltrate OPENCODE_GO_OMP_CONFIG_API_KEY.
+          # and exfiltrate the API key.
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
+  verify:
+    # A SEPARATE job that runs AFTER the bot job completes: GitHub does not
+    # serve a job's log until it finishes, so check_review_posted.py can only
+    # read the bot's failure reason from here — inside the bot's own job the
+    # log endpoint returns 409 and the reason is always the generic fallback.
+    needs: pr-review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read   # read the bot's completed run log for the failure reason
+    steps:
+      # SECURITY: checkout the DEFAULT branch, not the PR head — the script
+      # runs with GITHUB_TOKEN, and a PR could replace tools/check_review_posted.py
+      # with code that exfiltrates it. python3 -I only blocks stdlib shadowing.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
       - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 tools/check_review_posted.py
+        # SECURITY: python3 -I (isolated) keeps the checkout off sys.path —
+        # a repo-root json.py/urllib.py/sitecustomize.py must not shadow the
+        # script's stdlib imports and run code with GITHUB_TOKEN.
+        run: python3 -I tools/check_review_posted.py

@@ -1,0 +1,15 @@
+providers:
+  cloudflare-gateway:
+    baseUrl: http://localhost:9123/v1
+    apiKey: CLOUDFLARE_AIGATEWAY_TOKEN
+    api: openai-completions
+    models:
+      - id: dynamic/fallback2
+        name: DeepSeek V4 Flash (via Cloudflare)
+        contextWindow: 1000000
+        maxTokens: 128000
+      - id: dynamic/image
+        name: Mimo V2.5 Vision (via Cloudflare)
+        contextWindow: 1000000
+        maxTokens: 128000
+        input: [text, image]
