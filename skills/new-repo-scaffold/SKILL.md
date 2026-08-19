@@ -6,7 +6,7 @@ description: |
   houses, side-by-side, kilocode: Makefile as the single dev entry point,
   CI that delegates to make, gated code coverage, docs standards triplet,
   git hygiene. Splits general (language-agnostic) practices from
-  language-specific toolchain layers (Python, JS/TS, other).
+  language-specific toolchain layers (Python, JS/TS, Rust, other).
 ---
 
 # New Repo Scaffold
@@ -18,7 +18,7 @@ Practices below were distilled from the repos under `~/Documents/code` (surveyed
 ## Two layers
 
 1. **General layer** — applies to every new repo regardless of language. Non-negotiable.
-2. **Language layer** — toolchain specifics per stack (Python: uv/ruff/pytest; JS/TS: npm/vitest/eslint), in `skill://scaffold-language-layers`.
+2. **Language layer** — toolchain specifics per stack (Python: uv/ruff/pytest; JS/TS: npm/vitest/eslint; Rust: cargo/clippy/rustfmt), in `skill://scaffold-language-layers`.
 
 Scaffold in this order: Makefile → CI → coverage → git hygiene → entry docs → repo creation + branch protection. Finish with the checklist.
 
@@ -39,7 +39,7 @@ Deviating from the template is allowed only where the rules say so:
 - **`check` = `lint-check typecheck`** — the single gate CI and the pre-push hook both run; same command, no drift. No test run in the hook (too slow; CI's `make test` includes the checks).
 - **Tool paths as variables** at top (`PYTHON := .venv/bin/python`, `RUFF := .venv/bin/ruff`).
 - **Pin the language runtime.** CI (`setup-node`/`setup-python` action) and local dev (`.nvmrc`, `.python-version`) use the **same** version; local dev must match CI — pinning CI only is the smell (side-by-side/houses pin CI only, kilocode pins bun via `packageManager`).
-- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment). **Baseline-locked repos (recommended):** the checker runs against a committed baseline and fails on drift in BOTH directions — a NEW error AND a stale baseline entry (an error the code no longer produces). The stale direction is the one that bites: a fix that removes a diagnostic without refreshing the baseline s…
+- **Type checking is a first-class gate.** The language's type checker is configured (strict where the toolchain allows), gated inside `make test` on the **error count** (never the bare exit code — a checker that exits nonzero on warnings fails every environment differently), and included in the fast commit checks where the toolchain permits. Rust: the gates are `cargo check --all-targets` (type) + `clippy -D warnings` (lint) — deterministic under the `rust-toolchain.toml` pin, so no baseline (see `skill://scaffold-language-layers`). Errors gate the commit; they are fixed, never suppressed (anti-fragile: a `# type: ignore` needs a comment). **Baseline-locked repos (recommended):** the checker runs against a committed baseline and fails on drift in BOTH directions — a NEW error AND a stale baseline entry (an error the code no longer produces). The stale direction is the one that bites: a fix that removes a diagnostic without refreshing the baseline s…
 
 Hooks (`skill://scaffold-language-layers/examples/python/scripts/pre-commit`, `.../pre-push`, installed by `make install-hooks`):
 - pre-commit delegates to `make lint-check` (plus a gitleaks secrets scan); pre-push delegates to `make check` — never duplicate the tool invocations.
@@ -65,7 +65,7 @@ change, never a local revert.
 
 One workflow per project; subprojects get path-filtered jobs (energy_envelope splits `android/**` from the Python root via `paths: ['!android/**']`).
 
-**Working file: `examples/.github/workflows/ci.yml`** — copy it into the new repo.
+**Working file: `examples/.github/workflows/ci.yml`** (Python; the Rust variant: `skill://scaffold-language-layers/examples/rust/.github/workflows/ci.yml`) — copy it into the new repo.
 
 Rules:
 - `permissions: contents: read` + `pull-requests: write` — the coverage comment step in the template needs the latter; drop both together if you drop the step.
@@ -111,18 +111,11 @@ layer test worthless, so follow the skill, not any repo's existing test):
 - Never commit to main; branch off main, PR required, protected origin/main (rule://session-start; chat-workflow/houses AGENTS.md).
 - Atomic commits; reference issues with `Fixes #N`.
 - **Working files: `examples/.gitignore`, `examples/.editorconfig`, `examples/.gitattributes`, `examples/.env.example`** — copy them; the rules below say what each guards and when deviation is OK.
-- `.gitignore` must cover (each pattern observed in 3+ repos):
-  - env/secrets: `.env`, `.env.local`, `*.keystore`
-  - envs/deps: `.venv/`, `venv/`, `node_modules/`, `dist/`
-  - caches: `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.coverage`, `htmlcov/`, `coverage.xml`
-  - build artifacts: `dist/`, `*.egg-info/` — `uv sync` with the setuptools backend generates `<pkg>.egg-info/`; omit it and verification step 4 fails
-  - agent/tool state: `.sisyphus/`, `.opencode/`, `.code-review-graph/`, `.logs/`
-  - IDE/OS: `.vscode/`, `.idea/`, `.DS_Store`, `*.log` (to commit `.vscode/extensions.json`, add a `!.vscode/extensions.json` negation — side-by-side's pattern)
-  - recreatable data caches only (houses: `data/api_cache/`, `data/houses.db*`) — test fixtures are committed under `tests/fixtures/`
+- `.gitignore` must cover (each pattern observed in 3+ repos): env/secrets (`.env`, `.env.local`, `*.keystore`); envs/deps (`.venv/`, `venv/`, `node_modules/`, `dist/`); caches (`__pycache__/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.coverage`, `htmlcov/`, `coverage.xml`); build artifacts (`dist/`, `*.egg-info/` — `uv sync` generates `<pkg>.egg-info/`; omit it and verification step 4 fails; `target/` and `cobertura.xml` in a Rust repo — `make coverage` writes cobertura.xml and `cargo build` writes `target/`); agent/tool state (`.sisyphus/`, `.opencode/`, `.code-review-graph/`, `.logs/`); IDE/OS (`.vscode/`, `.idea/`, `.DS_Store`, `*.log` — with a `!.vscode/extensions.json` negation when committing one); recreatable data caches only (houses: `data/api_cache/`) — test fixtures are committed under `tests/fixtures/`
 - Lockfiles (`uv.lock`, `package-lock.json`) are committed, never ignored. books_to_anki ignores `uv.lock` — that kills reproducibility; don't copy it. Keep the list curated: books_to_anki ships the kitchen-sink GitHub template (Django/Flask/PyInstaller/poetry sections it doesn't need); the newer repos use a short alphabetized list.
 - `.gitattributes`: `* text=auto eol=lf`; mark generated files `linguist-generated` (kilocode).
 - `.editorconfig`: `root = true`, `utf-8`, `insert_final_newline = true`, `eol = lf`, 2-space indent default, per-language overrides (kilocode). `max_line_length` must match the formatter (120 for ruff/prettier) — kilocode's editorconfig 80-vs-prettier-120 mismatch is a smell to avoid.
-- `.env.example` committed with every env var documented (values blank); `.env` itself is gitignored. The app reads values from the real environment (`os.environ`) — never from a file — so `.env` is not a runtime artifact and never needs distributing. Dev scenario: `make setup` guarantees `.env` exists (`[ -f .env ] || cp .env.example .env`), and env loading is scoped to run-type targets only — `uv run --env-file .env python -m <pkg>` — never on lint/test/coverage, so CI and fresh clones are unaffected. `--env-file` has the correct precedence (real env wins over file values); shell sourcing does NOT (`set -a; . ./.env` clobbers real vars with blank file values, which would blank a real secret). The guarantee lives in the Makefile, not the one-time scaffold — the repo gets cloned forever without re-running the skill. Real secrets live in the shell environment only — never in code, docs, logs, or the example file (chat-workflow AGENTS.md; houses coding-standards). No env vars at all? Ship a comment-only `.env.example` — the setup copy line stays harmless.
+- `.env.example` committed with every env var documented (values blank); `.env` itself is gitignored. `make setup` guarantees `.env` exists (`[ -f .env ] || cp .env.example .env`); run targets load via `--env-file .env` (real env wins), lint/test never touch it. Real secrets live in the shell environment only — never in code, docs, logs, or the example file. No env vars at all? Ship a comment-only `.env.example` — the setup copy line stays harmless.
 - `.vscode/extensions.json` with recommended extensions — only if you want editor parity; it requires the `!.vscode/extensions.json` negation above (side-by-side ships one with `Vue.volar`; kilocode ships eslint/esbuild/direnv). Otherwise `.vscode/` is fully ignored.
 - Git hooks (stack-appropriate mechanism, see language layers; **working files: `skill://scaffold-language-layers/examples/python/scripts/pre-commit`, `.../pre-push`**) run **lint, type checking, and a secrets scan** — the fast checks — never the full test suite; tests stay gated in `make test` + CI. The hook's contents are an instruction, not a ceiling: lint + typecheck + a leak detector (gitleaks across stacks) are the house hook, wired in at scaffold time. Hooks must finish in seconds or they get bypassed, and they're bypassable with `--no-verify` anyway — so anything critical must ALSO be enforced in make/CI. Python: raw git hooks (`scripts/pre-commit` + `scripts/pre-push`) installed by `make install-hooks` — they delegate to make targets so hook and CI can't drift. JS/TS: husky. **The pre-push hook delegates to `make check`** (like pre-commit → `make lint-check`) so hook and CI can't drift — but check targets depend on `deps`, NEVER `install-hooks` (a hook calling `make check` would re-copy/refuse the very hook file — the pre-push deadlock). A hook running the tools directly instead of make is a smell — fix the make dependency, don't duplicate.
 
@@ -131,25 +124,20 @@ layer test worthless, so follow the skill, not any repo's existing test):
 - `README.md` (humans): one-line purpose, Quick Start via `make`, usage examples, docs table.
 - `AGENTS.md` (agents): **template: `examples/AGENTS.md`** — copy it; it's the bootloader (quick start, decision tree to `docs/`, tool table, testing/secrets/git rules). The bootloader principle and discoverability rule are in the documentation standard — apply them, don't restate them.
 - `docs/` standards triplet, checked by PR-Agent:
-  - `docs/coding-standards.md` — copy the **canonical global standard** (`standards/coding-standards.md` in the omp-config repo, where this skill lives) **in full**, then append the **language layer's conventions for the repo's stack** (per `skill://scaffold-language-layers` — semantic-type libraries, toolchain gates, test-runner conventions), then project rules. The reviewer enforces exactly the rules present in the file — and it reads only `repo_context_files`, so a rule that lives only in this skill is **invisible to review**: language-specific standards must be materialized into the repo copy, never left here alone. The copy must carry the full set: design principles (separation of concerns, cohesion, types over primitives, quantities carry units, Money not float, no over-abstraction, anti-fragile, fail fast with user-visible errors, two-tier messages, no shims, no mystery code, one-way invariants, imports, UTC datetimes, cache hygiene, batch APIs, resume-not-accident, real content never in code, derived data regenerated, established practice, argv forwarding, AI output as proposed), DI, testing, documentation, language conventions.
+  - `docs/coding-standards.md` — copy the **canonical global standard** (`standards/coding-standards.md` in the omp-config repo) **in full**, then append the **language layer's conventions** (per `skill://scaffold-language-layers`), then project rules. The reviewer reads only `repo_context_files` — a rule that lives only in this skill is **invisible to review**: language-specific standards must be materialized into the repo copy. The copy must carry the full set: the design principles (separation of concerns, types over primitives, quantities carry units, Money not float, no over-abstraction, anti-fragile, fail fast with user-visible errors, no shims, one-way invariants, UTC datetimes, cache hygiene, batch APIs, real content never in code, derived data regenerated, argv forwarding, AI output as proposed), DI, testing, documentation, language conventions.
   - `docs/testing-standards.md` — tests mirror module paths, deterministic (no wall-clock, network, or order dependence; seeded randoms), assert behavior not implementation, DI fakes over `unittest.mock.patch`.
   - `docs/writing-documentation.md` — copy the **canonical documentation standard** (`docs/writing-documentation.md` in the omp-config repo) **in full** — what good documentation is: context efficiency, density, no-duplication, one topic per file, the quality checklist, AGENTS.md as bootloader — and skills are documentation, subject to it like any doc. The process skill (`skill://write-documentation`) references it.
-  - `docs/documentation-structure.md` — copy the **canonical folder-structure standard** (`docs/documentation-structure.md` in the omp-config repo) **in full** — the required doc set: `docs/PRD.md` (or `docs/PRD/` when big — JTBD first, personas, cost/longevity/backups/monitoring/auth/scale/hosting constraints), `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big — technology choices, spikes, requirement-referencing decisions, architecture-layers mermaid diagram), `docs/PLAN.md` (or `docs/PLAN/` when big — phases with the **software's** inputs/outputs — what the app consumes and produces — operations and quality gates; never the phase's project artifacts; no later-phase dependencies; earliest user value), plus the discoverability rule (every doc reachable from AGENTS.md).
-  - `docs/ux-standards.md` — copy the **canonical UX standard** (`standards/ux-standards.md` in the omp-config repo) **in full**, then add repo-specific UX baselines alongside it (a usability-requirements baseline and a UX decisions doc, per skill://ux-process). The walkthrough instrument and the interview skill reference it; they do not restate it.
+  - `docs/documentation-structure.md` — copy the **canonical folder-structure standard** (`docs/documentation-structure.md` in the omp-config repo) **in full** — the required doc set: `docs/PRD.md` (or `docs/PRD/` when big — JTBD first, personas, cost/longevity/backups/monitoring/auth/scale/hosting constraints), `docs/TECHSPEC.md` (or `docs/TECHSPEC/` — technology choices, spikes, requirement-referencing decisions, architecture-layers mermaid), `docs/PLAN.md` (or `docs/PLAN/` — phases with the **software's** inputs/outputs, operations, quality gates; no later-phase dependencies; earliest user value), plus discoverability (every doc reachable from AGENTS.md).
+  - `docs/ux-standards.md` — copy the **canonical UX standard** (`standards/ux-standards.md`) **in full**, then add repo-specific UX baselines alongside it (a usability-requirements baseline and a UX decisions doc, per skill://ux-process).
 - Wire the standards into review: `.pr_agent.toml` `repo_context_files` lists them; `extra_instructions` demands a per-doc Compliance section in every review (houses, books_to_anki).
 
-### 6. PR review & dependency automation
+### 6. PR review, dependency automation & LLM provider config
 
-- `.pr_agent.toml` + `.github/workflows/pr-agent.yml`: the-pr-agent action with the house provider, standards docs in `repo_context_files`, a per-doc Compliance instruction, and a "check review succeeded" step that fails the PR when no review comment covers the head commit (books_to_anki's attribution logic).
+**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml` + `examples/tools/check_review_posted.py`** — copy them into the new repo, create the `pr-agent-config` branch holding the `.pr_agent.toml`, and set the `<PROJECT>_API_KEY` secret (the Cloudflare AI Gateway token) BEFORE the first PR. The example file comments explain the security invariants and failure modes — read them.
 
-**Working files: `examples/.pr_agent.toml` + `examples/.github/workflows/pr-agent.yml`** — copy both into the new repo, create the `pr-agent-config` branch holding the `.pr_agent.toml`, and set the `<PROJECT>_API_KEY` secret (the house provider's key for this project — the `opencode-go` entry) BEFORE the first PR. The security invariants (no checkout, config from a maintainer branch, pinned SHA) are documented in the workflow file's comment header and are non-negotiable: a PR branch could otherwise ship its own `pyproject.toml`/`.pr_agent.toml` pointing `api_base` at an attacker endpoint, and the API key would be sent there as the Bearer token. The workflow also skips the whole job on dependabot PRs (`if: github.event.pull_request.user.login != 'dependabot[bot]'`) — mechanical bumps don't need an AI review, and the ticket-compliance step chokes on their no-ticket descriptions.
+### 6b. LLM provider convention
 
-The silent-failure modes (all hit on the-loft 2026-08-08, hours of "the review is broken" before the cause was found) — each has ONE first thing to check:
-- **"Incorrect API key provided: sk-..."** in the run — check `PR_AGENT_CONFIG_BRANCH` first, not the key: without the pin the action's per-host allowed-keys gate blocks the repo `.pr_agent.toml` entirely, so the image defaults run (`model gpt-5.6`, `api_base api.openai.com`) and the key is rejected there. With the pin in place, then check the secret's value (another provider's entry fails the same way).
-- **"Model ... is not supported"** — the `model` line lost its `openai/` prefix (the handler strips only `openai/`/`azure/`; anything else goes to the endpoint verbatim). Keep `model = "openai/deepseek-v4-flash"` verbatim.
-- **The review posts but the check fails** — the check must match "## PR Reviewer Guide" by prefix + (SHA in body OR posted after the head commit landed): v0.41.1 reviews never contain the head SHA, so a SHA-in-body-only matcher fails even on a successful review.
-
-Deliberate duplication exception (recorded 2026-08-08 after a review finding): the example files' `DO NOT CHANGE` headers restate the failure modes nearly verbatim. That is intentional — the examples are copied into new repos standalone (no skill), so each must be self-sufficient; SKILL.md here is the canonical home when the action's behavior changes and the copies drift.
+All code reads LLM provider config from `OPENAI_BASE_URL` + `OPENAI_API_KEY`. See `skill://cloudflare-ai-gateway` for the gateway URL, model names, and configuration. Forkers change these two env vars and model names.
 
 - `.github/dependabot.yml` — **working file: `examples/.github/dependabot.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence.
 
@@ -179,7 +167,7 @@ gh api repos/<owner>/<name>/branches/main/protection -X PUT \
 Rules:
 - Never push to main; the first commit is `main`, everything after is branches + PRs (rule://session-start).
 - `--private` is the default for personal repos; go public only deliberately.
-- **Set `<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s).
+- **Set `<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s). The secret value is the Cloudflare AI Gateway token (`CLOUDFLARE_AIGATEWAY_TOKEN` in the shell environment).
 
 ## Language layers — see `skill://scaffold-language-layers`
 
@@ -203,7 +191,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] Makefile pins the recipe shell (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — recipes can't diverge between macOS and CI
 - [ ] `make test` depends on `make lint`; CI runs only make targets
 - [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
-- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail)
+- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail) — EXCEPT where the toolchain is pinned and deterministic (Rust under `rust-toolchain.toml`: clippy/rustc need no baseline, per the language layer)
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
@@ -216,7 +204,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] `docs/` standards copied from omp-config in full — coding-standards.md, testing-standards.md, ux-standards.md (from omp-config's `standards/`), writing-documentation.md, documentation-structure.md (from omp-config's `docs/`)
 - [ ] Required doc set present (per docs/documentation-structure.md): `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` (or `docs/PLAN/`) with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies; every doc discoverable from AGENTS.md
 - [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern) and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
-- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret set BEFORE the first PR
+- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
 - [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
 - [ ] dependabot: weekly for package ecosystem + `github-actions`
 - [ ] Branch workflow: never commit to main, PRs required, protected main
@@ -244,6 +232,19 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] `docs/coding-standards.md` carries the "JS/TS conventions" section (materialized from this skill's language layer — the bot reads only `repo_context_files`)
 - [ ] Node pinned in CI (setup-node, 22.x) and locally (`.nvmrc` same version)
 - [ ] husky pre-commit: lint + typecheck + gitleaks
+
+### Rust
+- [ ] `rust-toolchain.toml` pins the exact stable channel at scaffold time; CI (`dtolnay/rust-toolchain@stable` — installs rustup; the file's channel is honored in-dir) and local rustup use the same file — components `clippy`, `rustfmt`, `llvm-tools`
+- [ ] `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` inside `make lint`; rustfmt `max_width = 120` matching `.editorconfig` (one formatter per artifact — generated code excluded, not re-formatted)
+- [ ] Type gate = `cargo check --all-targets` inside `make test` (the borrow checker is the type checker; deterministic under the toolchain pin — no baseline needed, stated in the Makefile)
+- [ ] `cargo test` runner; coverage via `cargo llvm-cov --cobertura` → `cobertura.xml` for the CI gate (fail below floor, track goal)
+- [ ] `target/` and `cobertura.xml` gitignored (Rust build + coverage artifacts — `cargo build` writes `target/`, `make coverage` writes cobertura.xml; the general `.gitignore` set §4 covers the Python/JS artifacts)
+- [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` (clippy -D warnings — human-readable output feeds GitHub's built-in matcher for inline annotations)
+- [ ] Raw hooks: pre-commit (make lint-check + gitleaks) + pre-push (make check), watch scope `*.rs Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml`
+- [ ] `#[allow(...)]` carries a reason comment (no blanket `#![allow]`); newtypes over primitives (units in the type name, Money never bare float)
+- [ ] Repo self-checks: std-only `#[test]`s for docs links and for architecture layers (forbidden `use` paths — exact paths, never the vacuous glob form)
+- [ ] Cargo.lock committed (reproducible builds); fast-moving crates pinned with a comment why
+- [ ] `docs/coding-standards.md` carries the "Rust conventions" section (materialized from the language layer — the bot reads only `repo_context_files`)
 
 ### Non-code
 - [ ] Docker services: layered compose files, per-service Dockerfile, shared env_file
