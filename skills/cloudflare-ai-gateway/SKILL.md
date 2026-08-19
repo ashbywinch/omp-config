@@ -155,10 +155,6 @@ Per-request headers that override the model node's settings:
 
 The local proxy adds these headers to every request. PR-Agent in GitHub Actions needs them sent via `[litellm] extra_headers` in `.pr_agent.toml` (see below).
 
-### Worker 100s limit
-
-**Hypothesis**: Cloudflare Workers have a ~100s execution limit (documented in community posts). The AI Gateway runs on Workers, so long-running streams might hit this ceiling. The 504s at ~94s during PR-Agent runs are consistent with this limit. The `cf-aig-request-timeout` header might override this, but we haven't confirmed. If long reviews still fail after the route timeout increase, the Worker limit is the likely cause. Workaround: route PR-Agent directly to DeepSeek (bypass gateway) or upgrade to Enterprise.
-
 ## Why the local proxy exists
 
 The proxy exists for two reasons:
