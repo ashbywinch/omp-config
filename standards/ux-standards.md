@@ -99,13 +99,13 @@ use (touch on a phone, not mouse) — and observe each outcome. When an
 interaction silently fails (a pane that won't scroll, a drag that does
 nothing, a control that doesn't respond), that failure is the finding — the
 walker must never "happily use" an interface whose interactions a real user
-could not.**P15 — Success is what the user could perceive, not what the system did.**
+could not. **P15 — Success is what the user could perceive, not what the system did.**
 A flow is accepted only when the user could complete it from what they could
 see and understand. A transaction that completes while the user could not
 see or read the material it depended on is a failure, not a success — the
 records changed, the user didn't. The walker must not press through a broken
 display using knowledge a real user would not have; if the content is
-unreadable, the task is impossible and that is the finding.**P16 — The reviewer interacts with a site only as the persona could, and
+unreadable, the task is impossible and that is the finding. **P16 — The reviewer interacts with a site only as the persona could, and
 never corrects without visible evidence.** There is exactly one valid way to
 review an app: through the visible surface, with the persona's real input
 modality, at the persona's real device size — never via the DOM, console,
@@ -119,7 +119,7 @@ confirm, or complete a review item whose material is not visibly rendered on
 the surface: a correction made without the material in view is a fabrication,
 however plausible the text-level reasoning — the walk fails at that point
 and reports it. Outcomes are verified by what is perceivable (the content
-visibly moved/changed/saved), not by system state.**P17 — Review evidence is the rendered pixels, and findings cite the
+visibly moved/changed/saved), not by system state. **P17 — Review evidence is the rendered pixels, and findings cite the
 screen they came from.** The screenshot is the ground truth of a review,
 because the alternative is worse than a missing screenshot: a structural
 channel (DOM/a11y tree) demonstrably overrides correct pixel perception in
@@ -135,14 +135,13 @@ roughly 1280×720 for layout, 2–4× zoomed crops for any detail judgment —
 the resolution curse makes full-page screenshots unreadable for small text.
 Every finding names the screenshot (or the fallback evidence: canvas
 pixel-reads, source crops at the viewport region) it came from; "could not
-see X" is a finding, never a skip.**P18 — No dislocating moves.** When the interface moves content in
+see X" is a finding, never a skip. **P18 — No dislocating moves.** When the interface moves content in
 response to an action — a scroll sync, a pan, a navigation — the movement
 is continuous or brief and expected; an abrupt jump that relocates the
 user's point of attention without a path is a finding. Synchronised
 movements (a dual-pane scroll link, an auto-follow) ease out in roughly
 150–300 ms; the user's own direct manipulation (a drag, a finger pan)
-tracks the input 1:1 with no easing. — "abrupt jumps disorient
-users", 100–500 ms ease-out transitions.)
+tracks the input 1:1 with no easing.
 
 ## Language
 
