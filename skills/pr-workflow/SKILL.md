@@ -159,9 +159,9 @@ what to fix. One command fetches every source at once — inline PR comments,
 issue comments, and review threads:
 
 ```bash
-echo "=== INLINE ===" && gh api repos/<owner>/<repo>/pulls/<n>/comments \
+echo "=== INLINE ===" && gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments \
   --jq '.[] | "\(.user.login) @ \(.path):\(.line) — \(.body[:200])"'
-echo "=== ISSUE ===" && gh api repos/<owner>/<repo>/issues/<n>/comments \
+echo "=== ISSUE ===" && gh api --paginate repos/<owner>/<repo>/issues/<n>/comments \
   --jq '.[] | "\(.user.login) @ \(.created_at) — \(.body[:200])"'
 echo "=== REVIEWS ===" && gh pr view <n> --json reviews \
   --jq '.reviews[] | "\(.author.login) (\(.state)) — \(.body[:200])"'
