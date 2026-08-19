@@ -18,6 +18,11 @@ jobs:
           # Secret value: the CLOUDFLARE_AIGATEWAY_TOKEN from ~/.secrets.
           OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
           OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
+          # Timeout and retry headers for Cloudflare — DeepSeek fallback can be slow.
+          OPENAI_CUSTOM_HEADERS: |
+            cf-aig-request-timeout: 300000
+            cf-aig-max-attempts: 5
+            cf-aig-backoff: exponential
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SECURITY: pin the config to a maintainer-controlled branch. Using
           # ${{ github.head_ref }} lets any same-repo branch ship its own
