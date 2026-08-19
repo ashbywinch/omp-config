@@ -60,7 +60,7 @@ jobs:
           # Cloudflare AI Gateway: routes OpenCode -> DeepSeek fallback.
           # For forkers: set your own OPENAI_KEY and OPENAI_BASE_URL.
           OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
-          OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
+          OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY}/compat
           # Timeout and retry headers for Cloudflare — DeepSeek fallback can be slow.
           OPENAI_CUSTOM_HEADERS: |
             cf-aig-request-timeout: 300000

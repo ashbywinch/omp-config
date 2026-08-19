@@ -10,13 +10,17 @@ Query per-request logs from Cloudflare AI Gateway. Each log entry includes cost,
 ## Prerequisites
 
 - `CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN` — API token with AI Gateway Edit permission
-- Account ID: `e21a5be58ac1e8f7d5619539feb2dc3d`
-- Gateway: `default`
+- `ACCOUNT_ID` and `GATEWAY` env vars (or replace inline). Find them in the Cloudflare dashboard URL: `https://dash.cloudflare.com/{ACCOUNT_ID}/ai/ai-gateway/gateways/{GATEWAY}`
+
+```bash
+export ACCOUNT_ID=<your-account-id>
+export GATEWAY=default
+```
 
 ## List recent logs
 
 ```bash
-curl -s "https://api.cloudflare.com/client/v4/accounts/e21a5be58ac1e8f7d5619539feb2dc3d/ai-gateway/gateways/default/logs?limit=20" \
+curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/logs?limit=20" \
   -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN"
 ```
 
@@ -38,7 +42,7 @@ Each log entry includes:
 ## Cost breakdown by source
 
 ```bash
-curl -s "https://api.cloudflare.com/client/v4/accounts/e21a5be58ac1e8f7d5619539feb2dc3d/ai-gateway/gateways/default/logs?limit=100" \
+curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/logs?limit=100" \
   -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN" \
   | python3 -c "
 import json, sys
@@ -64,7 +68,7 @@ for key in sorted(by_source):
 ## Cost breakdown by model
 
 ```bash
-curl -s "https://api.cloudflare.com/client/v4/accounts/e21a5be58ac1e8f7d5619539feb2dc3d/ai-gateway/gateways/default/logs?limit=100" \
+curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/logs?limit=100" \
   -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN" \
   | python3 -c "
 import json, sys
@@ -86,10 +90,10 @@ for m in sorted(by_model):
 
 ```bash
 LOG_ID=<log-id>
-curl -s "https://api.cloudflare.com/client/v4/accounts/e21a5be58ac1e8f7d5619539feb2dc3d/ai-gateway/gateways/default/logs/$LOG_ID/request" \
+curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/logs/$LOG_ID/request" \
   -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN"
 
-curl -s "https://api.cloudflare.com/client/v4/accounts/e21a5be58ac1e8f7d5619539feb2dc3d/ai-gateway/gateways/default/logs/$LOG_ID/response" \
+curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/logs/$LOG_ID/response" \
   -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN"
 ```
 

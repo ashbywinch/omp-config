@@ -30,8 +30,8 @@ Routes all AI API calls through Cloudflare AI Gateway with OpenCode (primary) �
                     ▼                          ▼
           ┌─────────────────────────────────────────┐
           │  Cloudflare AI Gateway                  │
-          │  Account: e21a5be58ac1e8f7d5619539feb2dc3d  │
-          │  Gateway: default                       │
+          │  Account: {ACCOUNT_ID} (from dashboard) │
+          │  Gateway: {GATEWAY} (usually default)   │
           │  Auth: CLOUDFLARE_AIGATEWAY_TOKEN       │
           └────────────────┬────────────────────────┘
                            │
@@ -50,10 +50,10 @@ The convention is `OPENAI_BASE_URL` + `OPENAI_API_KEY`. PR-Agent is an exception
 | `OPENAI_BASE_URL` | Cloudflare compat endpoint | `.zshrc`, `omp-yolo.sh`, GitHub secrets |
 | `OPENAI_API_KEY` | Gateway auth token | shell environment (`.zshrc`, GitHub secrets) |
 
-The current values:
+The current values (account ID, gateway name are in Cloudflare — query them):
 
 ```dotenv
-OPENAI_BASE_URL=https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
+OPENAI_BASE_URL=https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY}/compat
 OPENAI_API_KEY=                            # value from CLOUDFLARE_AIGATEWAY_TOKEN env var
 ```
 
@@ -61,12 +61,12 @@ OPENAI_API_KEY=                            # value from CLOUDFLARE_AIGATEWAY_TOK
 
 ### Model names
 
-The model name in the request body selects the Cloudflare dynamic route:
+The model name in the request body selects the Cloudflare dynamic route — `dynamic/{route-name}`. Routes are configured in the Cloudflare dashboard (see above). Convention:
 
-| Use case | Model name | Route | Fallback |
-|---|---|---|---|
-| Text (default) | `dynamic/fallback2` | OpenCode → DeepSeek | DeepSeek-direct |
-| Vision/images | `dynamic/image` | OpenCode → Mimo | Configurable in dashboard |
+| Use case | Route naming | Suggested model |
+|---|---|---|
+| Text (default) | `{name}-text` or `{name}` | `dynamic/fallback2` |
+| Vision/images | `{name}-vision` or `{name}` | `dynamic/image` |
 
 PR-Agent uses `openai/dynamic/fallback2` (the `openai/` prefix is stripped by the handler). Other clients send the model name as-is.
 
@@ -74,28 +74,33 @@ PR-Agent uses `openai/dynamic/fallback2` (the `openai/` prefix is stripped by th
 
 ### Gateway
 
-- **Account ID**: `e21a5be58ac1e8f7d5619539feb2dc3d`
-- **Gateway name**: `default`
-- **Compat endpoint**: `https://gateway.ai.cloudflare.com/v1/{account_id}/default/compat`
+Gateway settings are source-of-truth in Cloudflare — query them, don't hardcode:
+
+- **Account ID**: from the dashboard URL `https://dash.cloudflare.com/{account_id}/ai/ai-gateway`
+- **Gateway name**: from the dashboard (or the `default` auto-created gateway)
+- **Compat endpoint**: `https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway}/compat`
 
 ### Dynamic routes
 
-Created in Dashboard → AI → AI Gateway → `default` → Dynamic Routing.
+Routes, providers, model names, and timeouts are configured in Dashboard → AI → AI Gateway → `{gateway}` → Dynamic Routing. Query the current state via the admin API (see `skill://cloudflare-ai-gateway-analytics` for auth):
 
-| Route | Primary provider | Fallback provider | Model name |
-|---|---|---|---|
-| `fallback2` | OpenCode (OpenRouter) | DeepSeek-direct | `dynamic/fallback2` |
-| `image` | OpenCode (OpenRouter) | (configured) | `dynamic/image` |
+```bash
+# List routes (returns current model nodes, providers, timeouts, retries)
+curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/routes" \
+  -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN"
+```
+
+Route names are referenced in config as `dynamic/{route-name}`. If a route is renamed in the dashboard, config files referencing the old name break — always verify against the API above.
 
 ### Provider keys
 
-Stored in Dashboard → AI → AI Gateway → `default` → Provider Keys. Uses BYOK (Bring Your Own Key). Key names: `custom-openrouter`, `custom-deepseek`, etc.
+Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers).
 
 ## Timeouts and retries
 
 ### What we know
 
-**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". We observed a 504 at 31s when the timeout was 30s. The current route has 120s (primary) and 300s (fallback) which works for long reviews.
+**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". We observed a 504 at 31s when the timeout was 30s. Current route values are visible via the routes API (see Cloudflare Dashboard section above) — don't hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). We confirmed the gateway recognizes it (14s test returned 200).
 
@@ -175,7 +180,7 @@ A Bun script (`cf-proxy.ts`) running as a systemd user service. It:
 1. Receives requests from OMP on `localhost:9123`
 2. Reads the repo name (tagged by `omp-yolo.sh`)
 3. Adds `cf-aig-metadata: {"source":"agent","repo":"<name>"}` header
-4. Adds timeout/retry headers (`cf-aig-request-timeout: 300000`, etc.)
+4. Adds timeout/retry headers (values from `cf-aig-request-timeout` config)
 5. Forwards to Cloudflare
 
 ### Service management
@@ -245,7 +250,7 @@ See `skill://new-repo-scaffold/examples/.github/workflows/pr-agent.yml` for the 
 
 ```yaml
 OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
-OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
+OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY}/compat
 PR_AGENT_CONFIG_BRANCH: pr-agent-config
 ```
 
@@ -270,11 +275,11 @@ Restores: original `config.json`, `omp-yolo.sh`, `config.yml`, removes `models.y
 
 **Observed**: PR-Agent review runs returned 504 at ~94s. Local curl through the gateway returned 504 at ~31s (when fallback timeout was 30s).
 
-**Root cause**: The model node timeout was too short. The old route had `timeout: 30000` on the fallback — DeepSeek needed more time to process the 32K-token PR diff. The 94s timing was the cumulative time of primary retries (3× instant error from OpenCode out of credits) + fallback timeout (30s) + overhead.
+**Root cause**: The model node timeout was too short. DeepSeek needed more time than the route's timeout allowed. Query the current route timeouts via the routes API (see Cloudflare Dashboard section above).
 
 **Workers 100s limit disproven**: The review ran for 10 minutes through the gateway without issue. The AI Gateway does not inherit the Workers 100s execution limit.
 
-**Fix applied**: Deployed a new route version with `fallback-model timeout: 300000` (5 min) and `retries: 2`. This gives DeepSeek enough time for first byte (if that's what the timeout measures) or total response duration (if that's what it measures).
+**Fix applied**: Increased the model node timeout to accommodate long reviews. Current values are queryable via the routes API.
 
 **If 504s persist**: Route PR-Agent directly to DeepSeek by setting `OPENAI_BASE_URL` to `https://api.deepseek.com/v1` and `OPENAI_KEY` to the `DEEPSEEK_API_KEY` env var value.
 
