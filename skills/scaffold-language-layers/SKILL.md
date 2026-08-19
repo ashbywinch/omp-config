@@ -135,8 +135,8 @@ equivalent.
   `dtolnay/rust-toolchain@stable` (reads the pin — never a separate
   toolchain-install line that can drift) + `taiki-e/install-action` for
   `cargo-llvm-cov`; steps are exactly make targets.
-- **.gitignore: `target/` + `cobertura.xml`** — `cargo build` writes
-  `target/`, `make coverage` writes `cobertura.xml`; both belong in the
+- **.gitignore: `target/` + `lcov.info`** — `cargo build` writes
+  `target/`, `make coverage` writes `lcov.info`; both belong in the
   repo's `.gitignore` (the general layer's §4 set covers the Python/JS
   artifacts — reference it rather than restate the pattern list).
 - **Git hooks: raw `scripts/pre-commit` + `scripts/pre-push`** — the same

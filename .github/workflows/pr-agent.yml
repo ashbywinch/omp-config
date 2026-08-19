@@ -37,13 +37,18 @@ jobs:
       issues: read
       actions: read   # read the bot's completed run log for the failure reason
     steps:
+      # SECURITY: checkout the DEFAULT branch, not the PR head — the script
+      # runs with GITHUB_TOKEN, and a PR could replace tools/check_review_posted.py
+      # with code that exfiltrates it. python3 -I only blocks stdlib shadowing.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
       - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # SECURITY: python3 -I (isolated) keeps the PR checkout off sys.path —
+        # SECURITY: python3 -I (isolated) keeps the checkout off sys.path —
         # a repo-root json.py/urllib.py/sitecustomize.py must not shadow the
         # script's stdlib imports and run code with GITHUB_TOKEN.
         run: python3 -I tools/check_review_posted.py

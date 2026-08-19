@@ -6,13 +6,13 @@
 # provider's API key and update api_base / model in .pr_agent.toml.
 #
 # DO NOT CHANGE:
-# - NO actions/checkout here — deliberate. PR-Agent fetches everything via
-#   the GitHub API (the pinned config branch, the diff, the repo context
-#   files), and the action's config loader ALSO merges a [tool.pr-agent]
-#   section from pyproject.toml found in the working tree. With a checkout
-#   of the PR head, an attacker branch could ship its own pyproject.toml
-#   overriding [openai] api_base; with no checkout there is no working-tree
-#   config to read at all.
+# - NO actions/checkout in the pr-review job — deliberate. PR-Agent fetches
+#   everything via the GitHub API (the pinned config branch, the diff, the
+#   repo context files), and the action's config loader ALSO merges a
+#   [tool.pr-agent] section from pyproject.toml found in the working tree.
+#   With a checkout of the PR head, an attacker branch could ship its own
+#   pyproject.toml overriding [openai] api_base; with no checkout there is
+#   no working-tree config to read at all.
 # - PR_AGENT_CONFIG_BRANCH: config MUST come from a maintainer-controlled
 #   branch — a PR branch could ship its own .pr_agent.toml pointing
 #   api_base at an attacker endpoint, and the API key would be sent there
@@ -28,13 +28,10 @@
 # - The `if:` on the job: dependabot bumps are mechanical and covered by
 #   build-and-test; the AI review adds noise and its ticket-compliance step
 #   chokes on dependabot descriptions (no ticket ref). Skip the whole job.
-# - The "Check review succeeded" step: fails the PR when no review comment
-#   covers the head commit. The matcher looks for a comment starting "## PR
-#   Reviewer Guide" AND (containing the head SHA OR posted after the head
-#   commit landed) — v0.41.1 reviews NEVER contain the head SHA, so a
-#   SHA-in-body-only match fails even when the review posted (the-loft
-#   2026-08-08). Must PASS when a human posted "/skip" (skip_commands in
-#   .pr_agent.toml — pr-agent posts nothing on a skip).
+# - The verify job checks out the DEFAULT branch, not the PR head — the
+#   script runs with GITHUB_TOKEN, and a PR could replace
+#   tools/check_review_posted.py with code that exfiltrates it. python3 -I
+#   only blocks stdlib shadowing.
 
 name: AI Code Review
 
@@ -64,29 +61,31 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
 
-      # Fail the PR when no "## PR Reviewer Guide" comment covers the head
-      # commit: the comment matches by prefix + (SHA in body OR posted after
-      # the head commit landed) — the SHA-in-body fallback exists because
-      # v0.41.1's first review on a PR is posted without the SHA marker.
-      - name: Check review succeeded
+  verify:
+    # A SEPARATE job that runs AFTER the bot job completes: GitHub does not
+    # serve a job's log until it finishes, so check_review_posted.py can only
+    # read the bot's failure reason from here — inside the bot's own job the
+    # log endpoint returns 409 and the reason is always the generic fallback.
+    needs: pr-review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read   # read the bot's completed run log for the failure reason
+    steps:
+      # SECURITY: checkout the DEFAULT branch, not the PR head — the script
+      # runs with GITHUB_TOKEN, and a PR could replace tools/check_review_posted.py
+      # with code that exfiltrates it. python3 -I only blocks stdlib shadowing.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # gh api --paginate emits ONE JSON array per page — slurp (-s) and
-          # concat, or a 31+ comment PR makes this a multi-line string that
-          # never equals "true" (a false failure — the-loft 2026-08-08 review).
-          comments="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --paginate | jq -s 'add')"
-          if printf '%s' "$comments" | jq -e 'any(.body == "/skip")' >/dev/null; then
-            echo "review skipped by a human (/skip)"
-            exit 0
-          fi
-          head_date="$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq .commit.committer.date)"
-          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date"             '[.[] | select(.body | startswith("## PR Reviewer Guide"))]
-             | any(.created_at >= $hd or (.body | contains($sha)))')"
-          if [ "$covered" != "true" ]; then
-            echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
-            exit 1
-          fi
-          echo "review posted for $SHA"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # SECURITY: python3 -I (isolated) keeps the checkout off sys.path —
+        # a repo-root json.py/urllib.py/sitecustomize.py must not shadow the
+        # script's stdlib imports and run code with GITHUB_TOKEN.
+        run: python3 -I tools/check_review_posted.py
