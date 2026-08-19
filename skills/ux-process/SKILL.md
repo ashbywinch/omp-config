@@ -40,7 +40,7 @@ is what stops the loop from going round in circles.
      reasoning, confusions (grounded in the exact label or location),
      and whether and why they give up (and at what point).
    - **The walker rules above are the operational form of P14–P18 in
-     `standards/ux-standards.md`** — the principles are there; the rules
+     `ux-standards.md`** — the principles are there; the rules
      here are the walker's checklist. See also the "How reviewers
      interact" section below for the reviewer's single rule.
    - The transcript is the raw material; do not let the fake user
@@ -54,7 +54,7 @@ is what stops the loop from going round in circles.
    - **Recommendations** — the concrete change, where it goes, which problem
      it resolves, and what a better experience would look like from this
      user's point of view.
-   The subagent may reference `standards/ux-standards.md` and the repo's
+   The subagent may reference `ux-standards.md` and the repo's
    usability baseline, but must not be limited by them: the desired outcome
    is a great experience for this user, not compliance with a guideline. A
    recommendation that serves the user even where a principle is silent is
@@ -78,7 +78,7 @@ is what stops the loop from going round in circles.
 ## How reviewers interact (one rule)
 
 The reviewer interacts with a site exactly as the persona could — see the
-walker rules above (the operational form of P14–P18 in `standards/ux-standards.md`).
+walker rules above (the operational form of P14–P18 in `ux-standards.md`).
 
 
 
@@ -107,5 +107,5 @@ walker rules above (the operational form of P14–P18 in `standards/ux-standards
   run primary research before guessing.
 - `skill://visual-design` — wireframes/mockups for the recommendations the
   loop produces.
-- Standards: `standards/ux-standards.md` (principles), the repo's
+- Standards: `ux-standards.md` (principles), the repo's
   usability-requirements baseline and UX decisions doc (repo specifics).
