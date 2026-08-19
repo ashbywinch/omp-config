@@ -1,0 +1,9 @@
+modelRoles:
+  default: cloudflare-gateway/dynamic/fallback2
+  advisor: cloudflare-gateway/dynamic/fallback2
+  designer: cloudflare-gateway/dynamic/image
+  vision: cloudflare-gateway/dynamic/image
+retry:
+  modelFallback: false
+tier:
+  openai: auto

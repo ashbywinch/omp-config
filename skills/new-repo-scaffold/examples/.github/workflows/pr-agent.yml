@@ -1,22 +1,18 @@
 # AI Code Review (the-pr-agent) — the house review bot.
 #
 # CHANGE: `<PROJECT>_API_KEY` -> your repo secret name. The secret value is
-# the house provider key for THIS project (the "opencode-go" entry from the
-# account's auth file). Set it BEFORE the first PR — the job fails fast
-# without it (observed: secret created after the PR-open event, run dead in
-# 6s). A wrong entry (another provider's key) fails every run with
-# "Incorrect API key provided: sk-..." — the endpoint says exactly that, so
-# when the check step errors with it, verify the secret's value, not the
-# model or the endpoint (the-loft 2026-08-08).
+# the Cloudflare AI Gateway token (same for all projects). Set it BEFORE
+# the first PR — the job fails fast without it. For forkers: use your own
+# provider's API key and update api_base / model in .pr_agent.toml.
 #
 # DO NOT CHANGE:
-# - NO actions/checkout here — deliberate. PR-Agent fetches everything via
-#   the GitHub API (the pinned config branch, the diff, the repo context
-#   files), and the action's config loader ALSO merges a [tool.pr-agent]
-#   section from pyproject.toml found in the working tree. With a checkout
-#   of the PR head, an attacker branch could ship its own pyproject.toml
-#   overriding [openai] api_base; with no checkout there is no working-tree
-#   config to read at all.
+# - NO actions/checkout in the pr-review job — deliberate. PR-Agent fetches
+#   everything via the GitHub API (the pinned config branch, the diff, the
+#   repo context files), and the action's config loader ALSO merges a
+#   [tool.pr-agent] section from pyproject.toml found in the working tree.
+#   With a checkout of the PR head, an attacker branch could ship its own
+#   pyproject.toml overriding [openai] api_base; with no checkout there is
+#   no working-tree config to read at all.
 # - PR_AGENT_CONFIG_BRANCH: config MUST come from a maintainer-controlled
 #   branch — a PR branch could ship its own .pr_agent.toml pointing
 #   api_base at an attacker endpoint, and the API key would be sent there
@@ -32,26 +28,16 @@
 # - The `if:` on the job: dependabot bumps are mechanical and covered by
 #   build-and-test; the AI review adds noise and its ticket-compliance step
 #   chokes on dependabot descriptions (no ticket ref). Skip the whole job.
-# - The "Check review succeeded" step: fails the PR when no review comment
-#   covers the head commit. The matcher looks for a comment starting "## PR
-#   Reviewer Guide" AND (containing the head SHA OR posted after the head
-#   commit landed) — v0.41.1 reviews NEVER contain the head SHA, so a
-#   SHA-in-body-only match fails even when the review posted (the-loft
-#   2026-08-08). Must PASS when a human posted "/skip" (skip_commands in
-#   .pr_agent.toml — pr-agent posts nothing on a skip).
+# - The verify job checks out the DEFAULT branch, not the PR head — the
+#   script runs with GITHUB_TOKEN, and a PR could replace
+#   tools/check_review_posted.py with code that exfiltrates it. python3 -I
+#   only blocks stdlib shadowing.
 
 name: AI Code Review
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-# One review at a time per PR; a newer push cancels the stale run rather than
-# queueing behind it (rapid fix pushes never stack — the incremental /review
-# -i config in .pr_agent.toml supersedes the cancelled run's review with the
-# new push's incremental review anyway).
-concurrency:
-  group: ai-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   pr-review:
@@ -65,40 +51,41 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: the-pr-agent/pr-agent@f6af7d77554ff8d26adffded077e6461329e92fa   # v0.42.0 tag SHA — pin a real release SHA, @latest does not resolve
+      - uses: the-pr-agent/pr-agent@b249e568e0c0fb6c674ace55fe95d02f62f8f3b3   # pin a real release SHA — @latest does not resolve
         id: pr-agent
         env:
+          # Cloudflare AI Gateway: routes OpenCode -> DeepSeek fallback.
+          # For forkers: set your own OPENAI_KEY and OPENAI_BASE_URL.
           OPENAI_KEY: ${{ secrets.<PROJECT>_API_KEY }}
-          OPENAI_BASE_URL: https://opencode.ai/zen/go/v1
+          OPENAI_BASE_URL: https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY}/compat
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
 
-      # Fail the PR when no "## PR Reviewer Guide" comment covers the head
-      # commit: the comment matches by prefix + (SHA in body OR posted after
-      # the head commit landed) — the SHA-in-body fallback exists because
-      # v0.41.1's first review on a PR is posted without the SHA marker.
-      # Match BOTH headers: the regular review posts "## PR Reviewer Guide"
-      # and the incremental (-i) review posts "## Incremental PR Reviewer
-      # Guide" — the check must not fail a review that succeeded (2026-08-11:
-      # the first incremental run was missed exactly this way).
-      - name: Check review succeeded
+  verify:
+    # A SEPARATE job that runs AFTER the bot job completes: GitHub does not
+    # serve a job's log until it finishes, so check_review_posted.py can only
+    # read the bot's failure reason from here — inside the bot's own job the
+    # log endpoint returns 409 and the reason is always the generic fallback.
+    needs: pr-review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read   # read the bot's completed run log for the failure reason
+    steps:
+      # SECURITY: checkout the DEFAULT branch, not the PR head — the script
+      # runs with GITHUB_TOKEN, and a PR could replace tools/check_review_posted.py
+      # with code that exfiltrates it. python3 -I only blocks stdlib shadowing.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Fail loud if no review covers the head commit
         env:
           SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # gh api --paginate emits ONE JSON array per page — slurp (-s) and
-          # concat, or a 31+ comment PR makes this a multi-line string that
-          # never equals "true" (a false failure — the-loft 2026-08-08 review).
-          comments="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --paginate | jq -s 'add')"
-          if printf '%s' "$comments" | jq -e 'any(.body == "/skip")' >/dev/null; then
-            echo "review skipped by a human (/skip)"
-            exit 0
-          fi
-          head_date="$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq .commit.committer.date)"
-          covered="$(printf '%s' "$comments" | jq -r --arg sha "$SHA" --arg hd "$head_date" '[.[] | select((.body | startswith("## PR Reviewer Guide")) or (.body | startswith("## Incremental PR Reviewer Guide"))) | any(.created_at >= $hd or (.body | contains($sha)))] | any')"
-          if [ "$covered" != "true" ]; then
-            echo "::error::AI review did not post for commit $SHA — the review may have failed silently."
-            exit 1
-          fi
-          echo "review posted for $SHA"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # SECURITY: python3 -I (isolated) keeps the checkout off sys.path —
+        # a repo-root json.py/urllib.py/sitecustomize.py must not shadow the
+        # script's stdlib imports and run code with GITHUB_TOKEN.
+        run: python3 -I tools/check_review_posted.py
