@@ -48,7 +48,7 @@ The convention is `OPENAI_BASE_URL` + `OPENAI_API_KEY`. PR-Agent is an exception
 | Env var | Purpose | Set where |
 |---|---|---|
 | `OPENAI_BASE_URL` | Cloudflare compat endpoint | `.zshrc`, `omp-yolo.sh`, GitHub secrets |
-| `OPENAI_API_KEY` | Gateway auth token | `.secrets`, GitHub secrets |
+| `OPENAI_API_KEY` | Gateway auth token | shell environment (`.zshrc`, GitHub secrets) |
 
 The current values:
 
@@ -193,8 +193,8 @@ Health check: `curl http://localhost:9123/health` → `ok`
 
 | Path | Purpose |
 |---|---|
-| `/home/ashby/.paseo/cf-proxy.ts` | Proxy source (Bun) |
-| `/home/ashby/.config/systemd/user/cf-gateway-proxy.service` | Systemd unit |
+| `~/.paseo/cf-proxy.ts` | Proxy source (Bun) |
+| `~/.config/systemd/user/cf-gateway-proxy.service` | Systemd unit |
 
 ## Paseo Integration
 
@@ -309,7 +309,7 @@ steps:
 ## Rollback
 
 ```bash
-bash /home/ashby/.paseo/rollback.sh
+bash ~/.paseo/rollback.sh
 systemctl --user restart paseo
 ```
 
@@ -334,7 +334,7 @@ Restores: original `config.json`, `omp-yolo.sh`, `config.yml`, removes `models.y
 - Check proxy running: `systemctl --user is-active cf-gateway-proxy.service`
 - Test gateway directly: `curl -s "$OPENAI_BASE_URL/v1/chat/completions" -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_TOKEN" -H "Content-Type: application/json" -d '{"model":"dynamic/fallback2","messages":[{"role":"user","content":"hi"}],"max_tokens":10}'`
 - Check DeepSeek has credits: `curl -s "https://api.deepseek.com/v1/chat/completions" -H "Authorization: Bearer $DEEPSEEK_API_KEY" -H "Content-Type: application/json" -d '{"model":"deepseek-chat","messages":[{"role":"user","content":"hi"}],"max_tokens":10}'`
-- Check `.secrets` sourced in `start.sh`: `source /home/ashby/.secrets`
+- Check the provider API key is set in the environment (e.g. `CLOUDFLARE_AIGATEWAY_TOKEN` in the shell profile)
 
 ### "Model not found" / Falls back to Opus 4.8
 

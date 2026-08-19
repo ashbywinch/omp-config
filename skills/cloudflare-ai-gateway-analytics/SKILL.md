@@ -9,7 +9,7 @@ Query per-request logs from Cloudflare AI Gateway. Each log entry includes cost,
 
 ## Prerequisites
 
-- `CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN` — API token with AI Gateway Edit permission (from `~/.secrets`)
+- `CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN` — API token with AI Gateway Edit permission
 - Account ID: `e21a5be58ac1e8f7d5619539feb2dc3d`
 - Gateway: `default`
 
