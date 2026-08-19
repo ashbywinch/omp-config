@@ -34,34 +34,13 @@ is what stops the loop from going round in circles.
      navigate, never save, PATCH, submit, or toggle anything persistent", or
      for tasks that genuinely require it, "you may complete the task fully,
      including saving" — say which, don't leave it ambiguous.
-   - **Navigate by LOOKING, like a human — never by inspecting the page.**
-     Decide from what is visible; never the DOM, console, source, or
-     devtools (P16 in `standards/ux-standards.md`). If a step cannot be
-     done without inspecting page internals, that is a finding.
    - **Take a screenshot of every screen you see**, stored in a shared
      location (e.g. `/tmp/ux-walkthrough/`), named in visit order.
-   - **Success is perceptual, never operational** (P15). The walk passes
-     only when the persona could complete the task from what they could SEE
-     and UNDERSTAND — never because the records changed. If the walker
-     cannot see the material, the walk FAILS and reports it.
-   - **Exercise the interactions with the persona's REAL input** (P14).
-     Scroll, pan, zoom, tap, submit — with the input a real user of that
-     device would use — and observe each outcome. A silently failing
-     interaction is a FINDING.
-   - **Walk at the REAL devices the PRD names** — the primary posture AND
-     the secondary, AND the transitions between them (portrait →
-     landscape). A screen that only looks right at 1024×768 has not been
-     tested. (Device-framing rule; the walker has no dedicated principle
-     — the relevant standards are P14's input modality and P17's
-     capture protocol.)
-   - Be **verbose, in the persona's voice**, about:
-     - first impressions of each screen (what jumps out, what feels
-       welcoming or off),
-     - reasoning about how to do the task (what they try, what they expect
-       to happen, what they look for),
-     - confusions and frustrations, grounded in the exact label or location
-       ("the button says 'Save' but I'm not saving anything yet"),
-     - whether and why they give up, and at what point.
+   - **Be verbose, in the persona's voice**, about first impressions,
+     reasoning, confusions, and whether and why they give up.
+   - **The walker rules above are the operational form of P14–P18 in
+     `standards/ux-standards.md`** — the principles are there; the
+     rules here are the walker's checklist.
    - The transcript is the raw material; do not let the fake user
      self-diagnose or propose fixes — they report experience, not design.
 

@@ -120,9 +120,13 @@ never corrects without visible evidence.** There is exactly one valid way to
 review an app: through the visible surface, with the persona's real input
 modality, at the persona's real device size — never via the DOM, console,
 network, source, state, or data files, and never by inferring unperceivable
-content from the task text. A reviewer must NEVER correct, confirm, or
-complete a review item whose material is not visibly rendered on the
-surface: a correction made without the material in view is a fabrication,
+content from the task text. The sole exception: when the capture environment
+cannot composite the rendered pixels (a blank region where content should
+appear), the reviewer may use canvas pixel-reads and source crops at the
+viewport region as fallback evidence — and every finding that relied on the
+fallback must name the channel it used. A reviewer must NEVER correct,
+confirm, or complete a review item whose material is not visibly rendered on
+the surface: a correction made without the material in view is a fabrication,
 however plausible the text-level reasoning — the walk fails at that point
 and reports it. Outcomes are verified by what is perceivable (the content
 visibly moved/changed/saved), not by system state. (2026-08-16: a walker
