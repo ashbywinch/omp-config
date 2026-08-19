@@ -104,8 +104,6 @@ Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Use
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). We confirmed the gateway recognizes it (14s test returned 200).
 
-**Workers 100s limit** — **disproven**. The review ran for 10 minutes through the gateway without issue. The earlier 504s were from the model node timeout, not a Worker ceiling.
-
 ### What we're uncertain about
 
 Whether the model node `timeout` is:
@@ -311,5 +309,3 @@ Check `PR_AGENT_CONFIG_BRANCH` pin first, not the key. Without the pin, the imag
 - Set `tier.openai = none` (disables the OpenAI provider entirely)
 - Skip the `pr-agent-config` branch pin — any PR branch could ship its own `api_base`
 - Forget `make install` + restart omp after editing this skill — changes are not live until installed
-- Set `tier.openai = none` (disables the OpenAI provider entirely)
-- Skip the `pr-agent-config` branch pin — any PR branch could ship its own `api_base`
