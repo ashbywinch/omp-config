@@ -30,5 +30,8 @@ handle_push_trigger = true
 push_trigger_ignore_bot_commits = false
 push_commands = ["/review", "/improve"]
 
+[litellm]
+extra_headers = '{"cf-aig-request-timeout": "300000", "cf-aig-max-attempts": "5", "cf-aig-backoff": "exponential"}'
+
 [pr_code_suggestions]
 persistent_comment = true

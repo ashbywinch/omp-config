@@ -146,7 +146,7 @@ Deliberate duplication exception (2026-08-08): the examples' `DO NOT CHANGE` hea
 
 ### 6b. LLM provider convention
 
-All code reads LLM provider config from two env vars: `OPENAI_BASE_URL` + `OPENAI_API_KEY`. The house provider is Cloudflare AI Gateway — see the example files (`.pr_agent.toml`, `pr-agent.yml`, `.env.example`) for the current gateway URL and model names. Forkers change these env vars and model names; no other config needed.
+All code reads LLM provider config from two env vars: `OPENAI_BASE_URL` + `OPENAI_API_KEY`. The house provider is Cloudflare AI Gateway — see `skill://cloudflare-ai-gateway` for the current gateway URL, model names, and configuration. Forkers change these two env vars and model names; no other config needed.
 
 - `.github/dependabot.yml` — **working file: `examples/.github/dependabot.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence.
 
