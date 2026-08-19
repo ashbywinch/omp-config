@@ -154,13 +154,21 @@ gh run view <run-id> --log 2>&1 | grep -E "FAILED|Error:|error:" | head -20
 
 ### 7. Collect All Sources of Findings
 
-Findings can come from multiple places. Read **all of them** before deciding what to fix:
+Findings can come from multiple places. Read **all of them** before deciding
+what to fix. One command fetches every source at once — inline PR comments,
+issue comments, and review threads:
 
-| Source | How to access |
-|---|---|
-| PR review comments (AI)| `gh api repos/<owner>/<repo>/issues/<number>/comments` — filter for bot user |
-| PR review thread (human) | `gh pr view <number> --comments` |
-| Inline PR review comments | `gh api repos/<owner>/<repo>/pulls/<number>/comments` |
+```bash
+echo "=== INLINE ===" && gh api repos/<owner>/<repo>/pulls/<n>/comments \
+  --jq '.[] | "\(.user.login) @ \(.path):\(.line) — \(.body[:200])"' \
+  && echo "=== ISSUE ===" && gh api repos/<owner>/<repo>/issues/<n>/comments \
+  --jq '.[] | "\(.user.login) @ \(.created_at) — \(.body[:200])"' \
+  && echo "=== REVIEWS ===" && gh pr view <n> --json reviews \
+  --jq '.reviews[] | "\(.author.login) (\(.state)) — \(.body[:200])"'
+```
+
+This catches **all three sources** — inline file comments, issue/PR comments,
+and review thread comments — in one call. Run it before fixing anything.
 
 ### 8. Parse AI Review Comments Thoroughly
 
