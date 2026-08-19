@@ -159,7 +159,7 @@ def main() -> int:
     head_committed_at = commit["commit"]["committer"]["date"]
 
     try:
-        comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments", token)
+        comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments?per_page=100", token)
     except HTTPError as e:
         print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
         return 1

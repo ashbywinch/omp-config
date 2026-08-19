@@ -127,16 +127,16 @@ equivalent.
   so the gate needs no error-count baseline; it is a bare gate by
   construction). Wired into `make test` before the tests, like the Python
   typecheck target.
-- **Test + coverage: `cargo test`; `cargo llvm-cov --lcov --output-path
-  lcov.info`** (tarpaulin is the fallback; llvm-cov is the modern default).
-  CI consumes `lcov.info` with the same `irongut/CodeCoverageSummary`
-  action (it reads lcov format) — fail below floor, track the goal.
+- **Test + coverage: `cargo test`; `cargo llvm-cov --cobertura --output-path
+  cobertura.xml`** (tarpaulin is the fallback; llvm-cov is the modern default).
+  CI consumes `cobertura.xml` with the same `irongut/CodeCoverageSummary`
+  action (it reads Cobertura format) — fail below floor, track the goal.
 - **CI: the Rust workflow variant (`examples/rust/.github/workflows/ci.yml`)** —
   `dtolnay/rust-toolchain@stable` (reads the pin — never a separate
   toolchain-install line that can drift) + `taiki-e/install-action` for
   `cargo-llvm-cov`; steps are exactly make targets.
-- **.gitignore: `target/` + `lcov.info`** — `cargo build` writes
-  `target/`, `make coverage` writes `lcov.info`; both belong in the
+- **.gitignore: `target/` + `cobertura.xml`** — `cargo build` writes
+  `target/`, `make coverage` writes `cobertura.xml`; both belong in the
   repo's `.gitignore` (the general layer's §4 set covers the Python/JS
   artifacts — reference it rather than restate the pattern list).
 - **Git hooks: raw `scripts/pre-commit` + `scripts/pre-push`** — the same

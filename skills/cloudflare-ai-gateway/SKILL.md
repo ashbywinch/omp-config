@@ -197,8 +197,8 @@ Health check: `curl http://localhost:9123/health` → `ok`
 
 ## Integrations
 
-See `'/home/ashby/.omp/agent/skills/cloudflare-ai-gateway/references/integrations.md'` — Paseo, OMP, and PR-Agent setup.
+See `references/integrations.md` — Paseo, OMP, and PR-Agent setup.
 
 ## Troubleshooting
 
-See `'/home/ashby/.omp/agent/skills/cloudflare-ai-gateway/references/troubleshooting.md'` — common issues and fixes.
+See `references/troubleshooting.md` — common issues and fixes.
