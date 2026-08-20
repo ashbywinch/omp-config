@@ -26,7 +26,7 @@ Warnings never fail. Repos wrap the invocation in their own make target.
 
 ## Acting on a finding — use the fix engine, never hand-implement
 
-The engine is agent-driven; R27 means it owns its own coordinates — you
+The engine is agent-driven; the engine owns its own coordinates — you
 do not compute line numbers: pass `--line N` only when the file has multiple findings; omit it when the file has one finding.
 
 For a structural finding (complexity, long-param-list, extract-class,
