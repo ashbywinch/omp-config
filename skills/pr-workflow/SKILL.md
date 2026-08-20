@@ -156,15 +156,21 @@ gh run view <run-id> --log 2>&1 | grep -E "FAILED|Error:|error:" | head -20
 
 Findings can come from multiple places. Read **all of them** before deciding
 what to fix. One command fetches every source at once — inline PR comments,
-issue comments, and review threads:
+issue comments, and review threads — with FULL comment bodies:
 
 ```bash
-omp-config/tools/fetch-pr-findings.sh <n>
+curl -fsSL https://raw.githubusercontent.com/ashbywinch/omp-config/main/tools/fetch-pr-findings.sh | bash -s <n>
 ```
 
-This script (at `omp-config/tools/fetch-pr-findings.sh`) fetches **all three sources**
-— inline file comments, issue/PR comments, and review thread comments — in
-one call. Run it before fixing anything.
+The script lives in omp-config (`tools/fetch-pr-findings.sh`) — the raw URL
+works from any repo. It fetches all three sources: inline file comments,
+issue/PR comments, and review thread comments, never truncated. Run it
+before fixing anything.
+
+**CRITICAL: Human reviewers (including the user who opened the PR) may leave
+inline comments on specific lines of the changed files. The `pulls/<n>/comments`
+endpoint is the ONLY place these appear. If you skip them, you miss the user's
+feedback entirely.**
 
 ### 8. Parse AI Review Comments Thoroughly
 
