@@ -159,13 +159,13 @@ what to fix. One command fetches every source at once — inline PR comments,
 issue comments, and review threads — with FULL comment bodies:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ashbywinch/omp-config/main/tools/fetch-pr-findings.sh | bash -s <n>
+fetch-pr-findings.sh <n>
 ```
 
-The script lives in omp-config (`tools/fetch-pr-findings.sh`) — the raw URL
-works from any repo. It fetches all three sources: inline file comments,
-issue/PR comments, and review thread comments, never truncated. Run it
-before fixing anything.
+The script ships with this skill (omp-config `tools/fetch-pr-findings.sh`,
+installed to PATH by `make install`), so it runs from any repo. It fetches
+all three sources: inline file comments, issue/PR comments, and review
+thread comments, never truncated. Run it before fixing anything.
 
 **CRITICAL: Human reviewers (including the user who opened the PR) may leave
 inline comments on specific lines of the changed files. The `pulls/<n>/comments`

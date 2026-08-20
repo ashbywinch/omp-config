@@ -21,6 +21,7 @@ links, so an edit is only visible after install + restart.
 | Skills | `~/Documents/code/omp-config/skills/<name>/SKILL.md` | `~/.omp/agent/skills/<name>/SKILL.md` |
 | Rules | `~/Documents/code/omp-config/rules/*.md` | `~/.omp/agent/rules/*.md` |
 | System append | `~/Documents/code/omp-config/APPEND_SYSTEM.md` | `~/.omp/agent/APPEND_SYSTEM.md` |
+| Companion tools a skill needs to run | `~/Documents/code/omp-config/tools/<name>.sh` | `~/.local/bin/<name>` (PATH) |
 
 ## How to update correctly
 
@@ -53,4 +54,8 @@ jargon in the rule itself (a Notion-relational quirk belongs in
 next install refreshes the symlink and the edit is silently lost.
 ✗ inlining the same mechanics (auth flows, API shapes, property types) into
 every domain skill — update the one mechanics skill and reference it.
+✗ a skill that tells the reader to `curl <url> | bash` a companion script —
+materialise it via `make install` (see the Companion tools row above) and
+reference the installed command (docs/writing-documentation.md: distribute
+runnable code through the deployment mechanism).
 ✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.
