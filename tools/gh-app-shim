@@ -1,12 +1,15 @@
 #!/bin/bash
-# gh shim: omp uses the omp-harness GitHub App; the user's own terminal gh
-# keeps their personal credentials.
+# gh shim: agents' gh calls authenticate as the omp-harness GitHub App;
+# the user's own terminal keeps their personal credentials.
 #
-# Rules:
-#   - stdin is a TTY            -> pass through to real gh (user's creds)
-#   - GH_TOKEN/GITHUB_TOKEN set -> pass through untouched (explicit override)
-#   - otherwise (omp, no TTY)   -> mint a fresh app installation token,
-#                                  export GH_TOKEN, exec real gh
+# Rules (contract, not TTY heuristic — mirror tools/git-app-shim):
+#   - PASEO_AGENT_ID set   -> agent mode: mint a fresh app installation
+#                             token, OVERRIDING any inherited
+#                             GH_TOKEN/GITHUB_TOKEN (an exported user token
+#                             must not leak into agent calls), exec real gh
+#   - otherwise            -> pass through to real gh (the user's terminal,
+#                             scripts, cron — their own gh auth and any
+#                             explicit GH_TOKEN/GITHUB_TOKEN override)
 #
 # The app key, app id, and installation id come from ~/.secrets at runtime
 # (sourced here so this works under the Paseo daemon AND a bare terminal).
@@ -46,12 +49,12 @@ if [ -z "$REAL_GH" ]; then
     exit 1
 fi
 
-# ---- pass-through cases ----
-if [ -t 0 ] || [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+# ---- pass-through: everything that is NOT an agent process ----
+if [ -z "${PASEO_AGENT_ID:-}" ]; then
     exec "$REAL_GH" "$@"
 fi
 
-# ---- app mode: source secrets, mint JWT, exchange for installation token ----
+# ---- agent mode: source secrets, mint JWT, exchange for installation token ----
 # shellcheck disable=SC1090
 source "$SECRETS_FILE"
 
