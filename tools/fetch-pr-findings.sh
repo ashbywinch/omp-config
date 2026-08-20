@@ -12,5 +12,5 @@ echo "=== ISSUE (issues/$n/comments) ==="
 gh api --paginate "repos/$repo/issues/$n/comments" \
   --jq '.[] | "---\n\(.user.login) @ \(.created_at)\n\(.body)\n"'
 echo "=== REVIEWS (pull request reviews) ==="
-gh pr view "$n" --json reviews \
+gh pr view "$n" --repo "$repo" --json reviews \
   --jq '.reviews[] | "---\n\(.author.login) (\(.state))\n\(.body)\n"'
