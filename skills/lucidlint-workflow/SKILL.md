@@ -57,13 +57,13 @@ positional-literals): the fix command applies deterministically; run it.
 
 ## Per-file LSP mode
 
-`lucidlint.py --file <repo-relative>.py` scans ONE file with the full rule
-set — use it after every structural edit to catch transient bad states
-(duplicate blocks, undefined names, defs mid-import) before they
+`python3 lucidlint.py --file <repo-relative>.py` scans ONE file with the
+full rule set — use it after every structural edit to catch transient bad
+states (duplicate blocks, undefined names, defs mid-import) before they
 compound:
 
 ```bash
-lucidlint --file path/to/file.py
+python3 lucidlint.py --file path/to/file.py
 ```
 
 ## Baseline conventions
