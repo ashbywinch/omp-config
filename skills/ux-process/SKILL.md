@@ -78,7 +78,7 @@ is what stops the loop from going round in circles.
 ## How reviewers interact (one rule)
 
 The reviewer interacts with a site exactly as the persona could — see the
-walker rules above (the operational form of P14–P18 in `ux-standards.md`).
+walker rules above.
 
 
 
