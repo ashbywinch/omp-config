@@ -36,3 +36,28 @@ you what to change — do that, then re-read before retrying.
 
 6. Re-read the file before editing it again. The tag and line numbers
    changed — your next edit needs fresh coordinates.
+
+### Choose the right tool for the change — never the line editor for structure
+
+The line editor splices TEXT. A structural change made with it can leave a
+duplicate body, an insertion inside a construct, or a dropped import —
+three documented failures in one change (2026-08-20). Match the tool to
+the change:
+
+| Change | Tool |
+|---|---|
+| Text inside one line / a small literal / a comment | the line editor |
+| A whole syntactic construct: function, class, block, statement, dict entry, signature | `ast_edit` (AST pattern rewrite) — applies to parsed nodes atomically; the mistake class is impossible |
+| A linter/fixer finding that carries a fix command (e.g. `lucidlint fix --kind extract-method`) | run that command's PREVIEW, judge the seam, apply with the name as the commitment — never hand-implement the fix |
+| A rename / cross-file reference change | `lsp rename` / `lsp rename_file` — never text search-and-replace |
+
+Before a structural edit, state the tool you are using and why. If the
+answer is "the line editor for a structural change", stop and use the
+structural tool.
+
+### After every structural edit:
+
+Re-run the per-file check (`lsp diagnostics` on that file, or the
+project's linter on it) BEFORE the next edit or the gate. A transient
+bad state caught now is a one-line fix; caught at the gate it is a
+mystery.
