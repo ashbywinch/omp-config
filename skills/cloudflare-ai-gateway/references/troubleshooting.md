@@ -63,14 +63,10 @@ its error message.
 **Observed**: `dynamic/image` returned HTTP 404 with this body — the route
 pointed at a deprecated model (`opencode-go/mimo-v2-flash`).
 
-**Fix**: update the route's model nodes to the recommended model. The
-correct procedure (the "Never do" entry below): `POST
-/routes/{id}/versions` with the full `elements` array (START → model nodes
-→ END), then `POST /routes/{id}/deployments` with `{"version_id": ...}`.
-The version list at `GET /routes/{id}/versions` shows which version is
-`active`. Keep the original providers — only change the model names; a
-provider swap (e.g. `custom-opencode-go` → `openrouter`) changes the
-request path and can break auth.
+**Fix**: update the route's model nodes to the recommended model — follow
+the exact procedure below. Keep the original providers; a provider swap
+(e.g. `custom-opencode-go` → `openrouter`) changes the request path and
+can break auth.
 
 ## Updating a route's model nodes — the exact procedure
 
@@ -95,7 +91,7 @@ version active.
 
 - Delete/overwrite `cf-proxy.ts` without creating a systemd service replacement
 - Expose `CLOUDFLARE_AIGATEWAY_TOKEN` in logs, code, or docs
-- Expect `PATCH` on a route to update its elements — it only renames the route. Creating a new version (`POST .../versions`) and deploying it (`POST .../deployments`) is the correct way to update timeouts and model nodes.
+- Expect `PATCH` on a route to update its elements — it only renames the route; updating timeouts and model nodes is the create-version-and-deploy procedure above.
 - Assume the model node `timeout` is first-byte or last-byte — set it generously (~1800s) to cover both cases.
 - Set `tier.openai = none` (disables the OpenAI provider entirely)
 - Skip the `pr-agent-config` branch pin — any PR branch could ship its own `api_base`
