@@ -185,9 +185,8 @@ gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
   -f body="Fixed — <what changed>" 
 ```
 
-Get the comment-id from `fetch-pr-findings.sh` output or
-`gh api repos/<owner>/<repo>/pulls/<n>/comments --jq '.[] | .id'`. For
-issue comments (not inline), reply with `gh api
+The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
+For issue comments (not inline), reply with `gh api
 repos/<owner>/<repo>/issues/<n>/comments -f body=...`.
 
 ### 8. Parse AI Review Comments Thoroughly
