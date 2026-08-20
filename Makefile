@@ -50,6 +50,7 @@ install:
 		fi; \
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
+	chmod +x $(FETCH_FINDINGS_DST)
 	@echo "Installed omp-config. Restart omp to pick up changes."
 
 install-gh-shim:
