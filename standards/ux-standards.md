@@ -132,7 +132,7 @@ a pass. The vision model reads a downscaled image: whole-view captures at
 roughly 1280×720 for layout, 2–4× zoomed crops for any detail judgment —
 the resolution curse makes full-page screenshots unreadable for small text.
 Every finding names the screenshot (or the fallback evidence: canvas
-pixel-reads, source crops at the viewport region) it came from; "could not
+pixel-reads, or pixel crops of the screenshot at the viewport region) it came from; "could not
 see X" is a finding, never a skip. **P18 — No dislocating moves.** When the interface moves content in
 response to an action — a scroll sync, a pan, a navigation — the movement
 is continuous or brief and expected; an abrupt jump that relocates the
