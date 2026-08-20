@@ -6,8 +6,8 @@ set -euo pipefail
 n="${1:?usage: fetch-pr-findings.sh <PR-number>}"
 repo="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
 echo "=== INLINE ===" && gh api --paginate "repos/$repo/pulls/$n/comments" \
-  --jq '.[] | "\(.user.login) @ \(.path):\(.line) — \(.body[:200])"'
+  --jq '.[] | "\(.user.login) @ \(.path):\(.line) — \(.body[:200] + (if .body | length > 200 then " [...]" else "" end))"'
 echo "=== ISSUE ===" && gh api --paginate "repos/$repo/issues/$n/comments" \
-  --jq '.[] | "\(.user.login) @ \(.created_at) — \(.body[:200])"'
+  --jq '.[] | "\(.user.login) @ \(.created_at) — \(.body[:200] + (if .body | length > 200 then " [...]" else "" end))"'
 echo "=== REVIEWS ===" && gh pr view "$n" --json reviews \
-  --jq '.reviews[] | "\(.author.login) (\(.state)) — \(.body[:200])"'
+  --jq '.reviews[] | "\(.author.login) (\(.state)) — \(.body[:200] + (if .body | length > 200 then " [...]" else "" end))"'

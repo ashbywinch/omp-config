@@ -159,10 +159,10 @@ what to fix. One command fetches every source at once — inline PR comments,
 issue comments, and review threads:
 
 ```bash
-tools/fetch-pr-findings.sh <n>
+omp-config/tools/fetch-pr-findings.sh <n>
 ```
 
-This script (at `tools/fetch-pr-findings.sh`) fetches **all three sources**
+This script (at `omp-config/tools/fetch-pr-findings.sh`) fetches **all three sources**
 — inline file comments, issue/PR comments, and review thread comments — in
 one call. Run it before fixing anything.
 
