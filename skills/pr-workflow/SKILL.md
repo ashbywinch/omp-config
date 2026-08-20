@@ -154,16 +154,40 @@ gh run view <run-id> --log 2>&1 | grep -E "FAILED|Error:|error:" | head -20
 
 ### 7. Collect All Sources of Findings
 
-Findings can come from multiple places. Read **all of them** before deciding what to fix:
+Findings can come from multiple places. Read **all of them** before deciding
+what to fix. One command fetches every source at once — inline PR comments,
+issue comments, and review threads — with FULL comment bodies:
 
-| Source | How to access |
-|---|---|
-| PR review comments (AI)| `gh api repos/<owner>/<repo>/issues/<number>/comments` — filter for bot user |
-| PR review thread (human) | `gh pr view <number> --comments` |
-| Inline PR review comments | `gh api repos/<owner>/<repo>/pulls/<number>/comments` |
-| **Inline review comments on changed files (human)** | `gh api repos/<owner>/<repo>/pulls/<number>/comments` — **check EVERY comment, not just the bot's. Human reviewers leave inline comments on specific lines of the diff. These are NOT in the issues/comments endpoint.** |
+```bash
+fetch-pr-findings.sh <n>
+```
 
-**CRITICAL: Human reviewers (including the user who opened the PR) may leave inline comments on specific lines of the changed files. These are NOT included in the PR review summary comment. You MUST check `pulls/<number>/comments` for ALL comments, not just the bot's. If you only read the bot's summary comment, you will miss the user's feedback entirely.**
+`fetch-pr-findings.sh` is on PATH (installed with this skill by `make
+install`). If it is not found, run `make install` in the omp-config repo
+first. It fetches all three sources: inline file comments, issue/PR
+comments, and review thread comments, never truncated. Run it before fixing
+anything.
+
+**CRITICAL: Human reviewers (including the user who opened the PR) may leave
+inline comments on specific lines of the changed files. The `pulls/<n>/comments`
+endpoint is the ONLY place these appear. If you skip them, you miss the user's
+feedback entirely.**
+
+### 7b. Reply to every inline comment
+
+After fixing a finding, **reply to the inline comment that raised it** —
+one concise line per comment: how it was fixed, or why you disagree. A
+silently-resolved comment leaves the reviewer unsure their feedback was
+seen. Reply to a thread with:
+
+```bash
+gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
+  -f body="Fixed — <what changed>" 
+```
+
+The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
+For issue comments (not inline), reply with `gh api
+repos/<owner>/<repo>/issues/<n>/comments -f body=...`.
 
 ### 8. Parse AI Review Comments Thoroughly
 

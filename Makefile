@@ -17,6 +17,7 @@ GH_SHIM_DST := $(H)/.local/bin/gh
 GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
+FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
 
 help:
 	@echo "omp-config — available commands:"
@@ -35,7 +36,7 @@ setup:
 	@echo "Hooks installed ($(HOOKS_DIR)/pre-commit)."
 
 install:
-	mkdir -p $(APPEND_DIR) $(RULES_DIR) $(SKILLS_DIR)
+	mkdir -p $(APPEND_DIR) $(RULES_DIR) $(SKILLS_DIR) $(dir $(FETCH_FINDINGS_DST))
 	ln -sf $(CURDIR)/APPEND_SYSTEM.md $(APPEND_DIR)/APPEND_SYSTEM.md
 	for f in $(CURDIR)/rules/*.md; do \
 		ln -sf $$f $(RULES_DIR)/$$(basename $$f); \
@@ -48,6 +49,8 @@ install:
 			ln -sfn $$skill_dir/examples $(SKILLS_DIR)/$$name/examples; \
 		fi; \
 	done
+	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
+	chmod +x $(FETCH_FINDINGS_DST)
 	@echo "Installed omp-config. Restart omp to pick up changes."
 
 install-gh-shim:

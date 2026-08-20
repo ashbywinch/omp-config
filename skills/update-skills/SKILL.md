@@ -16,11 +16,12 @@ links, so an edit is only visible after install + restart.
 
 ## Where things live
 
-| What | Source (edit here) | Installed to (by `make install`) |
+| What | Source (edit here, in the omp-config repo) | Installed to (by `make install`) |
 |---|---|---|
-| Skills | `~/Documents/code/omp-config/skills/<name>/SKILL.md` | `~/.omp/agent/skills/<name>/SKILL.md` |
-| Rules | `~/Documents/code/omp-config/rules/*.md` | `~/.omp/agent/rules/*.md` |
-| System append | `~/Documents/code/omp-config/APPEND_SYSTEM.md` | `~/.omp/agent/APPEND_SYSTEM.md` |
+| Skills | `skills/<name>/SKILL.md` | `~/.omp/agent/skills/<name>/SKILL.md` |
+| Rules | `rules/*.md` | `~/.omp/agent/rules/*.md` |
+| System append | `APPEND_SYSTEM.md` | `~/.omp/agent/APPEND_SYSTEM.md` |
+| Companion tools a skill needs to run | `tools/<name>.sh` | `~/.local/bin/<name>` (PATH) |
 
 ## How to update correctly
 
@@ -53,4 +54,12 @@ jargon in the rule itself (a Notion-relational quirk belongs in
 next install refreshes the symlink and the edit is silently lost.
 ✗ inlining the same mechanics (auth flows, API shapes, property types) into
 every domain skill — update the one mechanics skill and reference it.
+✗ a skill that tells the reader to `curl <url> | bash` a companion script —
+materialise it via `make install` (see the Companion tools row above) and
+reference the installed command (docs/writing-documentation.md: distribute
+runnable code through the deployment mechanism).
+✗ machine-specific source paths (`~/Documents/...`, `/home/<user>/...`)
+in skills or the Where-things-live table — they resolve only on one
+machine; use repo-relative paths (docs/writing-documentation.md: never
+reference machine-specific paths).
 ✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.

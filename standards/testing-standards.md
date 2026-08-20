@@ -11,10 +11,20 @@ A `# type: ignore` requires a comment explaining why, and a suppression is
 itself a finding.
 
 ## Write the test before the code
-
 Follow test-driven development: a failing test first, then the code that
 makes it pass (`rule://test-first`). For LLM behaviour, write evals instead
 (real AND fictional fixtures, running the production path exactly once).
+
+## Verify behaviour, not render — for UI, exercise the interactions
+
+A UI change is done when its interactions work, not when it renders (see
+P14 in `ux-standards.md`). Exercise each
+changed interaction and assert the observable outcome, not the DOM's
+existence: a scrollable pane's `scrollTop` must actually move (the flexbox
+`min-height: 0` bug renders perfectly and never scrolls); a pannable/zoomable
+view must actually pan and zoom; a button must produce its consequence. A
+static check (screenshot, element present, computed style) never proves a
+scroll works, a drag behaves, or a control responds.
 
 ## Test properties
 

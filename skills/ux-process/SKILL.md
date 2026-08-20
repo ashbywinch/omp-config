@@ -35,17 +35,14 @@ is what stops the loop from going round in circles.
      for tasks that genuinely require it, "you may complete the task fully,
      including saving" — say which, don't leave it ambiguous.
    - **Take a screenshot of every screen you see**, stored in a shared
-     location the next agent can read (e.g. `/tmp/ux-walkthrough/`), named
-     in visit order. Screenshots are the evidence; the transcript is the
-     reasoning.
-   - Be **verbose, in the persona's voice**, about:
-     - first impressions of each screen (what jumps out, what feels
-       welcoming or off),
-     - reasoning about how to do the task (what they try, what they expect
-       to happen, what they look for),
-     - confusions and frustrations, grounded in the exact label or location
-       ("the button says 'Save' but I'm not saving anything yet"),
-     - whether and why they give up, and at what point.
+     location (e.g. `/tmp/ux-walkthrough/`), named in visit order.
+   - **Be verbose, in the persona's voice**, about first impressions,
+     reasoning, confusions (grounded in the exact label or location),
+     and whether and why they give up (and at what point).
+   - **The walker rules above are the operational form of P14–P18 in
+     `ux-standards.md`** — the principles are there; the rules
+     here are the walker's checklist. See also the "How reviewers
+     interact" section below for the reviewer's single rule.
    - The transcript is the raw material; do not let the fake user
      self-diagnose or propose fixes — they report experience, not design.
 
@@ -57,7 +54,7 @@ is what stops the loop from going round in circles.
    - **Recommendations** — the concrete change, where it goes, which problem
      it resolves, and what a better experience would look like from this
      user's point of view.
-   The subagent may reference `docs/ux-standards.md` and the repo's
+   The subagent may reference `ux-standards.md` and the repo's
    usability baseline, but must not be limited by them: the desired outcome
    is a great experience for this user, not compliance with a guideline. A
    recommendation that serves the user even where a principle is silent is
@@ -77,6 +74,13 @@ is what stops the loop from going round in circles.
 6. **Re-test.** Acceptance is re-walking the scenario: a change is done when
    the fake user no longer hits the problems it targeted. Unit tests prove
    mechanics; the walkthrough proves the experience.
+
+## How reviewers interact (one rule)
+
+The reviewer interacts with a site exactly as the persona could — see the
+walker rules above.
+
+
 
 ## The anti-loop guard
 
@@ -103,5 +107,5 @@ is what stops the loop from going round in circles.
   run primary research before guessing.
 - `skill://visual-design` — wireframes/mockups for the recommendations the
   loop produces.
-- Standards: `docs/ux-standards.md` (principles), the repo's
+- Standards: `ux-standards.md` (principles), the repo's
   usability-requirements baseline and UX decisions doc (repo specifics).
