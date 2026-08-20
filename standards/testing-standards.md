@@ -7,8 +7,17 @@ suite is organised.
 
 The language's type checker is configured (strict where the toolchain allows)
 and runs in the test gate — errors fail the build, never suppressed.
-A `# type: ignore` requires a comment explaining why, and a suppression is
-itself a finding.
+
+## Never silence a diagnostic without a written justification
+
+Never suppress an error or warning from any tool (type checker, linter,
+formatter — `# type: ignore`, `# noqa`, `# pylint: disable`, ruff
+`# noqa`, pyrefly ignore, eslint-disable, …) without a clear written
+reason in the suppression comment itself — the reason must state why THIS
+occurrence is justified. A suppression whose comment is filler ("this is
+fine", "later", a restatement of the rule) is a finding; a suppression is
+itself a finding, and a stale one (the diagnostic no longer fires) must be
+deleted. The review bot checks every suppression comment for justification.
 
 ## Write the test before the code
 Follow test-driven development: a failing test first, then the code that
