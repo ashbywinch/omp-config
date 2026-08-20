@@ -27,6 +27,6 @@ description: |
 ## Project launch specs
 
 Each house project's hub launch spec (application, args, detached flag,
-ready conditions) lives in that project's own docs — link it here, never
-restate it. The projects currently using supervised launches: the-loft /
-family-history-album (see its TECH-SPEC / README).
+ready conditions) lives in that project's own docs (its TECHSPEC and
+README) — link to it from the project you are working on, never restate
+it here. This skill holds the general rule only.
