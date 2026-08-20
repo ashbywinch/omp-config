@@ -27,7 +27,7 @@ Warnings never fail. Repos wrap the invocation in their own make target.
 ## Acting on a finding — use the fix engine, never hand-implement
 
 The engine is agent-driven; R27 means it owns its own coordinates — you
-do not compute line numbers (omit `--line` when the file has one finding).
+do not compute line numbers: pass `--line N` only when the file has multiple findings; omit it when the file has one finding.
 
 For a structural finding (complexity, long-param-list, extract-class,
 dispatch-registry, ...):
@@ -79,9 +79,9 @@ lucidlint --file path/to/file.py
 
 ## Tool-selection discipline
 
-Structural changes (whole functions, blocks, dict entries, signatures)
-belong in an AST-aware editor/rewrite tool or the fix engine — the line
-editor has produced a duplicate body, a mid-import insertion, and a
-dropped import in a single change. A finding with `fix: <kind>` in its
-message means "run the fix", not "hand-implement". After every structural
-edit, re-run the per-file check on the touched file before the next edit.
+Structural changes belong in an AST-aware tool, never the line editor
+(the rule is in APPEND_SYSTEM.md: "Choose the right tool for the change").
+Two lucidlint-specific corollaries: a finding with `fix: <kind>` in its
+message means "run the fix", not "hand-implement"; and after every
+structural edit, re-run the per-file check on the touched file before the
+next edit.
