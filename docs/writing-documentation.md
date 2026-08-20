@@ -143,14 +143,12 @@ fact and decision.
   runnable scripts belong in `examples/` or `scripts/` directories, not
   in the doc body. Agents read the referenced files when they need them;
   the doc stays dense and doesn't duplicate the code's job.
-- **Distribute a doc's runnable code through the deployment mechanism,
-  never fetch-and-pipe.** A doc that tells the reader to run a script must
-  make that script reachable through the repo's install/deploy path (e.g.
-  `make install` materialising it on PATH), and reference the installed
-  command. Never document `curl <url> | bash` at runtime: the fetch is
-  unpinned, unverified, and breaks when the source moves or the network
-  blocks raw URLs — and it bypasses the deployment model the repo already
-  has. If live fetching is genuinely required, pin the ref or a checksum.
+- **Runnable code stays runnable.** A script or sample a doc references
+  must exist in the repo at a resolvable path the reader can run from
+  their checkout, and should be exercised by CI so it doesn't rot. Never
+  document a runtime fetch-and-pipe of code from a remote URL (unpinned,
+  unverified, breaks when the source moves); if remote fetching is
+  unavoidable, pin a ref or checksum.
 - **Task-shaped sections.** When a doc describes how to do something, use
   the task-card shape: goal (one verb), scope (exact paths), constraints
   (must / never), acceptance (verifiable command).
