@@ -143,6 +143,12 @@ fact and decision.
   runnable scripts belong in `examples/` or `scripts/` directories, not
   in the doc body. Agents read the referenced files when they need them;
   the doc stays dense and doesn't duplicate the code's job.
+- **Never reference machine-specific paths.** Docs must not contain paths
+  that resolve only on the author's machine (`/home/<user>/…`,
+  `~/Documents/…`, absolute user-folder paths). They break for every other
+  reader and leak the author's home layout. Use repo-relative paths
+  (`tools/foo.sh`) or a generic convention (`~/.local/bin/foo`) when the
+  location is a convention, not a user folder.
 - **Runnable code stays runnable.** A script or sample a doc references
   must exist in the repo at a resolvable path the reader can run from
   their checkout, and should be exercised by CI so it doesn't rot. Never

@@ -162,15 +162,33 @@ issue comments, and review threads — with FULL comment bodies:
 fetch-pr-findings.sh <n>
 ```
 
-The script ships with this skill (omp-config `tools/fetch-pr-findings.sh`,
-installed to PATH by `make install`), so it runs from any repo. It fetches
-all three sources: inline file comments, issue/PR comments, and review
-thread comments, never truncated. Run it before fixing anything.
+`fetch-pr-findings.sh` is on PATH (installed with this skill by `make
+install`). If it is not found, run `make install` in the omp-config repo
+first. It fetches all three sources: inline file comments, issue/PR
+comments, and review thread comments, never truncated. Run it before fixing
+anything.
 
 **CRITICAL: Human reviewers (including the user who opened the PR) may leave
 inline comments on specific lines of the changed files. The `pulls/<n>/comments`
 endpoint is the ONLY place these appear. If you skip them, you miss the user's
 feedback entirely.**
+
+### 7b. Reply to every inline comment
+
+After fixing a finding, **reply to the inline comment that raised it** —
+one concise line per comment: how it was fixed, or why you disagree. A
+silently-resolved comment leaves the reviewer unsure their feedback was
+seen. Reply to a thread with:
+
+```bash
+gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
+  -f body="Fixed — <what changed>" 
+```
+
+Get the comment-id from `fetch-pr-findings.sh` output or
+`gh api repos/<owner>/<repo>/pulls/<n>/comments --jq '.[] | .id'`. For
+issue comments (not inline), reply with `gh api
+repos/<owner>/<repo>/issues/<n>/comments -f body=...`.
 
 ### 8. Parse AI Review Comments Thoroughly
 
