@@ -10,21 +10,19 @@ process that applies both.
 
 Every project's `docs/` folder carries four documents — PRD, TECHSPEC, UX spec,
 PLAN — and the review bot checks PRs against them. Each is **itself held to the documentation-quality
-checklist** (`docs/writing-documentation.md`) — a PRD, TECHSPEC, or PLAN
-that fails context efficiency is a finding, not a formatting preference.
-Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`,
-`docs/PLAN/`) with subsections when big; the index doc keeps the canonical
-path.
+checklist** (`docs/writing-documentation.md`) — a PRD, TECHSPEC, UX spec, or
+PLAN that fails context efficiency is a finding, not a formatting
+preference. Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`,
+`docs/UX/`, `docs/PLAN/`) with subsections when big; the index doc keeps
+the canonical path.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
 
 The product requirements document. The PRD describes **user and
 non-functional requirements comprehensively for the feature being
 built** — every requirement that shapes the work is stated, not implied.
-A user requirement is an outcome a user can perceive and value; it is
-NEVER an implementation detail in disguise (a user does not require
-screens, views, or buttons — they require the ability to do something).
-Non-functional requirements (performance, reliability, security,
+User requirements are defined in the User requirements section below;
+non-functional requirements (performance, reliability, security,
 accessibility, cost, longevity, scale) are stated explicitly when they
 constrain the design. A PRD that needs splitting into subsections should
 have one main PRD for the whole product and sub-PRDs for phases,
