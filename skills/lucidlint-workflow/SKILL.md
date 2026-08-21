@@ -20,12 +20,10 @@ venv (the engine refuses without it).
 working pip install from the GitHub repo page, pinned to a commit (the
 package is not yet on PyPI; once published, `pip install lucidlint` is the
 plain form). Re-pin when the package is published or a newer commit is
-needed. The pip
-install gives the `lucidlint` command and installs everything the fix
-engine needs (`libcst` is a declared dependency). If the pip install does
-not install everything required, that is a bug in the package — fix the
-package, don't document a workaround. `python3 lucidlint.py` in a repo
-checkout works without install but needs `libcst` in the running venv.
+needed. The pip install gives the `lucidlint` command. If the pip install
+does not install everything required, that is a bug in the package — fix
+the package, don't document a workaround. `python3 lucidlint.py` in a repo
+checkout works without install (its `libcst` need is above).
 
 ## The gate
 

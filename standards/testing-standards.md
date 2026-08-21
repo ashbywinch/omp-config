@@ -19,6 +19,11 @@ rule) is a finding, as is a stale suppression (the diagnostic no longer
 fires) — delete it. The review bot checks every suppression comment for a
 valid justification.
 
+*(Policy change 2026-08-21: a suppression is no longer a finding per se;
+an unjustified or stale suppression is. Reason: the previous rule made
+every suppression a finding, which discouraged legitimate, explained
+suppressions and punished correct use of the mechanism.)*
+
 ## Write the test before the code
 Follow test-driven development: a failing test first, then the code that
 makes it pass (`rule://test-first`). For LLM behaviour, write evals instead
