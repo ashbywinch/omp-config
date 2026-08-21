@@ -16,9 +16,11 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git"` — the
-working pip install from the GitHub repo page (the package is not yet on
-PyPI; once published, `pip install lucidlint` is the plain form). The pip
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@df20e9238351b7ef84ad822a248d144cf7dbc6c7"` — the
+working pip install from the GitHub repo page, pinned to a commit (the
+package is not yet on PyPI; once published, `pip install lucidlint` is the
+plain form). Re-pin when the package is published or a newer commit is
+needed. The pip
 install gives the `lucidlint` command and installs everything the fix
 engine needs (`libcst` is a declared dependency). If the pip install does
 not install everything required, that is a bug in the package — fix the
@@ -85,8 +87,9 @@ python3 lucidlint.py --file path/to/file.py
   the generic rule is in `standards/testing-standards.md` (never silence a
   diagnostic); the lucidlint form is `# lucidlint: ignore <kind> <why>`
   where `<why>` must state why THIS occurrence is justified. A config
-  ignore is invisible debt and grows silently — prefer the per-site
-  comment for a one-off, and delete both when the suppression stops
+  ignore is invisible debt and grows silently, and it must carry the same
+  written justification (see `standards/testing-standards.md`) — prefer
+  the per-site comment, and delete both kinds when the suppression stops
   firing (`stale-suppression`).
 - A suppression comment must sit directly above its target; refactoring
   that moves the target orphans the comment, and the `stale-suppression`

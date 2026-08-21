@@ -21,6 +21,7 @@ links to.
 | Coding standard (design principles, toolchain gates) | `docs/coding-standards.md` |
 | Testing standard | `docs/testing-standards.md` |
 | UX standard | `docs/ux-standards.md` |
+| UX spec | `docs/UX.md` |
 | Documentation standard (what good documentation is) | `docs/writing-documentation.md` |
 | Doc folder structure | `docs/documentation-structure.md` |
 

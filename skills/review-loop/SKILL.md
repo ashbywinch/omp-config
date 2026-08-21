@@ -109,16 +109,11 @@ checks the entire repo against the docs standards
 before opening a PR for a feature, or when the repo has drifted. In a
 read-only subtask, verify:
 
-- **PRD**: user and non-functional requirements are described
-  comprehensively for the features being built; user requirements are
-  outcomes, never implementation details in disguise (no "the user needs
-  a screen/button/view"); every requirement is checkable.
-- **TECHSPEC**: describes an architecturally sound implementation of the
-  PRD; layers, components, and pipeline stages are clearly identified;
-  the boundaries between them are enforced by the architecture test (and
-  the test exists and passes).
-- **UX spec**: exists, meets every PRD requirement, and lists the user
-  journeys to usability-test.
+- **PRD / TECHSPEC / UX spec**: the criteria in
+  docs/documentation-structure.md (comprehensive user + non-functional
+  requirements; architecturally sound TECHSPEC with layer boundaries
+  enforced by the architecture test; a UX spec that meets every PRD
+  requirement and lists user journeys to usability-test).
 - **Code conformance**: the implementation conforms to the TECHSPEC and
   the UX spec — no code does something the specs do not describe, and no
   spec describes something the code does not do.

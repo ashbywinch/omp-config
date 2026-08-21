@@ -8,8 +8,8 @@ process that applies both.
 
 ## The required doc set
 
-Every project's `docs/` folder carries three documents, and the review bot
-checks PRs against them. Each is **itself held to the documentation-quality
+Every project's `docs/` folder carries four documents — PRD, TECHSPEC, UX spec,
+PLAN — and the review bot checks PRs against them. Each is **itself held to the documentation-quality
 checklist** (`docs/writing-documentation.md`) — a PRD, TECHSPEC, or PLAN
 that fails context efficiency is a finding, not a formatting preference.
 Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`,
@@ -77,7 +77,7 @@ component or mechanism here. Sections, in order:
   reference the requirement by name and content, not only by number
   (numbers change).
 
-### UX spec — `docs/UX.md` (or the repo's usability-requirements baseline)
+### UX spec — `docs/UX.md`
 
 The UX spec exists, is written against the PRD, and is a review input:
 - It **meets every PRD requirement** — no PRD requirement is left without
