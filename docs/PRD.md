@@ -47,6 +47,25 @@ All code produced under these conventions is consistently:
    feel like the same careful hand wrote it all — conventions are how a
    family of repos stays coherent across time and people.
 
+## User requirements
+
+The outcomes the JTBDs above imply, written as user outcomes:
+
+- **A new agent** can make a first change that fits the house style
+  without a human correcting it.
+- **A human maintainer** can move between repos without re-learning
+  conventions.
+- **A lesson learned** is codified, so the mistake does not recur and the
+  good pattern propagates.
+- **A PR** is checked against every relevant standard before merge,
+  without a human review pass for style.
+- **A new repo** inherits all conventions automatically, so compliance is
+  the default, not an effort.
+- **A standard change** reaches every repo's copy, so the family does not
+  drift.
+- **In five years**, the codebase feels like the same careful hand wrote
+  it all.
+
 ## Personas
 
 - **New agent** (no context): opens any repo, reads AGENTS.md, must be able
@@ -120,10 +139,11 @@ All code produced under these conventions is consistently:
   formatter over generated output is a churn bug.
 - **R8 — Real content never lives in code.** Data is data; code is the
   pipeline. Secrets are the sharpest case (environment only).
-- **R9 — The doc set is required and quality-gated.** PRD, TECHSPEC, PLAN
-  exist with mandated structure (JTBD first, personas, constraints;
-  choices/spikes/diagrams; phase gates) and are themselves held to the
-  documentation-quality checklist.
+- **R9 — The doc set is required and quality-gated.** PRD, TECHSPEC, UX
+  spec, PLAN exist with mandated structure (JTBD first, user
+  requirements, personas, constraints; choices/spikes/diagrams; UX spec
+  meeting every PRD requirement; phase gates) and are themselves held to
+  the documentation-quality checklist.
 - **R10 — The conventions repo passes its own checks.** omp-config runs the
   scaffold's self-checks on itself: doc links resolve, skills are
   well-formed, CI delegates to make, hooks run the fast checks.
