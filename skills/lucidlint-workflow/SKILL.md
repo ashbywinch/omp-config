@@ -16,9 +16,9 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install lucidlint` (the package on the GitHub repo page —
-`github.com/ashbywinch/lucidlint`; today also
-`pip install "git+https://github.com/ashbywinch/lucidlint.git"`). The pip
+`pip install "git+https://github.com/ashbywinch/lucidlint.git"` — the
+working pip install from the GitHub repo page (the package is not yet on
+PyPI; once published, `pip install lucidlint` is the plain form). The pip
 install gives the `lucidlint` command and installs everything the fix
 engine needs (`libcst` is a declared dependency). If the pip install does
 not install everything required, that is a bug in the package — fix the

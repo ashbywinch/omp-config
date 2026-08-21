@@ -18,25 +18,33 @@ path.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
 
-The product requirements document. A PRD that needs splitting into
-subsections should have one main PRD for the whole product and sub-PRDs for
-phases, features, or user stories — slices of the product that will be
-delivered together. Sections, in order:
+The product requirements document. The PRD describes **user and
+non-functional requirements comprehensively for the feature being
+built** — every requirement that shapes the work is stated, not implied.
+A user requirement is an outcome a user can perceive and value; it is
+NEVER an implementation detail in disguise (a user does not require
+screens, views, or buttons — they require the ability to do something).
+Non-functional requirements (performance, reliability, security,
+accessibility, cost, longevity, scale) are stated explicitly when they
+constrain the design. A PRD that needs splitting into subsections should
+have one main PRD for the whole product and sub-PRDs for phases,
+features, or user stories — slices of the product that will be delivered
+together. Sections, in order:
 
-- **User and non-functional requirements are described comprehensively
-  for the feature being built** — every requirement that shapes the work
-  is stated, not implied. A user requirement is an outcome a user can
-  perceive and value; it is NEVER an implementation detail in disguise
-  (a user does not require screens, views, or buttons — they require the
-  ability to do something). Non-functional requirements (performance,
-  reliability, security, accessibility, cost, longevity, scale) are
-  stated explicitly when they constrain the design.
 - **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
   the opening section. May include emotional JTBD ("feel the family is
   remembered"), not only functional ones.
 - **Personas** — a small group, specific enough to drive decisions. A
   persona is decision-useful when two plausible product choices differ
   under it; a persona that cannot change a decision is filler.
+- **Constraints that shape everything**: cost to run, longevity of the
+  system, backups, monitoring and tracing once in production, access and
+  auth, likely scale at different phases (data size, number of users, …),
+  and hosting limitations — internal or external — stated explicitly when
+  either is off the table.
+- Big PRDs split into subsections (`docs/PRD/`) instead of one wall; each
+  subsection keeps the density rules.
+
 ### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big)
 
 How it will all be done. It describes an **architecturally sound way to
