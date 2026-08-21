@@ -84,11 +84,11 @@ python3 lucidlint.py --file path/to/file.py
 - `--update-baseline --baseline lucidlint.json` locks today's debt so the
   gate fails only on NEW actions.
 - **Never silence a finding without a VALID written justification** —
-  the generic rule is in `docs/testing-standards.md` (never silence a
+  the generic rule is in `standards/testing-standards.md` (the canonical; in code repos the scaffold copies it to `docs/testing-standards.md`) (never silence a
   diagnostic); the lucidlint form is `# lucidlint: ignore <kind> <why>`
   where `<why>` must state why THIS occurrence is justified. A config
   ignore is invisible debt and grows silently, and it must carry the same
-  written justification (see `docs/testing-standards.md`) — prefer
+  written justification (see `standards/testing-standards.md`) — prefer
   the per-site comment, and delete both kinds when the suppression stops
   firing (`stale-suppression`).
 - A suppression comment must sit directly above its target; refactoring
