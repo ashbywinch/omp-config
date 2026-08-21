@@ -19,9 +19,11 @@ venv (the engine refuses without it).
 `pip install lucidlint` (the package on the GitHub repo page —
 `github.com/ashbywinch/lucidlint`; today also
 `pip install "git+https://github.com/ashbywinch/lucidlint.git"`). The pip
-install gives the `lucidlint` command; `python3 lucidlint.py` in a repo
-checkout works without install. The fix engine additionally needs
-`libcst` in the running venv.
+install gives the `lucidlint` command and installs everything the fix
+engine needs (`libcst` is a declared dependency). If the pip install does
+not install everything required, that is a bug in the package — fix the
+package, don't document a workaround. `python3 lucidlint.py` in a repo
+checkout works without install but needs `libcst` in the running venv.
 
 ## The gate
 
@@ -79,13 +81,13 @@ python3 lucidlint.py --file path/to/file.py
 
 - `--update-baseline --baseline lucidlint.json` locks today's debt so the
   gate fails only on NEW actions.
-- **Never silence a finding without a clear written reason in the
-  suppression comment** — a `# lucidlint: ignore <kind> <why>` whose
-  `<why>` is filler ("this is fine", "later", a restatement of the rule)
-  is itself a finding; the reason must state why THIS occurrence is
-  justified. A config ignore is invisible debt and grows silently —
-  prefer the per-site comment for a one-off, and delete both when the
-  suppression stops firing (`stale-suppression`).
+- **Never silence a finding without a VALID written justification** —
+  the generic rule is in `standards/testing-standards.md` (never silence a
+  diagnostic); the lucidlint form is `# lucidlint: ignore <kind> <why>`
+  where `<why>` must state why THIS occurrence is justified. A config
+  ignore is invisible debt and grows silently — prefer the per-site
+  comment for a one-off, and delete both when the suppression stops
+  firing (`stale-suppression`).
 - A suppression comment must sit directly above its target; refactoring
   that moves the target orphans the comment, and the `stale-suppression`
   rule catches it — re-run the gate after any move.

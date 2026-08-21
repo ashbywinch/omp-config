@@ -101,6 +101,31 @@ State the stop condition explicitly: what was fixed, what the user decided,
 what remains, the diff scope chosen and why, and why another pass was not
 worth it.
 
+## Whole-repo conformance review (not just the diff)
+
+The diff loop above reviews changes. A **whole-repo conformance review**
+checks the entire repo against the docs standards
+(docs/documentation-structure.md — PRD/TECHSPEC/UX requirements). Run it
+before opening a PR for a feature, or when the repo has drifted. In a
+read-only subtask, verify:
+
+- **PRD**: user and non-functional requirements are described
+  comprehensively for the features being built; user requirements are
+  outcomes, never implementation details in disguise (no "the user needs
+  a screen/button/view"); every requirement is checkable.
+- **TECHSPEC**: describes an architecturally sound implementation of the
+  PRD; layers, components, and pipeline stages are clearly identified;
+  the boundaries between them are enforced by the architecture test (and
+  the test exists and passes).
+- **UX spec**: exists, meets every PRD requirement, and lists the user
+  journeys to usability-test.
+- **Code conformance**: the implementation conforms to the TECHSPEC and
+  the UX spec — no code does something the specs do not describe, and no
+  spec describes something the code does not do.
+
+Each gap is a finding, triaged like the diff findings (uncontroversial →
+fix, controversial → ask the user).
+
 ## Guards
 
 - The subtask reviews; the main agent decides. Never let the subtask edit.

@@ -12,10 +12,11 @@ and runs in the test gate — errors fail the build, never suppressed.
 
 Never suppress an error or warning from any tool (type checker, linter,
 formatter — `# type: ignore`, `# noqa`, `# pylint: disable`, ruff
-`# noqa`, pyrefly ignore, eslint-disable, …) without a clear written
-reason in the suppression comment itself — the reason must state why THIS
-occurrence is justified. A suppression whose comment is filler ("this is
-fine", "later", a restatement of the rule) is a finding; a suppression is
+`# noqa`, pyrefly ignore, eslint-disable, …) without a clear written reason in the suppression comment
+itself, and that reason must be a VALID justification — it must state why
+THIS occurrence is genuinely justified, not merely present. A suppression whose comment is filler ("this is
+fine", "later", a restatement of the rule) is a finding — the justification
+must hold up, not just exist; a suppression is
 itself a finding, and a stale one (the diagnostic no longer fires) must be
 deleted. The review bot checks every suppression comment for justification.
 

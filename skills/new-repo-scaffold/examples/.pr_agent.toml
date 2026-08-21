@@ -45,6 +45,7 @@ repo_context_files = [
     "docs/writing-documentation.md",
     "docs/documentation-structure.md",
     "docs/ux-standards.md",
+    "docs/UX.md",
 ]
 
 [pr_reviewer]
