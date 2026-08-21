@@ -6,7 +6,7 @@ suite is organised.
 ## Type checking is a first-class gate
 
 The language's type checker is configured (strict where the toolchain allows)
-and runs in the test gate — errors fail the build, never suppressed.
+and runs in the test gate — errors fail the build; a suppression is allowed only with a valid written justification (next section).
 
 ## Never silence a diagnostic without a written justification
 

@@ -34,6 +34,11 @@ together. Sections, in order:
 - **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
   the opening section. May include emotional JTBD ("feel the family is
   remembered"), not only functional ones.
+- **User requirements** — the outcomes a user can perceive and value,
+  derived from the JTBDs and written as user outcomes, never as
+  implementation details (a user does not require a screen, view, or
+  button — they require the ability to do something). The feature's
+  user-facing behaviour is checkable against this section.
 - **Personas** — a small group, specific enough to drive decisions. A
   persona is decision-useful when two plausible product choices differ
   under it; a persona that cannot change a decision is filler.
