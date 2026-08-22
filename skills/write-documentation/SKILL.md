@@ -15,8 +15,8 @@ standards first:
   efficiency, density, no-duplication, one topic per file, the quality
   checklist, AGENTS.md as bootloader.
 - `docs/documentation-structure.md` — the required doc set and folder
-  structure: PRD / TECHSPEC / PLAN and their mandated content, and the
-  discoverability rule (every doc reachable from AGENTS.md).
+  structure: PRD / TECHSPEC / UX spec / PLAN and their mandated content,
+  and the discoverability rule (every doc reachable from AGENTS.md).
 
 This skill is the process around them. Writing a skill is writing
 documentation: SKILL.md is subject to both standards like any doc — a skill
@@ -65,3 +65,19 @@ there instead. Cross-reference by linking, never by copying.
 The standards are the source. If a rule you need does not exist yet, propose
 it as a standards change (with user agreement) — a per-doc patch that fights
 the standard is a finding.
+
+## Where a rule the review bot must enforce lives
+
+A rule the review bot must enforce lives in the project documentation the
+bot reads — the `repo_context_files` list in `.pr_agent.toml` — never in
+`extra_instructions`. `extra_instructions` holds only meta-instructions
+(how to run the compliance check); a substantive rule appended there is
+hidden from users and agents, bypasses the doc structure, and drifts
+unnoticed. To add an enforceable rule:
+
+1. Write it as a real standard/doc with a sensible name, in a sensible
+   place (`standards/` for code-repo standards, `docs/` for repo docs),
+   discoverable from AGENTS.md.
+2. Ensure that doc is in the review bot's `repo_context_files` (for code
+   repos: the scaffold copies `standards/` into `docs/` and lists them).
+3. The bot then reads and enforces it — no `extra_instructions` change.

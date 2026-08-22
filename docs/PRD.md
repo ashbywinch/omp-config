@@ -47,6 +47,22 @@ All code produced under these conventions is consistently:
    feel like the same careful hand wrote it all — conventions are how a
    family of repos stays coherent across time and people.
 
+## User requirements
+
+The JTBDs above are the source of detail; the user requirements cluster
+them into the outcomes that must hold for the product to satisfy its
+users — each cluster is checkable, none is an implementation detail:
+
+- **Onboarding** (JTBD 1, 2, 5): a new agent can make a correct first
+  change in any repo; a maintainer moves between repos without
+  re-learning conventions; a new repo inherits the conventions.
+- **Knowledge loop** (JTBD 3, 6): a lesson learned is codified once and
+  every repo's copy follows when a standard changes.
+- **Quality gate** (JTBD 4): every PR is checked against every relevant
+  standard before merge, without a human style pass.
+- **Longevity** (JTBD 7): after years, the codebase reads as one careful
+  hand wrote it.
+
 ## Personas
 
 - **New agent** (no context): opens any repo, reads AGENTS.md, must be able
@@ -120,10 +136,13 @@ All code produced under these conventions is consistently:
   formatter over generated output is a churn bug.
 - **R8 — Real content never lives in code.** Data is data; code is the
   pipeline. Secrets are the sharpest case (environment only).
-- **R9 — The doc set is required and quality-gated.** PRD, TECHSPEC, PLAN
-  exist with mandated structure (JTBD first, personas, constraints;
-  choices/spikes/diagrams; phase gates) and are themselves held to the
-  documentation-quality checklist.
+- **R9 — The doc set is required and quality-gated.** PRD, TECHSPEC, UX
+  spec, PLAN exist with mandated structure (JTBD first, user
+  requirements, personas, constraints; choices/spikes/diagrams; UX spec
+  meeting every PRD requirement; phase gates) and are themselves held to
+  the documentation-quality checklist. *(amended 2026-08-21 — UX spec
+  added to the doc set, user-requirements section added to the mandated
+  structure; see docs/documentation-structure.md.)*
 - **R10 — The conventions repo passes its own checks.** omp-config runs the
   scaffold's self-checks on itself: doc links resolve, skills are
   well-formed, CI delegates to make, hooks run the fast checks.

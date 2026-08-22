@@ -8,24 +8,38 @@ process that applies both.
 
 ## The required doc set
 
-Every project's `docs/` folder carries three documents, and the review bot
-checks PRs against them. Each is **itself held to the documentation-quality
-checklist** (`docs/writing-documentation.md`) — a PRD, TECHSPEC, or PLAN
+Every project repo's `docs/` folder carries four documents —
+`docs/PRD.md`, `docs/TECHSPEC.md`, `docs/UX.md`, `docs/PLAN.md` — and the
+review bot checks PRs against them. (omp-config itself is exempt: its
+`docs/` carries only what governs it — see "The standards the folder
+carries".) Each is **itself held to the documentation-quality checklist**
+(`docs/writing-documentation.md`) — a PRD, TECHSPEC, UX spec, or PLAN
 that fails context efficiency is a finding, not a formatting preference.
-Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`,
+Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`, `docs/UX/`,
 `docs/PLAN/`) with subsections when big; the index doc keeps the canonical
 path.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
 
-The product requirements document. A PRD that needs splitting into
-subsections should have one main PRD for the whole product and sub-PRDs for
-phases, features, or user stories — slices of the product that will be
-delivered together. Sections, in order:
+The product requirements document. The PRD describes **user and
+non-functional requirements comprehensively for the feature being
+built** — every requirement that shapes the work is stated, not implied.
+User requirements are defined in the User requirements section below;
+non-functional requirements (performance, reliability, security,
+accessibility, cost, longevity, scale) are stated explicitly when they
+constrain the design. A PRD that needs splitting into subsections should
+have one main PRD for the whole product and sub-PRDs for phases,
+features, or user stories — slices of the product that will be delivered
+together. Sections, in order:
 
 - **JTBD first** — a comprehensive set of very high-level Jobs To Be Done,
   the opening section. May include emotional JTBD ("feel the family is
   remembered"), not only functional ones.
+- **User requirements** — the outcomes a user can perceive and value,
+  derived from the JTBDs and written as user outcomes, never as
+  implementation details (a user does not require a screen, view, or
+  button — they require the ability to do something). The feature's
+  user-facing behaviour is checkable against this section.
 - **Personas** — a small group, specific enough to drive decisions. A
   persona is decision-useful when two plausible product choices differ
   under it; a persona that cannot change a decision is filler.
@@ -39,7 +53,9 @@ delivered together. Sections, in order:
 
 ### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big)
 
-How it will all be done. Sections, in order:
+How it will all be done. It describes an **architecturally sound way to
+implement the PRD requirements** — every PRD requirement maps to a
+component or mechanism here. Sections, in order:
 
 - **Component breakdown** — every component/module with its responsibility,
   its interfaces (what it provides and consumes), and the data it owns.
@@ -50,10 +66,14 @@ How it will all be done. Sections, in order:
   not an object-model noun is a finding. See `skill://tech-spec-writing`
   for the process.
 - **Architecture first** — the architecture layers as a mermaid diagram, plus
-  data flows and physical architecture. Reference the non-functional
-  requirements from the PRD (cost to run, longevity, backups, monitoring,
-  auth, scale, hosting) to explain why the architecture is shaped the way
-  it is. Multiple diagrams are fine, one per concern.
+  data flows and physical architecture. **Layers, components, and any
+  pipeline stages are clearly identified, and the boundaries between them
+  are enforced by the architecture test** (a test that fails when code
+  crosses a layer/component boundary it must not). Reference the
+  non-functional requirements from the PRD (cost to run, longevity,
+  backups, monitoring, auth, scale, hosting) to explain why the
+  architecture is shaped the way it is. Multiple diagrams are fine, one
+  per concern.
 - **Technology choices** next, with the alternatives considered and why they
   lost. The architecture determines what choices make sense, not the other
   way around.
@@ -62,6 +82,16 @@ How it will all be done. Sections, in order:
 - **Strategic technical decisions** that follow from requirements —
   reference the requirement by name and content, not only by number
   (numbers change).
+
+### UX spec — `docs/UX.md`
+
+The UX spec exists, is written against the PRD, and is a review input:
+- It **meets every PRD requirement** — no PRD requirement is left without
+  a UX answer.
+- It lists the **user journeys to usability-test** (the walkthrough
+  scenarios `skill://ux-process` runs), not just principles.
+- It is enforced with the code: implementation conforms to the tech spec
+  AND the UX spec.
 
 ### Plan — `docs/PLAN.md` (or `docs/PLAN/` when big)
 

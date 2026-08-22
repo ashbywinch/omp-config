@@ -14,6 +14,17 @@ Findings carry a fix command; the engine applies structural fixes
 deterministically. The fix engine needs `libcst` installed in the running
 venv (the engine refuses without it).
 
+## Install
+
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@df20e9238351b7ef84ad822a248d144cf7dbc6c7"` — the
+working pip install from the GitHub repo page, pinned to a commit (the
+package is not yet on PyPI; once published, `pip install lucidlint` is the
+plain form). Re-pin when the package is published or a newer commit is
+needed. The pip install gives the `lucidlint` command. If the pip install
+does not install everything required, that is a bug in the package — fix
+the package, don't document a workaround. `python3 lucidlint.py` in a repo
+checkout works without install (its `libcst` need is above).
+
 ## The gate
 
 ```bash
@@ -70,9 +81,15 @@ python3 lucidlint.py --file path/to/file.py
 
 - `--update-baseline --baseline lucidlint.json` locks today's debt so the
   gate fails only on NEW actions.
-- Prefer a per-site `# lucidlint: ignore <kind> <why>` over a config
-  ignore when a finding is a one-off — config ignores are invisible debt
-  and grow silently.
+- **Never silence a finding without a VALID written justification** —
+  the generic rule is in `standards/testing-standards.md` (the canonical;
+  in code repos the scaffold copies it to `docs/testing-standards.md`);
+  the lucidlint form is `# lucidlint: ignore <kind> <why>` where `<why>`
+  must state why THIS occurrence is justified. A config ignore is
+  invisible debt and grows silently, and it must carry the same written
+  justification (see `standards/testing-standards.md`) — prefer the
+  per-site comment, and delete both kinds when the suppression stops
+  firing (`stale-suppression`).
 - A suppression comment must sit directly above its target; refactoring
   that moves the target orphans the comment, and the `stale-suppression`
   rule catches it — re-run the gate after any move.
