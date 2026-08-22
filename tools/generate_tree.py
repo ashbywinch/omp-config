@@ -124,48 +124,67 @@ def _superseded_lines(em, vm):
     return lines
 
 
-def _render(em, vm):
-    """The structure tree markdown — header, the VS tree with nested epics,
-    top-level epics, then the superseded section."""
-    epic_vs, kids = _epic_relations(em)
-    vs_parent, vs_kids, vs_epics = _vs_relations(vm, epic_vs, em)
-    L = ["# Notion Structure — Value Streams & Epics", "",
-         f"_Generated via tools/generate_tree.py · {len(vm)} value streams · {len(em)} epics_", "",
-         "## Value Streams", ""]
+class _TreeRenderer:
+    """Renders the structure tree markdown. The emit walkers are
+    mutual-recursive methods over the relation maps, sharing the line
+    buffer — the shape lucidlint's latent-class rule surfaces as a class
+    in disguise, so it IS a class."""
 
-    roots = [vid for vid in vm if vid not in vs_parent and not _is_sup(vm[vid][0])]
-    # active epics not under a VS and not under an active epic parent: roots
-    # (covers children whose parent was superseded, and any genuinely
-    # top-level epic) — "in kids" means under an ACTIVE parent
-    epic_roots = [cid for cid in em
-                  if cid not in epic_vs and not _is_sup(em[cid][0])
-                  and cid not in kids]
+    def __init__(self, em, vm):
+        self.em = em
+        self.vm = vm
+        self.lines = []
+        epic_vs, kids = _epic_relations(em)
+        vs_parent, vs_kids, vs_epics = _vs_relations(vm, epic_vs, em)
+        self.epic_vs = epic_vs
+        self.kids = kids
+        self.vs_parent = vs_parent
+        self.vs_kids = vs_kids
+        self.vs_epics = vs_epics
 
-    def emit_epic(cid, d):
-        p, nm = em[cid]
+    def _emit_epic(self, cid, d):
+        p, nm = self.em[cid]
         ind = "  " * d
-        L.append(f"{ind}- {nm} (epic, {st(p)})")
-        for c2 in _sorted_by_name(kids.get(cid, []), em):
-            emit_epic(c2, d + 1)
+        self.lines.append(f"{ind}- {nm} (epic, {st(p)})")
+        for c2 in _sorted_by_name(self.kids.get(cid, []), self.em):
+            self._emit_epic(c2, d + 1)
 
-    def emit_vs(vid, d=0):
-        p, nm = vm[vid]
+    def _emit_vs(self, vid, d=0):
+        p, nm = self.vm[vid]
         ind = "  " * d
-        L.append(f"{ind}- **{nm}** ({st(p)})")
-        for cv in _sorted_by_name(vs_kids.get(vid, []), vm):
-            emit_vs(cv, d + 1)
-        for cid in _sorted_by_name(vs_epics.get(vid, []), em):
-            emit_epic(cid, d + 1)
+        self.lines.append(f"{ind}- **{nm}** ({st(p)})")
+        for cv in _sorted_by_name(self.vs_kids.get(vid, []), self.vm):
+            self._emit_vs(cv, d + 1)
+        for cid in _sorted_by_name(self.vs_epics.get(vid, []), self.em):
+            self._emit_epic(cid, d + 1)
 
-    for vid in _sorted_by_name(roots, vm):
-        emit_vs(vid)
-    if epic_roots:
-        L += ["", "## Top-Level Epics", ""]
-        for cid in _sorted_by_name(epic_roots, em):
-            emit_epic(cid, 0)
+    def render(self):
+        """The full markdown: header, the VS tree with nested epics,
+        top-level epics, then the superseded section."""
+        em, vm = self.em, self.vm
+        self.lines += ["# Notion Structure — Value Streams & Epics", "",
+                       f"_Generated via tools/generate_tree.py · {len(vm)} value streams · {len(em)} epics_", "",
+                       "## Value Streams", ""]
 
-    L += ["", "## Superseded", ""] + _superseded_lines(em, vm)
-    return "\n".join(L) + "\n"
+        roots = [vid for vid in vm if vid not in self.vs_parent and not _is_sup(vm[vid][0])]
+        # active epics not under a VS and not under an active epic parent: roots
+        # (covers children whose parent was superseded, and any genuinely
+        # top-level epic). "kids" maps a parent to its children — the
+        # CHILDREN are the ones with an active parent.
+        active_children = {c for cs in self.kids.values() for c in cs}
+        epic_roots = [cid for cid in em
+                      if cid not in self.epic_vs and not _is_sup(em[cid][0])
+                      and cid not in active_children]
+
+        for vid in _sorted_by_name(roots, vm):
+            self._emit_vs(vid)
+        if epic_roots:
+            self.lines += ["", "## Top-Level Epics", ""]
+            for cid in _sorted_by_name(epic_roots, em):
+                self._emit_epic(cid, 0)
+
+        self.lines += ["", "## Superseded", ""] + _superseded_lines(em, vm)
+        return "\n".join(self.lines) + "\n"
 
 
 def build():
@@ -173,7 +192,10 @@ def build():
     vs = query(VS_DS)
     em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
     vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
-    return _render(em, vm)
+    return _TreeRenderer(em, vm).render()
+
+
+
 
 
 if __name__ == "__main__":
