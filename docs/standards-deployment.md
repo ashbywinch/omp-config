@@ -27,7 +27,7 @@ The **repo-scaffold skill** (`skill://new-repo-scaffold`) is the single path:
    documentation-structure) — into the new repo's `docs/` folder.
 2. It appends the relevant language layer's conventions (Python, JS/TS — see
    `skill://scaffold-language-layers`) as a language-specific section of the
-   repo's `docs/coding-standards.md` copy.
+   repo's `coding-standards.md` doc copy.
 3. It sets up `.pr_agent.toml` with `repo_context_files` pointing at every
    copied standard, so the review bot checks PRs against them.
 4. It adds a CI workflow that delegates to `make test`.

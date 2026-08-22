@@ -49,20 +49,19 @@ def st(p):
     return s.get("name") if s else "—"
 
 
-def build():
-    epics = query(EPICS_DS)
-    vs = query(VS_DS)
-    em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
-    vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
+def _is_sup(p):
+    return st(p) == "Superseded"
+
+
+def _relation_maps(em, vm):
+    """The parent/child relation maps for the structure tree — extracted so
+    build() stays under the CC gate."""
 
     def actual_parent(cid):
         # child-side link: own Parent Epic field holds exactly the parent
         p, nm = em[cid]
         pe = [x for x in rel(p, "Parent Epic") if x in em and x != cid]
         return pe[0] if pe else None
-
-    def is_sup(p):
-        return st(p) == "Superseded"
 
     epic_vs = {}
     for cid, (p, nm) in em.items():
@@ -77,41 +76,49 @@ def build():
 
     kids = {}
     for cid in em:
-        if cid in epic_vs or is_sup(em[cid][0]):
+        if cid in epic_vs or _is_sup(em[cid][0]):
             continue
         pr = actual_parent(cid)
         # child of an active parent -> nested; child of a superseded/missing
         # parent -> root (never silently omitted)
-        if pr and not is_sup(em[pr][0]):
+        if pr and not _is_sup(em[pr][0]):
             kids.setdefault(pr, []).append(cid)
     vs_kids = {}
     for vid, pid in vs_parent.items():
         if vid not in vm or pid not in vm:
             continue  # dangling relation — leave it out rather than crash
-        if is_sup(vm[vid][0]) or is_sup(vm[pid][0]):
+        if _is_sup(vm[vid][0]) or _is_sup(vm[pid][0]):
             continue
         vs_kids.setdefault(pid, []).append(vid)
     vs_epics = {}
     for cid, vid in epic_vs.items():
         if vid not in vm:
             continue  # dangling relation — leave it out rather than crash
-        if is_sup(em[cid][0]) or is_sup(vm[vid][0]):
+        if _is_sup(em[cid][0]) or _is_sup(vm[vid][0]):
             continue
         vs_epics.setdefault(vid, []).append(cid)
+    return epic_vs, vs_parent, kids, vs_kids, vs_epics
+
+
+def build():
+    epics = query(EPICS_DS)
+    vs = query(VS_DS)
+    em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
+    vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
+    epic_vs, vs_parent, kids, vs_kids, vs_epics = _relation_maps(em, vm)
 
     L = ["# Notion Structure — Value Streams & Epics", "",
          f"_Generated via tools/generate_tree.py · {len(vs)} value streams · {len(epics)} epics_", "",
          "## Value Streams", ""]
 
-    roots = [vid for vid in vm if vid not in vs_parent and not is_sup(vm[vid][0])]
+    roots = [vid for vid in vm if vid not in vs_parent and not _is_sup(vm[vid][0])]
 
     # active epics not under a VS and not under an active epic parent: roots
     # (covers children whose parent was superseded, and any genuinely
-    # top-level epic)
+    # top-level epic) — "in kids" means under an ACTIVE parent
     epic_roots = [cid for cid in em
-                  if cid not in epic_vs and not is_sup(em[cid][0])
-                  and (actual_parent(cid) is None
-                       or is_sup(em[actual_parent(cid)][0]))]
+                  if cid not in epic_vs and not _is_sup(em[cid][0])
+                  and cid not in kids]
 
     def emit_epic(cid, d):
         p, nm = em[cid]
@@ -138,10 +145,10 @@ def build():
             emit_epic(cid, 0)
 
     L += ["", "## Superseded", ""]
-    for cid in sorted([c for c in em if is_sup(em[c][0])], key=lambda c: em[c][1]):
+    for cid in sorted([c for c in em if _is_sup(em[c][0])], key=lambda c: em[c][1]):
         p, nm = em[cid]
         L.append(f"- **{nm}** (Epic)")
-    for vid in sorted([v for v in vm if is_sup(vm[v][0])], key=lambda v: vm[v][1]):
+    for vid in sorted([v for v in vm if _is_sup(vm[v][0])], key=lambda v: vm[v][1]):
         p, nm = vm[vid]
         L.append(f"- **{nm}** (Value Stream)")
 

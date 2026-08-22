@@ -51,7 +51,7 @@ together. Sections, in order:
 - Big PRDs split into subsections (`docs/PRD/`) instead of one wall; each
   subsection keeps the density rules.
 
-### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big)
+### Technical spec — `TECH-SPEC.md` (or a `TECH-SPEC/` directory when big)
 
 How it will all be done. It describes an **architecturally sound way to
 implement the PRD requirements** — every PRD requirement maps to a

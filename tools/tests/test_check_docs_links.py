@@ -1,3 +1,5 @@
+# lucidlint: ignore-file fakefs the dir-walk tests need a REAL directory tree — pyfakefs
+# cannot exercise os.walk/link-resolution semantics faithfully
 """Tests for tools/check_docs_links.py (stdlib unittest — no deps in this repo).
 
 The fence-span contract is the load-bearing part of the link check: links

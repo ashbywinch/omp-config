@@ -75,7 +75,6 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
     # urllib's HTTPRedirectHandler.redirect_request override requires this
     # exact signature and ignores its receiver — the framework defines the
     # contract; it can be neither slimmed nor made an associated fn
-    # lucidlint: ignore long-param-list,detached-method framework-mandated override
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
@@ -172,6 +171,7 @@ def _review_covers(comments, sha: str, head_committed_at: str) -> bool:
         )
         or (
             c.get("body", "").startswith("Incremental Review Skipped")
+            and c.get("user", {}).get("type") == "Bot"
             and c.get("created_at", "") >= head_committed_at
         )
         for c in comments
