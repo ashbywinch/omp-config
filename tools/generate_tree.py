@@ -53,9 +53,16 @@ def _is_sup(p):
     return st(p) == "Superseded"
 
 
-def _relation_maps(em, vm):
-    """The parent/child relation maps for the structure tree — extracted so
-    build() stays under the CC gate."""
+def _sorted_by_name(ids, table):
+    """ids ordered by their name in *table* — one sort-key lambda instead of
+    one at every call site."""
+    return sorted(ids, key=lambda c: table[c][1])
+
+
+def _epic_relations(em):
+    """Epic-side maps: epic_vs (epic -> VS) and kids (epic -> active child
+    epics). actual_parent is closure-local — only the kids computation needs
+    the child-side link resolution."""
 
     def actual_parent(cid):
         # child-side link: own Parent Epic field holds exactly the parent
@@ -68,12 +75,6 @@ def _relation_maps(em, vm):
         pv = rel(p, "Parent Value Stream")
         if pv:
             epic_vs[cid] = pv[0]
-    vs_parent = {}
-    for vid, (p, nm) in vm.items():
-        pv = rel(p, "Parent Value Stream")
-        if pv:
-            vs_parent[vid] = pv[0]
-
     kids = {}
     for cid in em:
         if cid in epic_vs or _is_sup(em[cid][0]):
@@ -83,6 +84,17 @@ def _relation_maps(em, vm):
         # parent -> root (never silently omitted)
         if pr and not _is_sup(em[pr][0]):
             kids.setdefault(pr, []).append(cid)
+    return epic_vs, kids
+
+
+def _vs_relations(vm, epic_vs, em):
+    """VS-side maps: vs_parent, vs_kids, vs_epics (dangling relations are
+    left out rather than crashed on)."""
+    vs_parent = {}
+    for vid, (p, nm) in vm.items():
+        pv = rel(p, "Parent Value Stream")
+        if pv:
+            vs_parent[vid] = pv[0]
     vs_kids = {}
     for vid, pid in vs_parent.items():
         if vid not in vm or pid not in vm:
@@ -97,22 +109,31 @@ def _relation_maps(em, vm):
         if _is_sup(em[cid][0]) or _is_sup(vm[vid][0]):
             continue
         vs_epics.setdefault(vid, []).append(cid)
-    return epic_vs, vs_parent, kids, vs_kids, vs_epics
+    return vs_parent, vs_kids, vs_epics
 
 
-def build():
-    epics = query(EPICS_DS)
-    vs = query(VS_DS)
-    em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
-    vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
-    epic_vs, vs_parent, kids, vs_kids, vs_epics = _relation_maps(em, vm)
+def _superseded_lines(em, vm):
+    """The Superseded section bullet lines, name-ordered."""
+    lines = []
+    for cid in _sorted_by_name([c for c in em if _is_sup(em[c][0])], em):
+        p, nm = em[cid]
+        lines.append(f"- **{nm}** (Epic)")
+    for vid in _sorted_by_name([v for v in vm if _is_sup(vm[v][0])], vm):
+        p, nm = vm[vid]
+        lines.append(f"- **{nm}** (Value Stream)")
+    return lines
 
+
+def _render(em, vm):
+    """The structure tree markdown — header, the VS tree with nested epics,
+    top-level epics, then the superseded section."""
+    epic_vs, kids = _epic_relations(em)
+    vs_parent, vs_kids, vs_epics = _vs_relations(vm, epic_vs, em)
     L = ["# Notion Structure — Value Streams & Epics", "",
-         f"_Generated via tools/generate_tree.py · {len(vs)} value streams · {len(epics)} epics_", "",
+         f"_Generated via tools/generate_tree.py · {len(vm)} value streams · {len(em)} epics_", "",
          "## Value Streams", ""]
 
     roots = [vid for vid in vm if vid not in vs_parent and not _is_sup(vm[vid][0])]
-
     # active epics not under a VS and not under an active epic parent: roots
     # (covers children whose parent was superseded, and any genuinely
     # top-level epic) — "in kids" means under an ACTIVE parent
@@ -124,35 +145,35 @@ def build():
         p, nm = em[cid]
         ind = "  " * d
         L.append(f"{ind}- {nm} (epic, {st(p)})")
-        for c2 in sorted(kids.get(cid, []), key=lambda c: em[c][1]):
+        for c2 in _sorted_by_name(kids.get(cid, []), em):
             emit_epic(c2, d + 1)
 
     def emit_vs(vid, d=0):
         p, nm = vm[vid]
         ind = "  " * d
         L.append(f"{ind}- **{nm}** ({st(p)})")
-        for cv in sorted(vs_kids.get(vid, []), key=lambda v: vm[v][1]):
+        for cv in _sorted_by_name(vs_kids.get(vid, []), vm):
             emit_vs(cv, d + 1)
-        for cid in sorted(vs_epics.get(vid, []), key=lambda c: em[c][1]):
+        for cid in _sorted_by_name(vs_epics.get(vid, []), em):
             emit_epic(cid, d + 1)
 
-    for vid in sorted(roots, key=lambda v: vm[v][1]):
+    for vid in _sorted_by_name(roots, vm):
         emit_vs(vid)
-
     if epic_roots:
         L += ["", "## Top-Level Epics", ""]
-        for cid in sorted(epic_roots, key=lambda c: em[c][1]):
+        for cid in _sorted_by_name(epic_roots, em):
             emit_epic(cid, 0)
 
-    L += ["", "## Superseded", ""]
-    for cid in sorted([c for c in em if _is_sup(em[c][0])], key=lambda c: em[c][1]):
-        p, nm = em[cid]
-        L.append(f"- **{nm}** (Epic)")
-    for vid in sorted([v for v in vm if _is_sup(vm[v][0])], key=lambda v: vm[v][1]):
-        p, nm = vm[vid]
-        L.append(f"- **{nm}** (Value Stream)")
-
+    L += ["", "## Superseded", ""] + _superseded_lines(em, vm)
     return "\n".join(L) + "\n"
+
+
+def build():
+    epics = query(EPICS_DS)
+    vs = query(VS_DS)
+    em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
+    vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
+    return _render(em, vm)
 
 
 if __name__ == "__main__":
