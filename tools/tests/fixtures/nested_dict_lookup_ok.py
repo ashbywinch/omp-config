@@ -1,1 +1,0 @@
-STATUS_LABELS = {"a": {"x": 1, "y": 2}, "b": 3}

@@ -135,6 +135,11 @@ def _link_targets(md: Path, text: str) -> list[Path]:
             target = (md.parent / url).resolve()
             if target.is_relative_to(REPO) and target.exists() and target.is_file():
                 targets.append(target)
+    _backtick_targets(md, targets, text)
+    return targets
+
+
+def _backtick_targets(md, targets, text):
     for match in BACKTICK_PATH_RE.finditer(text):
         raw = match.group(1)
         if "*" in raw:  # a glob reference like rules/*.md — its files are reachable
@@ -148,7 +153,6 @@ def _link_targets(md: Path, text: str) -> list[Path]:
                 targets.append(target)
             elif target.is_dir():  # a directory reference — its docs are reachable
                 targets.extend(p for p in target.rglob("*.md") if p.is_file())
-    return targets
 
 
 def _check_discoverability() -> list[str]:

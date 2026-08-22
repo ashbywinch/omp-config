@@ -24,10 +24,10 @@ HEAD_AT = "2026-08-22T12:41:46Z"
 BEFORE_HEAD = "2026-08-22T12:00:00Z"
 AFTER_HEAD = "2026-08-22T12:42:27Z"
 
-def comment(body: str, created_at: str = AFTER_HEAD):
+def comment(body: str, created_at: str = AFTER_HEAD, user_type: str = "Bot"):
     """One issue comment in the wire shape the gate reads."""
     # lucidlint: ignore record-shape the one-shot test-fixture wire shape — a class is ceremony
-    return {"body": body, "created_at": created_at}
+    return {"body": body, "created_at": created_at, "user": {"type": user_type}}
 class ReviewCoversTest(unittest.TestCase):
     def test_regular_guide_after_head_covers(self):
         c = comment("## PR Reviewer Guide 🔍\nHere are some observations")
@@ -53,8 +53,14 @@ class ReviewCoversTest(unittest.TestCase):
         c = comment("Incremental Review Skipped", created_at=BEFORE_HEAD)
         self.assertFalse(_review_covers([c], SHA, HEAD_AT))
 
+    def test_non_bot_skip_does_not_cover(self):
+        # only the bot's own skip verdict counts — a human comment with the
+        # same prefix must not satisfy the gate
+        c = comment("Incremental Review Skipped", user_type="User")
+        self.assertFalse(_review_covers([c], SHA, HEAD_AT))
+
     def test_human_skip_covers(self):
-        self.assertTrue(_review_covers([comment("/skip")], SHA, HEAD_AT))
+        self.assertTrue(_review_covers([comment("/skip", user_type="User")], SHA, HEAD_AT))
 
     def test_no_comments_does_not_cover(self):
         self.assertFalse(_review_covers([], SHA, HEAD_AT))
