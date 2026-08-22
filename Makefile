@@ -3,9 +3,9 @@
 # make. The repo carries a few tools under `tools/` (self-checks, the tree
 # generator, the gh shim) — they are make-adjacent, not a product; there is
 # no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
-# (docs links + skill well-formedness).
+# (docs links + lucidlint gate + skill well-formedness).
 
-.PHONY: help setup install uninstall install-gh-shim install-git-shim test
+.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test
 
 # Home may be unset or wrong when run from a daemon/bare env; resolve it.
 H := $(if $(HOME),$(HOME),$(shell getent passwd $$(id -u) | cut -d: -f6))
@@ -26,7 +26,8 @@ help:
 	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
 	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
-	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + skills well-formed"
+	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
+	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + lucidlint gate + skills well-formed"
 
 setup:
 	@$(MAKE) install
@@ -93,7 +94,22 @@ uninstall:
 	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
 	@echo "Removed omp-config symlinks."
 
+# lucidlint consumption per the bundle's own README: unpack to .tools/lucidlint
+# and drive via `make -C`; the orchestrator finds its sibling scan binary by
+# itself. Pinned to a release tag — never main (house rule).
+LUCIDLINT_DIR ?= .tools/lucidlint
+LUCIDLINT_PIN ?= v0.3.0
+
+install-lucidlint:
+	mkdir -p .tools
+	curl -fsSL -o /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz \
+	  https://github.com/ashbywinch/lucidlint/releases/download/$(LUCIDLINT_PIN)/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl.tar.gz
+	tar xzf /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz -C .tools
+	rm -rf $(LUCIDLINT_DIR)
+	mv .tools/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl $(LUCIDLINT_DIR)
+
 test:
 	@python3 tools/check_docs_links.py
-	@python3 tools/check_missed_classes.py
+	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE= || \
+	  (echo "lucidlint gate failed or is not installed — run 'make install-lucidlint' first" && exit 1)
 	@python3 -m unittest discover -s tools/tests

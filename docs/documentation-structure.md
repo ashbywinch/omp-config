@@ -37,7 +37,7 @@ delivered together. Sections, in order:
 - Big PRDs split into subsections (`docs/PRD/`) instead of one wall; each
   subsection keeps the density rules.
 
-### Technical spec — `docs/TECHSPEC.md` (or `docs/TECHSPEC/` when big)
+### Technical spec — `TECH-SPEC.md` (or a `TECH-SPEC/` directory when big)
 
 How it will all be done. Sections, in order:
 
@@ -63,7 +63,7 @@ How it will all be done. Sections, in order:
   reference the requirement by name and content, not only by number
   (numbers change).
 
-### Plan — `docs/PLAN.md` (or `docs/PLAN/` when big)
+### Plan — `PLAN.md` (or a `PLAN/` directory when big)
 
 The intended phases:
 
