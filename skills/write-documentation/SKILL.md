@@ -15,8 +15,8 @@ standards first:
   efficiency, density, no-duplication, one topic per file, the quality
   checklist, AGENTS.md as bootloader.
 - `docs/documentation-structure.md` — the required doc set and folder
-  structure: PRD / TECHSPEC / PLAN and their mandated content, and the
-  discoverability rule (every doc reachable from AGENTS.md).
+  structure: PRD / TECHSPEC / UX spec / PLAN and their mandated content,
+  and the discoverability rule (every doc reachable from AGENTS.md).
 
 This skill is the process around them. Writing a skill is writing
 documentation: SKILL.md is subject to both standards like any doc — a skill

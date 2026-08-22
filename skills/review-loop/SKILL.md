@@ -105,15 +105,18 @@ worth it.
 
 The diff loop above reviews changes. A **whole-repo conformance review**
 checks the entire repo against the docs standards
-(docs/documentation-structure.md — PRD/TECHSPEC/UX requirements). Run it
+(`docs/documentation-structure.md` — PRD/TECHSPEC/UX/PLAN requirements). Run it
 before opening a PR for a feature, or when the repo has drifted. In a
 read-only subtask, verify:
 
-- **PRD / TECHSPEC / UX spec**: the criteria in
-  docs/documentation-structure.md (comprehensive user + non-functional
-  requirements; architecturally sound TECHSPEC with layer boundaries
-  enforced by the architecture test; a UX spec that meets every PRD
-  requirement and lists user journeys to usability-test).
+- **PRD / TECHSPEC / UX spec / PLAN**: the criteria in
+  `docs/documentation-structure.md` (comprehensive user and
+  non-functional requirements in `docs/PRD.md`; an architecturally
+  sound `docs/TECHSPEC.md` with layer boundaries enforced by the
+  architecture test; a `docs/UX.md` that meets every PRD requirement
+  and lists user journeys to usability-test; `docs/PLAN.md` phases
+  with the software's inputs/outputs, operations, and quality gates,
+  no later-phase dependencies, earliest user value).
 - **Code conformance**: the implementation conforms to the TECHSPEC and
   the UX spec — no code does something the specs do not describe, and no
   spec describes something the code does not do.

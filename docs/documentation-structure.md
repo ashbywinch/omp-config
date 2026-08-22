@@ -8,13 +8,16 @@ process that applies both.
 
 ## The required doc set
 
-Every project's `docs/` folder carries four documents — PRD, TECHSPEC, UX spec,
-PLAN — and the review bot checks PRs against them. Each is **itself held to the documentation-quality
-checklist** (`docs/writing-documentation.md`) — a PRD, TECHSPEC, UX spec, or
-PLAN that fails context efficiency is a finding, not a formatting
-preference. Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`,
-`docs/UX/`, `docs/PLAN/`) with subsections when big; the index doc keeps
-the canonical path.
+Every project repo's `docs/` folder carries four documents —
+`docs/PRD.md`, `docs/TECHSPEC.md`, `docs/UX.md`, `docs/PLAN.md` — and the
+review bot checks PRs against them. (omp-config itself is exempt: its
+`docs/` carries only what governs it — see "The standards the folder
+carries".) Each is **itself held to the documentation-quality checklist**
+(`docs/writing-documentation.md`) — a PRD, TECHSPEC, UX spec, or PLAN
+that fails context efficiency is a finding, not a formatting preference.
+Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`, `docs/UX/`,
+`docs/PLAN/`) with subsections when big; the index doc keeps the canonical
+path.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
 

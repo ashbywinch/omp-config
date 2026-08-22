@@ -6,9 +6,12 @@ suite is organised.
 ## Type checking is a first-class gate
 
 The language's type checker is configured (strict where the toolchain allows)
-and runs in the test gate — errors fail the build; a suppression is allowed only with a valid written justification (next section).
+and runs in the test gate — a type-checking error fails the build unless
+its suppression comment carries a valid written justification (criteria in
+the next section); a suppression without one is a finding that fails the
+gate.
 
-## Never silence a diagnostic without a written justification
+## Never silence a diagnostic without a VALID justification
 
 Never suppress an error or warning from any tool (type checker, linter,
 formatter — `# type: ignore`, `# noqa`, `# pylint: disable`, ruff `# noqa`,
@@ -16,8 +19,9 @@ pyrefly ignore, eslint-disable, …) without a VALID written justification in
 the suppression comment — a reason that states why THIS occurrence is
 genuinely justified. Filler ("this is fine", "later", a restatement of the
 rule) is a finding, as is a stale suppression (the diagnostic no longer
-fires) — delete it. The review bot checks every suppression comment for a
-valid justification.
+fires) — delete it. The test gate detects staleness by running each tool
+with unused-suppression checks (e.g., lucidlint `stale-suppression`), and
+the review bot checks every suppression comment for a valid justification.
 
 *(Policy change 2026-08-21: a suppression is no longer a finding per se;
 an unjustified or stale suppression is. Reason: the previous rule made
