@@ -66,15 +66,15 @@ class _RelationGraph:
     Built once from the raw queries, queried by the renderer."""
 
     def __init__(self, em, vm):
-        self.em = em
-        self.vm = vm
+        self.em: dict = em
+        self.vm: dict = vm
         epic_vs, kids = self._epic_relations()
         vs_parent, vs_kids, vs_epics = self._vs_relations(epic_vs)
-        self.epic_vs = epic_vs
-        self.kids = kids
-        self.vs_parent = vs_parent
-        self.vs_kids = vs_kids
-        self.vs_epics = vs_epics
+        self.epic_vs: dict = epic_vs
+        self.kids: dict = kids
+        self.vs_parent: dict = vs_parent
+        self.vs_kids: dict = vs_kids
+        self.vs_epics: dict = vs_epics
 
     def _actual_parent(self, cid):
         # child-side link: own Parent Epic field holds exactly the parent
@@ -135,8 +135,8 @@ class _TreeRenderer:
     mutual-recursive methods over the graph, sharing the line buffer."""
 
     def __init__(self, graph):
-        self.graph = graph
-        self.lines = []
+        self.graph: _RelationGraph = graph
+        self.lines: list[str] = []
 
     def _emit_epic(self, cid, d):
         page = self.graph.em[cid]
