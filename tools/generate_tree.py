@@ -18,7 +18,6 @@ Data sources:
 import json
 import subprocess
 import sys
-from typing import NamedTuple
 
 EPICS_DS = "20d3122e-1a13-81ee-a750-000ba5e61df5"
 VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"
@@ -46,11 +45,13 @@ def _sorted_by_name(ids, table):
     return sorted(ids, key=lambda c: table[c].name)
 
 
-class _Page(NamedTuple):
-    """A Notion page entry: its raw properties and its display name."""
+class _Page:
+    """A Notion page entry: its raw properties and its display name — a
+    class, not a bare tuple or NamedTuple; the status logic lives on it."""
 
-    props: dict
-    name: str
+    def __init__(self, props, name):
+        self.props: dict = props
+        self.name: str = name
 
     @property
     def status(self):
