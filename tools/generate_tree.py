@@ -112,6 +112,20 @@ class _RelationGraph:
         vs_epics = self._group_active(epic_vs.items(), self.em, self.vm)
         return vs_parent, vs_kids, vs_epics
 
+    def roots(self):
+        """The active value streams with no parent — the tree's top level."""
+        return [vid for vid in self.vm if vid not in self.vs_parent and not self.vm[vid].is_superseded()]
+
+    def epic_roots(self):
+        """Active epics not under a VS and not under an active epic parent —
+        covers children whose parent was superseded, and genuinely top-level
+        epics. "kids" maps a parent to its children — the CHILDREN are the
+        ones with an active parent."""
+        active_children = {c for cs in self.kids.values() for c in cs}
+        return [cid for cid in self.em
+                if cid not in self.epic_vs and not self.em[cid].is_superseded()
+                and cid not in active_children]
+
     @staticmethod
     def _group_active(pairs, first_table, second_table):
         """children grouped by parent — a child whose table entry is missing
@@ -176,18 +190,9 @@ class _TreeRenderer:
                        f"_Generated via tools/generate_tree.py · {len(vm)} value streams · {len(em)} epics_", "",
                        "## Value Streams", ""]
 
-        roots = [vid for vid in vm if vid not in graph.vs_parent and not vm[vid].is_superseded()]
-        # active epics not under a VS and not under an active epic parent: roots
-        # (covers children whose parent was superseded, and any genuinely
-        # top-level epic). "kids" maps a parent to its children — the
-        # CHILDREN are the ones with an active parent.
-        active_children = {c for cs in graph.kids.values() for c in cs}
-        epic_roots = [cid for cid in em
-                      if cid not in graph.epic_vs and not em[cid].is_superseded()
-                      and cid not in active_children]
-
-        for vid in _sorted_by_name(roots, vm):
+        for vid in _sorted_by_name(graph.roots(), vm):
             self._emit_vs(vid)
+        epic_roots = graph.epic_roots()
         if epic_roots:
             self.lines += ["", "## Top-Level Epics", ""]
             for cid in _sorted_by_name(epic_roots, em):
