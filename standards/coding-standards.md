@@ -301,3 +301,21 @@ without a check is a wish:
   mirrored test that fails means the port is wrong until verified against
   the reference — never edit the reference's expected values to match the
   port.
+
+### Suppressions carry checkable evidence
+
+- **A suppression's why must state what a reviewer can CHECK.** Every
+  exemption (`# lucidlint: ignore <signal> <why>`, `ignore-file`,
+  `# type: ignore`, `#[allow(...)]`, `# noqa`) cites the standard it leans
+  on AND names the concrete fact that makes THIS site the exception —
+  something a reviewer can verify. ✗ "the repo standards allow this" is
+  circular: the standard is the claim under justification, not evidence
+  for it. ✓ "record-shape: payload mirrors the upstream wire format,
+  parsed verbatim in src/client.py::fetch()" — names the exception and
+  points at code a reviewer can check.
+- **Ten identical whys are policy, not judgment.** A signal suppressed at
+  many sites with the same why is a decision to make once, visibly: state
+  the house rule in `[lucidlint.guidance]` (the lucidlint README's
+  Configuration section — one reviewed line travels with every future
+  finding) or use a documented config `ignore` with a stated reason; do
+  not keep pasting per-site comments.
