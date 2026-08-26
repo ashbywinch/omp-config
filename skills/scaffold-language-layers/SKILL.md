@@ -74,8 +74,10 @@ equivalent.
   toolchain bullet's basedpyright/mypy alternatives apply), and **lucidlint**
   (the house gate-findings linter). Each owns one job and
   none re-implements another's: undefined names are ruff F821's, deliberately
-  NOT a lucidlint rule — a buffer with an undefined name shows exactly one
-  diagnostic, from the right server, at the moment of typing.
+  NOT a lucidlint rule — and the type checker must not be configured to
+  duplicate F821 either (a buffer with an undefined name shows one
+  diagnostic, from the right server, at the moment of typing; check the
+  type checker's config if it reports undefined names too).
 - Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, **lucidlint** (the gate linter), the type checker (pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
 - Git hooks: **raw `scripts/pre-commit` + `scripts/pre-push`** (working
   files: `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`),
