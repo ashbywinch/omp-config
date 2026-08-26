@@ -1,6 +1,3 @@
-# lucidlint: ignore-file class-module the class is a small HTTP-redirect helper
-# (urllib's auto-follow would leak the Authorization header to the signed blob
-# host); the script is one unit with one reason to change, not a model module.
 """Called by .github/workflows/pr-agent.yml — fail the PR if the review bot
 did not post a "PR Reviewer Guide" comment covering the head commit.
 The review may have failed silently; this check prevents merging unreviewed.
@@ -12,6 +9,15 @@ without the SHA marker — observed: pr-agent v0.41.1 regular reviews never
 contain the head SHA). The range-start SHA in the incremental body is the
 first NEW commit, not the head — coverage still falls to the posted-after
 rule; the explicit form is belt-and-braces for reviews that embed it.
+
+The bot's own SKIP verdict also covers: an incremental review with no
+files changed since the previous review posts "Incremental Review
+Skipped" (linking the previous review) instead of a guide. That skip IS
+the reviewed verdict — the diff since the last review was examined and
+found empty (merging the base branch in, for example, changes nothing in
+the PR's diff) — so it covers the commit exactly like the human /skip
+opt-out does. A run that genuinely failed to post leaves no comment and
+still fails.
 
 Why the bot's own step cannot fail (2026-08-11, read from the v0.41.1
 source): ``PRAgent.handle_request`` catches EVERY exception with a bare
@@ -57,21 +63,15 @@ def _get_json(url: str, token: str):
     return json.loads(_get(url, token))
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    """The log endpoint 302s to a signed blob URL; urllib's auto-follow
-    forwards the Authorization header onto the blob host, which rejects it
-    (401 InvalidAuthenticationInfo, 2026-08-11). Stop at the 302 and fetch
-    the signed Location bare."""
-
-    # urllib's HTTPRedirectHandler.redirect_request override requires this
-    # exact signature and ignores its receiver — the framework defines the
-    # contract; it can be neither slimmed nor made an associated fn
-    # lucidlint: ignore long-param-list,detached-method framework-mandated override
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-_OPENER = urllib.request.build_opener(_NoRedirect())
+# The log endpoint 302s to a signed blob URL; urllib's auto-follow forwards
+# the Authorization header onto the blob host, which rejects it (401
+# InvalidAuthenticationInfo, 2026-08-11). An opener with NO redirect handler
+# stops at the 302 — HTTPErrorProcessor hands it to HTTPDefaultErrorHandler,
+# which raises HTTPError, and the caller fetches the signed Location bare.
+_OPENER = urllib.request.OpenerDirector()
+for _handler in (urllib.request.HTTPHandler(), urllib.request.HTTPSHandler(),
+                 urllib.request.HTTPErrorProcessor(), urllib.request.HTTPDefaultErrorHandler()):
+    _OPENER.add_handler(_handler)
 
 
 def _job_log(repo: str, token: str) -> str | None:
@@ -144,6 +144,32 @@ def _failure_reason(bot_lines: list[str]) -> str:
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
 
 
+def _review_covers(comments, sha: str, head_committed_at: str) -> bool:
+    """Does any comment cover the head commit? A human /skip opt-out (applies
+    to the whole PR), a posted guide (regular or incremental, referencing the
+    sha or created after the head commit), or the bot's own incremental-skip
+    verdict (created after the head commit — the diff was examined and found
+    empty, so the skip is the review, not a failure)."""
+    if any(c.get("body", "").strip() == "/skip" for c in comments):
+        return True
+    return any(
+        (
+            c.get("body", "").startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
+            and (
+                sha in c.get("body", "")
+                or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
+                or c.get("created_at", "") >= head_committed_at
+            )
+        )
+        or (
+            c.get("body", "").startswith("Incremental Review Skipped")
+            and c.get("user", {}).get("type") == "Bot"
+            and c.get("created_at", "") >= head_committed_at
+        )
+        for c in comments
+    )
+
+
 def main() -> int:
     sha = os.environ["SHA"]
     repo = os.environ["GITHUB_REPOSITORY"]
@@ -163,24 +189,7 @@ def main() -> int:
     except HTTPError as e:
         print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
         return 1
-    # Human opt-out: a comment with body "/skip" passes the check silently
-    if any(c.get("body", "").strip() == "/skip" for c in comments):
-        return 0
-
-    # the review posts with the regular header ("## PR Reviewer Guide") or
-    # the incremental form ("## Incremental PR Reviewer Guide" — the -i
-    # path, 2026-08-11: the first incremental run posted exactly that and
-    # the check missed it, failing a review that had succeeded)
-    covered = any(
-        c.get("body", "").startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
-        and (
-            sha in c.get("body", "")
-            or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
-            or c.get("created_at", "") >= head_committed_at
-        )
-        for c in comments
-    )
-    if not covered:
+    if not _review_covers(comments, sha, head_committed_at):
         reason = _bot_failure_reason(repo, token)
         print(f"::error::AI review did not post for commit {sha} — {reason}.")
         return 1

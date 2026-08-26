@@ -3,9 +3,9 @@
 # make. The repo carries a few tools under `tools/` (self-checks, the tree
 # generator, the gh shim) — they are make-adjacent, not a product; there is
 # no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
-# (docs links + skill well-formedness).
+# (docs links + lucidlint gate + skill well-formedness).
 
-.PHONY: help setup install uninstall install-gh-shim install-git-shim test
+.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test
 
 # Home may be unset or wrong when run from a daemon/bare env; resolve it.
 H := $(if $(HOME),$(HOME),$(shell getent passwd $$(id -u) | cut -d: -f6))
@@ -26,9 +26,10 @@ help:
 	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
 	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
-	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + skills well-formed"
+	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
+	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + lucidlint gate + skills well-formed"
 
-setup:
+setup: install-lucidlint
 	@$(MAKE) install
 	@$(MAKE) install-gh-shim
 	@$(MAKE) install-git-shim
@@ -93,7 +94,30 @@ uninstall:
 	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
 	@echo "Removed omp-config symlinks."
 
-test:
+# lucidlint consumption per the bundle's own README: unpack to .tools/lucidlint
+# and drive via `make -C`; the orchestrator finds its sibling scan binary by
+# itself. Pinned to a release tag — never main (house rule).
+LUCIDLINT_DIR ?= .tools/lucidlint
+LUCIDLINT_PIN ?= v0.3.0
+
+install-lucidlint:
+	@if [ "$$(cat $(LUCIDLINT_DIR)/version.txt 2>/dev/null)" = "$(LUCIDLINT_PIN)" ]; then \
+	  echo "lucidlint $(LUCIDLINT_PIN) already provisioned"; \
+	else \
+	  mkdir -p .tools && curl -fsSL -o /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz \
+	    https://github.com/ashbywinch/lucidlint/releases/download/$(LUCIDLINT_PIN)/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl.tar.gz && \
+	  tar xzf /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz -C .tools && \
+	  rm -rf $(LUCIDLINT_DIR) && \
+	  mv .tools/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl $(LUCIDLINT_DIR); \
+	fi
+
+# lucidlint.json acknowledges exactly one action: documentation-structure.md
+# names the app-repo doc set (docs/TECHSPEC.md, docs/UX.md, docs/PLAN.md) which
+# intentionally does not exist inside this exempt repo. The key is file-level:
+# any NEW unresolved path in that file shares it — review its links by hand
+# when editing. Everything else must keep passing clean.
+test: install-lucidlint
 	@python3 tools/check_docs_links.py
-	@python3 tools/check_missed_classes.py
+	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
+	  (echo "lucidlint gate failed" && exit 1)
 	@python3 -m unittest discover -s tools/tests
