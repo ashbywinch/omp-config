@@ -7,10 +7,10 @@ links to.
 
 ## Quick start
 
-- `make setup` — symlink skills/rules/APPEND_SYSTEM into `~/.omp/agent/` + install git hooks + gh shim.
+- `make setup` — provisions everything: symlinks skills/rules/APPEND_SYSTEM into `~/.omp/agent/`, the lucidlint bundle into `.tools/`, git hooks (pre-commit + pre-push), gh/git shims.
 - `make install` — re-symlink after an edit. **Restart omp to pick up changes** (skills load at startup).
 - `make install-gh-shim` — symlink `tools/gh-app-shim` → `~/.local/bin/gh`; create `~/.secrets` from `tools/secrets.template` if missing.
-- `make test` — repo self-check: every relative doc link resolves + every skill is well-formed.
+- `make test` — repo self-check: every relative doc link resolves + every skill is well-formed + the lucidlint gate. Provisions lucidlint on first run; pre-push runs it.
 - NEVER run ad-hoc commands for these — everything goes through `make`.
 
 ## Where things live — decision tree

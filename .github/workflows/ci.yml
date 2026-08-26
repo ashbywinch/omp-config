@@ -15,8 +15,7 @@ jobs:
   self-check:
     runs-on: ubuntu-latest
     steps:
+      # make test provisions the lucidlint bundle itself (test depends on
+      # install-lucidlint) — dev and CI run the identical entry point.
       - uses: actions/checkout@v4
-      # lucidlint is consumed as the release bundle (pinned to a tag, never
-      # main — house rule). v0.3.0 carries the dict()-call record-shape fix.
-      - run: make install-lucidlint
       - run: make test

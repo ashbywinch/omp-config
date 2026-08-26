@@ -29,7 +29,7 @@ help:
 	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
 	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + lucidlint gate + skills well-formed"
 
-setup:
+setup: install-lucidlint
 	@$(MAKE) install
 	@$(MAKE) install-gh-shim
 	@$(MAKE) install-git-shim
@@ -101,15 +101,18 @@ LUCIDLINT_DIR ?= .tools/lucidlint
 LUCIDLINT_PIN ?= v0.3.0
 
 install-lucidlint:
-	mkdir -p .tools
-	curl -fsSL -o /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz \
-	  https://github.com/ashbywinch/lucidlint/releases/download/$(LUCIDLINT_PIN)/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl.tar.gz
-	tar xzf /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz -C .tools
-	rm -rf $(LUCIDLINT_DIR)
-	mv .tools/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl $(LUCIDLINT_DIR)
+	@if [ "$$(cat $(LUCIDLINT_DIR)/version.txt 2>/dev/null)" = "$(LUCIDLINT_PIN)" ]; then \
+	  echo "lucidlint $(LUCIDLINT_PIN) already provisioned"; \
+	else \
+	  mkdir -p .tools && curl -fsSL -o /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz \
+	    https://github.com/ashbywinch/lucidlint/releases/download/$(LUCIDLINT_PIN)/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl.tar.gz && \
+	  tar xzf /tmp/lucidlint-$(LUCIDLINT_PIN).tar.gz -C .tools && \
+	  rm -rf $(LUCIDLINT_DIR) && \
+	  mv .tools/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl $(LUCIDLINT_DIR); \
+	fi
 
-test:
+test: install-lucidlint
 	@python3 tools/check_docs_links.py
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE= || \
-	  (echo "lucidlint gate failed or is not installed — run 'make install-lucidlint' first" && exit 1)
+	  (echo "lucidlint gate failed" && exit 1)
 	@python3 -m unittest discover -s tools/tests
