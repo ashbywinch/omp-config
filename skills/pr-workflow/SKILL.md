@@ -190,9 +190,18 @@ one concise line per comment: how it was fixed, or why you disagree. A
 silently-resolved comment leaves the reviewer unsure their feedback was
 seen. Reply to a thread with:
 
+**Self-verifying replies only.** A reply must let the reviewer confirm the
+disposition without re-deriving it. Fixed: name the commit (sha or message)
+AND the exact referent — file:line, config key, or doc section — plus the
+one check that confirms it. Disagreed (no change): cite the evidence —
+source file:line at the pinned version, a config read path, or a command
+and its output — that refutes the claim. A bare `Fixed` or `No` is a
+non-reply: it carries no referent, so neither bot nor human can verify it,
+and the thread reopens the same question it was meant to close.
+
 ```bash
 gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
-  -f body="Fixed — <what changed>" 
+  -f body="Fixed in 92b53e6 — docs/documentation-structure.md:12 restores the docs/ prefix; the gate passes with lucidlint.json acknowledging the one intentional reference." 
 ```
 
 The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
@@ -318,15 +327,18 @@ The sections above are the how-to; these are the one-line reminders.
   reverted fix).
 - **Cancelling runs prematurely** — checks take minutes and `updatedAt`
   lags; investigate step-level status before cancelling (§5).
+- **Updating a PR description** — never `gh pr edit`, and never append at the
+  tail (it lands below the bot's boilerplate, invisible to compliance) —
+  rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
-- **Updating a PR description** — never `gh pr edit`, and never append at the
-  tail (it lands below the bot's boilerplate, invisible to compliance) —
-  rebuild the description half and PATCH the whole body (§4).
 - **Resolving review threads yourself** — never; resolution is the reviewer's
   verdict. Reply and stop (§7b).
+- **Terse thread replies** (`Fixed` / `No`) — every reply names its
+  referent: the commit + file:line (or the evidence that refutes the
+  claim). A reply with no checkable referent is a non-reply (§7b).
 - **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
   fetches any `#N`; a PR number or unfetchable issue crashes the review
   with `Error extracting tickets` (§3).
