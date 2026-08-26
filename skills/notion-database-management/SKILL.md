@@ -169,9 +169,23 @@ Field names drift — resolve the concrete pair from the data source schema (`nt
 
 An insight is linked if its ID appears in any epic's or VS's insight-facing relation array. To find orphans: fetch all three collections, collect every relation ID, then list processed insights whose ID is in none.
 
-## Bulk Writes (pacing)
+## Rate limits & pacing
 
-Bursts of rapid PATCHes stall under Notion rate limiting (calls hang ~15s or time out). For bulk link/migration loops: space calls ~1-2s apart, wrap each call in a per-call timeout, retry with backoff (3-5 attempts), and log progress per write — never fire a silent un-paced loop.
+Notion enforces two limits (developers.notion.com/reference/request-limits):
+an average of ~3 requests/second per connection (short bursts allowed), and a
+per-workspace budget SHARED by every connection touching that workspace —
+other omp sessions and integrations consume the same budget.
+
+- Sustained loops (bulk link/migration): ≥1 call/second, one writer at a time,
+  each call in a timeout, progress logged per write — never a silent un-paced loop.
+- Verification reads count against the same budget — pace them like writes.
+- A hanging or timing-out call means the budget is already exhausted: STOP the
+  loop, wait 60s, resume slower. Never immediately re-fire a stalled loop.
+- Retry policy: on 429 (`rate_limited`) or 529 (`service_overload`), honor
+  `Retry-After` (integer seconds), else exponential backoff with jitter; cap at
+  3-5 retries then surface the error; retry 5xx only for idempotent GET/DELETE.
+- Per-request size caps: relations ≤100 pages, rich-text content ≤2000 chars —
+  a long Description PATCH replaces the whole property; shorten before sending.
 
 **ID hygiene in bulk operations**: resolve every ID from fresh data by name — never reuse a remembered ID (a mis-remembered ID re-parents the wrong page); when multiple sources map to one target (e.g. two epics folding into one VS), dedupe the target set before creating; after a batch of creates, verify name-uniqueness — duplicate pages with the same name are the failure signature.
 
