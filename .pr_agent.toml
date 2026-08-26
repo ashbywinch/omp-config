@@ -39,5 +39,4 @@ extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0
 
 [pr_code_suggestions]
 persistent_comment = true
-commitable_code_suggestions = true  # suggestions post as line-anchored comments; the table wall is NOT published
-dual_publishing_score_threshold = 6  # only >=6-score suggestions also mirror into the summary table
+commitable_code_suggestions = true  # inline mode: the summarized table comment is never published (pr_code_suggestions.py:139); posting failures degrade to verified one-line comments, never a table
