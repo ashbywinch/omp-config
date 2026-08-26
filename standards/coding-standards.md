@@ -310,9 +310,9 @@ without a check is a wish:
   on AND names the concrete fact that makes THIS site the exception —
   something a reviewer can verify. ✗ "the repo standards allow this" is
   circular: the standard is the claim under justification, not evidence
-  for it. This was the houses failure mode: one repo carried 408
-  record-shape and 77 fakefs sites with a single identical, unverifiable
-  why.
+  for it. ✓ "record-shape: payload mirrors the upstream wire format,
+  parsed verbatim in src/client.py::fetch()" — names the exception and
+  points at code a reviewer can check.
 - **Ten identical whys are policy, not judgment.** A signal suppressed at
   many sites with the same why is a decision to make once, visibly: state
   the house rule in `[lucidlint.guidance]` (the lucidlint README's
