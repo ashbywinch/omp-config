@@ -198,6 +198,10 @@ source file:line at the pinned version, a config read path, or a command
 and its output — that refutes the claim. A bare `Fixed` or `No` is a
 non-reply: it carries no referent, so neither bot nor human can verify it,
 and the thread reopens the same question it was meant to close.
+Pass the reply body as ONE argument — `-f body="…"` from a script, or
+`--input` from a file. A body that travels through shell word-splitting
+(`set -- $pair`, unquoted expansion) truncates to its first word, so a
+thread gets `Fixed` or `No` and nothing else.
 
 ```bash
 gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
