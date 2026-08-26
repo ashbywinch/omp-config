@@ -2,7 +2,13 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
+# `push` is main-only ON PURPOSE: a wider filter fires BOTH pull_request and
+# push for every PR-branch push — two runs over the identical head SHA.
+# Main-only means: PR pushes get exactly one run (pull_request), and each
+# merge gets exactly one post-merge run on main.
 
 concurrency:
   group: ${{ github.ref }}
@@ -18,4 +24,7 @@ jobs:
       # make test provisions the lucidlint bundle itself (test depends on
       # install-lucidlint) — dev and CI run the identical entry point.
       - uses: actions/checkout@v4
+      # lucidlint is consumed as the release bundle (pinned to a tag, never
+      # main — house rule).
+      - run: make install-lucidlint
       - run: make test
