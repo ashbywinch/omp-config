@@ -16,6 +16,16 @@ loaded in full when used, so the 150–200 line / 32 KiB targets apply to it
 directly). The review bot checks skill changes against this standard like
 any other doc.
 
+## Standards pair with their enforcement
+
+A standard states the rule; something must operationalize it — a skill that
+walks the procedure, an architecture test, a lint gate, or the review bot
+reading these files. Writing a standard commits you to naming its enforcement
+mechanism in the same change: a standard nothing enforces is a wish. A skill
+that restates rules from a canonical document is a duplication finding — link
+the canonical section instead; a standard with no skill or check behind it is
+a finding at review.
+
 ## Context efficiency
 
 Every documentation file contains only information relevant to its topic
