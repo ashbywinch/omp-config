@@ -1,0 +1,8 @@
+#!/bin/sh
+# Pre-push gate for omp-config: the repo self-check must pass before any
+# push. `make test` is doc links + lucidlint gate + unit tests (~seconds);
+# this keeps lint debt from leaving the machine — CI is the second layer,
+# not the first. Never bypass with --no-verify; fix what it flags.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+exec make test
