@@ -70,12 +70,13 @@ equivalent.
 
 - **Three-LSP standard** (Python, all repos): three language servers run side
   by side in the editor — **ruff** (lint: undefined names F821, unused
-  imports, formatting, import sorting), **pyrefly** (type checking), and
-  **lucidlint** (the gate findings this repo ships). Each owns one job and
+  imports, formatting, import sorting), **pyrefly** (type checking; the
+  toolchain bullet's basedpyright/mypy alternatives apply), and **lucidlint**
+  (the house gate-findings linter). Each owns one job and
   none re-implements another's: undefined names are ruff F821's, deliberately
   NOT a lucidlint rule — a buffer with an undefined name shows exactly one
   diagnostic, from the right server, at the moment of typing.
-- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff (+ type checker: pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
+- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, **lucidlint** (the gate linter), the type checker (pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
 - Git hooks: **raw `scripts/pre-commit` + `scripts/pre-push`** (working
   files: `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`),
   installed by `make install-hooks` (via `make setup`). The pre-commit hook
