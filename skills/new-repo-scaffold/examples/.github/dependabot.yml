@@ -2,7 +2,8 @@
 #
 # CHANGE: add more ecosystems as the repo grows; a JS/TS repo swaps the
 # `pip` entry for `npm` (it reads package-lock.json). Keep the pattern:
-# package manager ecosystem + github-actions, both weekly, both grouped.
+# package manager ecosystem grouped per update class + github-actions
+# weekly and UNGROUPED.
 #
 # DO NOT CHANGE:
 # - For uv projects, the package ecosystem is dependabot's `pip` ecosystem
