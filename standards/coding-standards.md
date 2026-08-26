@@ -92,8 +92,13 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   is a finding — either the model is missing an object or the name is
   wrong; fix one, never let them drift. The PRD is the source of the
   vocabulary itself: entities, actions, and states take their names from
-  its language. Docs may carry process vocabulary ("the classify step of
-  the pipeline"); code names may not.
+  its language. A domain concept does not have to arrive pre-named: when
+  its behaviour lies smeared across several functions or buried inside
+  one — conditionals, mappings, and conversions that all serve one idea
+  no identifier owns — drawing it out into a named class is the fix, and
+  the new term belongs back in the object model and PRD. Docs may carry
+  process vocabulary ("the classify step of the pipeline"); code names may
+  not.
 - **Semantic types over primitives.** A point in time is a date type with
   awareness, not a bare string; structured data is an object with named
   fields, not a bare dict; enumerated values are enums; units are part of the
