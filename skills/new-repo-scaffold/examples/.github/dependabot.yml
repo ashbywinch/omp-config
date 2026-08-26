@@ -8,10 +8,11 @@
 # - For uv projects, the package ecosystem is dependabot's `pip` ecosystem
 #   (it reads uv.lock). Don't "fix" it to `uv` — that's not a valid value.
 # - Weekly is the house cadence.
-# - Patch + minor updates are grouped per ecosystem (one PR per week) and
-#   auto-merged by dependabot-automerge.yml; majors and github-actions
-#   bumps are never grouped and never auto-merged (human review; action
-#   bumps are SHA-pin updates per the coding standard).
+# - Patch/minor and major bumps are grouped per ecosystem: one PR per week
+#   per class. Patch/minor auto-merge on green CI (dependabot-automerge.yml);
+#   majors stay human-reviewed and never auto-merge.
+# - github-actions bumps are NEVER grouped: an action ref bump is a SHA-pin
+#   update per the coding standard and needs the pin treatment by a human.
 
 version: 2
 updates:
@@ -22,6 +23,8 @@ updates:
     groups:
       minor-patch:
         update-types: ["minor", "patch"]
+      major:
+        update-types: ["major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
