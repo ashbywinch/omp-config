@@ -16,7 +16,7 @@
 # - The concurrency group: every active repo uses cancel-in-progress.
 # - Pipeline logic is make-only. Never inline pip/npm logic into the
 #   workflow — CI and local dev must run the same recipes; tool bootstrap
-#   and result plumbing steps (checkout, the coverage actions) are exempt.
+#   and result plumbing steps (checkout, coverage reporting/commenting) are exempt.
 # - Lint runs via `make lint-github` so findings surface as PR annotations.
 
 name: CI
