@@ -111,8 +111,13 @@ install-lucidlint:
 	  mv .tools/lucidlint-$(LUCIDLINT_PIN)-x86_64-unknown-linux-musl $(LUCIDLINT_DIR); \
 	fi
 
+# lucidlint.json acknowledges exactly one action: documentation-structure.md
+# names the app-repo doc set (docs/TECHSPEC.md, docs/UX.md, docs/PLAN.md) which
+# intentionally does not exist inside this exempt repo. The key is file-level:
+# any NEW unresolved path in that file shares it — review its links by hand
+# when editing. Everything else must keep passing clean.
 test: install-lucidlint
 	@python3 tools/check_docs_links.py
-	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE= || \
+	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
 	@python3 -m unittest discover -s tools/tests
