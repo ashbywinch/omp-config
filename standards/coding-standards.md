@@ -85,11 +85,18 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   **The docstring test:** a docstring that merely rephrases the name
   (`TransitOrchestrator` → "orchestrates transit") means the name or the
   concept boundary is wrong — fix the name or split the concept. **The
-  stress test:** would someone who knows the domain but not the code
-  understand this from the name alone? **The object model is the naming
-  authority:** where a TECHSPEC documents one, a class or module whose name
-  is not an object-model noun is a finding — either the model is missing an
-  object or the name is wrong; fix one, never let them drift. Docs may carry
+  stress test:** would someone who knows the domain but not the code — a
+  new agent or the review bot included — understand this from the name
+  alone? **The object model is the naming authority:** where a TECHSPEC
+  documents one, a class or module whose name is not an object-model noun
+  is a finding — either the model is missing an object or the name is
+  wrong; fix one, never let them drift. The PRD is the source of the
+  vocabulary itself: entities, actions, and states take their names from
+  its language. A domain concept does not have to arrive pre-named: when
+  its behaviour lies smeared across several functions or buried inside
+  one — conditionals, mappings, and conversions that all serve one idea
+  no identifier owns — drawing it out into a named class is the fix, and
+  the new term belongs back in the object model and PRD. Docs may carry
   process vocabulary ("the classify step of the pipeline"); code names may
   not.
 - **Semantic types over primitives.** A point in time is a date type with
