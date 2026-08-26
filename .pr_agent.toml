@@ -8,6 +8,7 @@ custom_model_max_tokens = 128000
 max_model_tokens = 128000
 ai_timeout = 1800
 fallback_models = []
+persistent_inline_comments = true  # fingerprint inline comments; identical ones never re-post across pushes
 repo_context_from_default_branch = false
 repo_context_files = [
     "docs/PRD.md",
@@ -38,3 +39,5 @@ extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0
 
 [pr_code_suggestions]
 persistent_comment = true
+commitable_code_suggestions = true  # suggestions post as line-anchored comments; the table wall is NOT published
+dual_publishing_score_threshold = 6  # only >=6-score suggestions also mirror into the summary table
