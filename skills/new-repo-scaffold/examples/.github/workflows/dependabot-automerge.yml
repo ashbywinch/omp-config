@@ -1,0 +1,39 @@
+# Dependabot auto-merge — patch/minor dependabot PRs merge themselves once
+# required checks pass.
+#
+# CHANGE: none — this file is the house shape. A repo that merges by squash
+# instead of merge commits changes `--merge` to `--squash` (a standards
+# discussion, not a local edit).
+#
+# DO NOT CHANGE:
+# - The semver gate: majors stay human (CI green is not compatibility).
+# - github-actions bumps are never auto-merged: action ref bumps are pin
+#   updates per the coding standard (actions pin to commit SHAs) and need
+#   the SHA-pin treatment by a human.
+# - dependabot/fetch-metadata is pinned to a commit SHA, never the tag.
+# - Non-dependabot PRs are untouched (job-level actor guard).
+
+name: Dependabot auto-merge
+
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Fetch dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Enable auto-merge for patch and minor updates
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor' }}
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --merge "$PR_URL"

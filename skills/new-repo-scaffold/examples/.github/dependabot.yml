@@ -2,12 +2,16 @@
 #
 # CHANGE: add more ecosystems as the repo grows; a JS/TS repo swaps the
 # `pip` entry for `npm` (it reads package-lock.json). Keep the pattern:
-# package manager ecosystem + github-actions, both weekly.
+# package manager ecosystem + github-actions, both weekly, both grouped.
 #
 # DO NOT CHANGE:
 # - For uv projects, the package ecosystem is dependabot's `pip` ecosystem
 #   (it reads uv.lock). Don't "fix" it to `uv` — that's not a valid value.
 # - Weekly is the house cadence.
+# - Patch + minor updates are grouped per ecosystem (one PR per week) and
+#   auto-merged by dependabot-automerge.yml; majors and github-actions
+#   bumps are never grouped and never auto-merged (human review; action
+#   bumps are SHA-pin updates per the coding standard).
 
 version: 2
 updates:
@@ -15,6 +19,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      minor-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
