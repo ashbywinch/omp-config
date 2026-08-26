@@ -94,7 +94,10 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   not.
 - **Semantic types over primitives.** A point in time is a date type with
   awareness, not a bare string; structured data is an object with named
-  fields, not a bare dict; enumerated values are enums; units are part of the
+  fields, not a bare dict; a value with a fixed, known set of states is an
+  enum (or sum type), never a bare string or int — a `status`/`kind`/`type`
+  field compared against scattered literals is the smell: the enum owns the
+  set and every comparison names a member; units are part of the
   value; money is a **Money type carrying its currency** — never a bare float
   and never a bare `Decimal`. Before reaching for a primitive: "is there a
   type that makes this impossible to misuse?" **Coerce untyped data** (API
@@ -190,6 +193,13 @@ without a check is a wish:
   configuration, or user error emits two messages: a plain-language user line
   (what happened + what to do next, no internal identifiers, no stack traces)
   and a dev log (root cause + exact resolution). One half alone is a bug.
+- **User-facing text speaks domain language, never dev vocabulary.** Every
+  string a user can see — output lines, labels, error copy, emails,
+  notifications — reads in the domain's words. Class names, function names,
+  file paths, exception types, log-speak (`Failed to process the command`),
+  and stack traces are dev-channel only: they belong in the paired dev log.
+  ✗ `Error: KeyError: 'end_date'` ✓ `The letter has no end date set — add
+  one on the Letters page.`
 - **No backward-compat shims.** Delete the old path; migrate callers in the
   same change. No aliases, no re-exports, no "will remove later". A shim
   compiles, passes tests, and never gets cleaned up. **Dead code is deleted,
