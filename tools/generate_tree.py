@@ -27,6 +27,8 @@ def query(ds):
     r = subprocess.run(
         ["ntn", "query", ds],
         capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"ntn query failed for {ds}: {r.stderr.strip()}")
     obj = json.loads(r.stdout)
     return obj.get("results", [])
 

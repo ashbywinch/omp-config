@@ -63,20 +63,15 @@ def _get_json(url: str, token: str):
     return json.loads(_get(url, token))
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    """The log endpoint 302s to a signed blob URL; urllib's auto-follow
-    forwards the Authorization header onto the blob host, which rejects it
-    (401 InvalidAuthenticationInfo, 2026-08-11). Stop at the 302 and fetch
-    the signed Location bare."""
-
-    # urllib's HTTPRedirectHandler.redirect_request override requires this
-    # exact signature and ignores its receiver — the framework defines the
-    # contract; it can be neither slimmed nor made an associated fn
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-_OPENER = urllib.request.build_opener(_NoRedirect())
+# The log endpoint 302s to a signed blob URL; urllib's auto-follow forwards
+# the Authorization header onto the blob host, which rejects it (401
+# InvalidAuthenticationInfo, 2026-08-11). An opener with NO redirect handler
+# stops at the 302 — HTTPErrorProcessor hands it to HTTPDefaultErrorHandler,
+# which raises HTTPError, and the caller fetches the signed Location bare.
+_OPENER = urllib.request.OpenerDirector()
+for _handler in (urllib.request.HTTPHandler(), urllib.request.HTTPSHandler(),
+                 urllib.request.HTTPErrorProcessor(), urllib.request.HTTPDefaultErrorHandler()):
+    _OPENER.add_handler(_handler)
 
 
 def _job_log(repo: str, token: str) -> str | None:

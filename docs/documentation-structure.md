@@ -9,14 +9,14 @@ process that applies both.
 ## The required doc set
 
 Every project repo's `docs/` folder carries four documents —
-`docs/PRD.md`, `docs/TECHSPEC.md`, `docs/UX.md`, `docs/PLAN.md` — and the
+`docs/PRD.md`, `TECH-SPEC.md`, `UX.md`, `PLAN.md` — and the
 review bot checks PRs against them. (omp-config itself is exempt: its
 `docs/` carries only what governs it — see "The standards the folder
 carries".) Each is **itself held to the documentation-quality checklist**
 (`docs/writing-documentation.md`) — a PRD, TECHSPEC, UX spec, or PLAN
 that fails context efficiency is a finding, not a formatting preference.
-Each may split into a subfolder (`docs/PRD/`, `docs/TECHSPEC/`, `docs/UX/`,
-`docs/PLAN/`) with subsections when big; the index doc keeps the canonical
+Each may split into a subfolder (`PRD/`, `TECH-SPEC/`, `UX/`,
+`PLAN/`) with subsections when big; the index doc keeps the canonical
 path.
 
 ### Requirements — `docs/PRD.md` (or `docs/PRD/` when big)
@@ -83,7 +83,7 @@ component or mechanism here. Sections, in order:
   reference the requirement by name and content, not only by number
   (numbers change).
 
-### UX spec — `docs/UX.md`
+### UX spec — `UX.md`
 
 The UX spec exists, is written against the PRD, and is a review input:
 - It **meets every PRD requirement** — no PRD requirement is left without
@@ -93,7 +93,7 @@ The UX spec exists, is written against the PRD, and is a review input:
 - It is enforced with the code: implementation conforms to the tech spec
   AND the UX spec.
 
-### Plan — `docs/PLAN.md` (or `docs/PLAN/` when big)
+### Plan — `PLAN.md` (or a `PLAN/` directory when big)
 
 The intended phases:
 
