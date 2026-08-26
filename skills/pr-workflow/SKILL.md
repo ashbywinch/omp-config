@@ -189,6 +189,11 @@ The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
 For issue comments (not inline), reply with `gh api
 repos/<owner>/<repo>/issues/<n>/comments -f body=...`.
 
+**Never resolve the thread yourself.** Replying is the agent's half of the
+cycle; resolution is the reviewer's verdict that the fix answers the finding.
+Resolving your own thread erases the reviewer's open question instead of
+answering it — reply, push, and leave every thread unresolved.
+
 ### 8. Parse AI Review Comments Thoroughly
 
 If the repo has an AI code reviewer (PR-Agent or similar), its review comment contains **multiple distinct sections**. Do NOT rely on counting `<details>` elements — you will miss issues.
@@ -308,6 +313,8 @@ The sections above are the how-to; these are the one-line reminders.
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
 - **Updating a PR description** — never `gh pr edit`; see §4.
+- **Resolving review threads yourself** — never; resolution is the reviewer's
+  verdict. Reply and stop (§7b).
 - **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
   fetches any `#N`; a PR number or unfetchable issue crashes the review
   with `Error extracting tickets` (§3).
