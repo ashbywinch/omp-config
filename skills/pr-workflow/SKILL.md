@@ -77,6 +77,16 @@ gh api -X PATCH repos/<owner>/<repo>/pulls/<number> --input body.json \
 `body.json` is `{"body": "<description>"}` with newlines escaped as `\n`
 (raw newlines break the JSON).
 
+**Never append to the tail of an existing body.** PR-Agent appends its own
+boilerplate (`### PR Type`, Description, File Walkthrough) to the description
+after each review. A body edit that concatenates text at the end lands BELOW
+that boilerplate — and the reviewer's compliance check reads only the
+description portion, so the addition is invisible to it (observed twice:
+rollout notes silently missed until the body was rebuilt). To add anything,
+rebuild the description: fetch the current body, split at the boilerplate
+marker (`___` followed by `### **PR Type**`), insert the new text into the
+description half, rejoin, PATCH the whole body.
+
 ---
 
 ## Part 2: Post-Creation — Monitor Checks
@@ -312,7 +322,9 @@ The sections above are the how-to; these are the one-line reminders.
   the suite locally first (§10).
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
-- **Updating a PR description** — never `gh pr edit`; see §4.
+- **Updating a PR description** — never `gh pr edit`, and never append at the
+  tail (it lands below the bot's boilerplate, invisible to compliance) —
+  rebuild the description half and PATCH the whole body (§4).
 - **Resolving review threads yourself** — never; resolution is the reviewer's
   verdict. Reply and stop (§7b).
 - **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
