@@ -25,14 +25,11 @@ VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"
 
 def query(ds):
     r = subprocess.run(
-        ["ntn", "datasources", "query", ds, "--limit", "100", "--json"],
+        ["ntn", "query", ds],
         capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit(f"ntn query failed for {ds}: {r.stderr.strip()}")
     obj = json.loads(r.stdout)
-    if obj.get("has_more"):
-        print(f"WARNING: {ds} has more than 100 records — tree may be incomplete",
-              file=sys.stderr)
     return obj.get("results", [])
 
 
@@ -44,108 +41,176 @@ def rel(props, key):
     return [x.get("id") for x in (props.get(key) or {}).get("relation") or []]
 
 
-def st(p):
-    s = (p.get("Status") or {}).get("select")
-    return s.get("name") if s else "—"
+def _sorted_by_name(ids, table):
+    """ids ordered by their name in *table* — one sort-key lambda instead of
+    one at every call site."""
+    return sorted(ids, key=lambda c: table[c].name)
+
+
+class _Page:
+    """A Notion page entry: its raw properties and its display name — a
+    class, not a bare tuple or NamedTuple; the status logic lives on it."""
+
+    def __init__(self, props, name):
+        self.props: dict = props
+        self.name: str = name
+
+    @property
+    def status(self):
+        s = (self.props.get("Status") or {}).get("select")
+        return s.get("name") if s else "—"
+
+    def is_superseded(self):
+        return self.status == "Superseded"
+
+
+class _RelationGraph:
+    """The workspace hierarchy: the page tables plus the parent/child maps.
+    Built once from the raw queries, queried by the renderer."""
+
+    def __init__(self, em, vm):
+        self.em: dict = em
+        self.vm: dict = vm
+        epic_vs, kids = self._epic_relations()
+        vs_parent, vs_kids, vs_epics = self._vs_relations(epic_vs)
+        self.epic_vs: dict = epic_vs
+        self.kids: dict = kids
+        self.vs_parent: dict = vs_parent
+        self.vs_kids: dict = vs_kids
+        self.vs_epics: dict = vs_epics
+
+    def _actual_parent(self, cid):
+        # child-side link: own Parent Epic field holds exactly the parent
+        pe = [x for x in rel(self.em[cid].props, "Parent Epic") if x in self.em and x != cid]
+        return pe[0] if pe else None
+
+    def _epic_relations(self):
+        """Epic-side maps: epic_vs (epic -> VS) and kids (epic -> active
+        child epics)."""
+        epic_vs = {}
+        for cid, page in self.em.items():
+            pv = rel(page.props, "Parent Value Stream")
+            if pv:
+                epic_vs[cid] = pv[0]
+        kids = {}
+        for cid in self.em:
+            if cid in epic_vs or self.em[cid].is_superseded():
+                continue
+            pr = self._actual_parent(cid)
+            # child of an active parent -> nested; child of a superseded/missing
+            # parent -> root (never silently omitted)
+            if pr and not self.em[pr].is_superseded():
+                kids.setdefault(pr, []).append(cid)
+        return epic_vs, kids
+
+    def _vs_relations(self, epic_vs):
+        """VS-side maps: vs_parent, vs_kids, vs_epics (dangling relations are
+        left out rather than crashed on)."""
+        vs_parent = {}
+        for vid, page in self.vm.items():
+            pv = rel(page.props, "Parent Value Stream")
+            if pv:
+                vs_parent[vid] = pv[0]
+        vs_kids = self._group_active(vs_parent.items(), self.vm, self.vm)
+        vs_epics = self._group_active(epic_vs.items(), self.em, self.vm)
+        return vs_parent, vs_kids, vs_epics
+
+    def roots(self):
+        """The active value streams with no parent — the tree's top level."""
+        return [vid for vid in self.vm if vid not in self.vs_parent and not self.vm[vid].is_superseded()]
+
+    def epic_roots(self):
+        """Active epics not under a VS and not under an active epic parent —
+        covers children whose parent was superseded, and genuinely top-level
+        epics. "kids" maps a parent to its children — the CHILDREN are the
+        ones with an active parent."""
+        active_children = {c for cs in self.kids.values() for c in cs}
+        return [cid for cid in self.em
+                if cid not in self.epic_vs and not self.em[cid].is_superseded()
+                and cid not in active_children]
+
+    @staticmethod
+    def _group_active(pairs, first_table, second_table):
+        """children grouped by parent — a child whose table entry is missing
+        or superseded (a dangling relation) is left out rather than crashed
+        on."""
+        grouped = {}
+        for child, parent in pairs:
+            if not (
+                child in first_table
+                and parent in second_table
+                and not first_table[child].is_superseded()
+                and not second_table[parent].is_superseded()
+            ):
+                continue
+            grouped.setdefault(parent, []).append(child)
+        return grouped
+
+
+class _TreeRenderer:
+    """Renders the structure tree markdown. The emit walkers are
+    mutual-recursive methods over the graph, sharing the line buffer."""
+
+    def __init__(self, graph):
+        self.graph: _RelationGraph = graph
+        self.lines: list[str] = []
+
+    def _emit_epic(self, cid, d):
+        page = self.graph.em[cid]
+        ind = "  " * d
+        self.lines.append(f"{ind}- {page.name} (epic, {page.status})")
+        for c2 in _sorted_by_name(self.graph.kids.get(cid, []), self.graph.em):
+            self._emit_epic(c2, d + 1)
+
+    def _emit_vs(self, vid, d=0):
+        page = self.graph.vm[vid]
+        ind = "  " * d
+        self.lines.append(f"{ind}- **{page.name}** ({page.status})")
+        for cv in _sorted_by_name(self.graph.vs_kids.get(vid, []), self.graph.vm):
+            self._emit_vs(cv, d + 1)
+        for cid in _sorted_by_name(self.graph.vs_epics.get(vid, []), self.graph.em):
+            self._emit_epic(cid, d + 1)
+
+    def _superseded_lines(self):
+        """The Superseded section bullet lines, name-ordered."""
+        em, vm = self.graph.em, self.graph.vm
+        epic_lines = [
+            f"- **{em[cid].name}** (Epic)"
+            for cid in _sorted_by_name([c for c in em if em[c].is_superseded()], em)
+        ]
+        vs_lines = [
+            f"- **{vm[vid].name}** (Value Stream)"
+            for vid in _sorted_by_name([v for v in vm if vm[v].is_superseded()], vm)
+        ]
+        return epic_lines + vs_lines
+
+    def render(self):
+        """The full markdown: header, the VS tree with nested epics,
+        top-level epics, then the superseded section."""
+        graph = self.graph
+        em, vm = graph.em, graph.vm
+        self.lines += ["# Notion Structure — Value Streams & Epics", "",
+                       f"_Generated via tools/generate_tree.py · {len(vm)} value streams · {len(em)} epics_", "",
+                       "## Value Streams", ""]
+
+        for vid in _sorted_by_name(graph.roots(), vm):
+            self._emit_vs(vid)
+        epic_roots = graph.epic_roots()
+        if epic_roots:
+            self.lines += ["", "## Top-Level Epics", ""]
+            for cid in _sorted_by_name(epic_roots, em):
+                self._emit_epic(cid, 0)
+
+        self.lines += ["", "## Superseded", ""] + self._superseded_lines()
+        return "\n".join(self.lines) + "\n"
 
 
 def build():
     epics = query(EPICS_DS)
     vs = query(VS_DS)
-    em = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
-    vm = {r["id"]: (r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
-
-    def actual_parent(cid):
-        # child-side link: own Parent Epic field holds exactly the parent
-        p, nm = em[cid]
-        pe = [x for x in rel(p, "Parent Epic") if x in em and x != cid]
-        return pe[0] if pe else None
-
-    def is_sup(p):
-        return st(p) == "Superseded"
-
-    epic_vs = {}
-    for cid, (p, nm) in em.items():
-        pv = rel(p, "Parent Value Stream")
-        if pv:
-            epic_vs[cid] = pv[0]
-    vs_parent = {}
-    for vid, (p, nm) in vm.items():
-        pv = rel(p, "Parent Value Stream")
-        if pv:
-            vs_parent[vid] = pv[0]
-
-    kids = {}
-    for cid in em:
-        if cid in epic_vs or is_sup(em[cid][0]):
-            continue
-        pr = actual_parent(cid)
-        # child of an active parent -> nested; child of a superseded/missing
-        # parent -> root (never silently omitted)
-        if pr and not is_sup(em[pr][0]):
-            kids.setdefault(pr, []).append(cid)
-    vs_kids = {}
-    for vid, pid in vs_parent.items():
-        if vid not in vm or pid not in vm:
-            continue  # dangling relation — leave it out rather than crash
-        if is_sup(vm[vid][0]) or is_sup(vm[pid][0]):
-            continue
-        vs_kids.setdefault(pid, []).append(vid)
-    vs_epics = {}
-    for cid, vid in epic_vs.items():
-        if vid not in vm:
-            continue  # dangling relation — leave it out rather than crash
-        if is_sup(em[cid][0]) or is_sup(vm[vid][0]):
-            continue
-        vs_epics.setdefault(vid, []).append(cid)
-
-    L = ["# Notion Structure — Value Streams & Epics", "",
-         f"_Generated via tools/generate_tree.py · {len(vs)} value streams · {len(epics)} epics_", "",
-         "## Value Streams", ""]
-
-    roots = [vid for vid in vm if vid not in vs_parent and not is_sup(vm[vid][0])]
-
-    # active epics not under a VS and not under an active epic parent: roots
-    # (covers children whose parent was superseded, and any genuinely
-    # top-level epic)
-    epic_roots = [cid for cid in em
-                  if cid not in epic_vs and not is_sup(em[cid][0])
-                  and (actual_parent(cid) is None
-                       or is_sup(em[actual_parent(cid)][0]))]
-
-    def emit_epic(cid, d):
-        p, nm = em[cid]
-        ind = "  " * d
-        L.append(f"{ind}- {nm} (epic, {st(p)})")
-        for c2 in sorted(kids.get(cid, []), key=lambda c: em[c][1]):
-            emit_epic(c2, d + 1)
-
-    def emit_vs(vid, d=0):
-        p, nm = vm[vid]
-        ind = "  " * d
-        L.append(f"{ind}- **{nm}** ({st(p)})")
-        for cv in sorted(vs_kids.get(vid, []), key=lambda v: vm[v][1]):
-            emit_vs(cv, d + 1)
-        for cid in sorted(vs_epics.get(vid, []), key=lambda c: em[c][1]):
-            emit_epic(cid, d + 1)
-
-    for vid in sorted(roots, key=lambda v: vm[v][1]):
-        emit_vs(vid)
-
-    if epic_roots:
-        L += ["", "## Top-Level Epics", ""]
-        for cid in sorted(epic_roots, key=lambda c: em[c][1]):
-            emit_epic(cid, 0)
-
-    L += ["", "## Superseded", ""]
-    for cid in sorted([c for c in em if is_sup(em[c][0])], key=lambda c: em[c][1]):
-        p, nm = em[cid]
-        L.append(f"- **{nm}** (Epic)")
-    for vid in sorted([v for v in vm if is_sup(vm[v][0])], key=lambda v: vm[v][1]):
-        p, nm = vm[vid]
-        L.append(f"- **{nm}** (Value Stream)")
-
-    return "\n".join(L) + "\n"
+    em = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
+    vm = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
+    return _TreeRenderer(_RelationGraph(em, vm)).render()
 
 
 if __name__ == "__main__":

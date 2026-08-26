@@ -15,5 +15,7 @@ jobs:
   self-check:
     runs-on: ubuntu-latest
     steps:
+      # make test provisions the lucidlint bundle itself (test depends on
+      # install-lucidlint) — dev and CI run the identical entry point.
       - uses: actions/checkout@v4
       - run: make test
