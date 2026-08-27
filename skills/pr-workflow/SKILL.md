@@ -81,12 +81,11 @@ gh api -X PATCH repos/<owner>/<repo>/pulls/<number> --input body.json \
 boilerplate (`### PR Type`, Description, File Walkthrough) to the description
 after each review. A body edit that concatenates text at the end lands BELOW
 that boilerplate — and the reviewer's compliance check reads only the
-description portion, so the addition is invisible to it (observed twice:
-rollout notes silently missed until the body was rebuilt). To add anything,
-rebuild the description: fetch the current body, split at the boilerplate
-marker (`___` followed by `### **PR Type**`), insert the new text into the
-description half, rejoin, PATCH the whole body.
-
+description portion, so the addition is invisible to it. To add anything,
+rebuild the description: fetch the current body; if the boilerplate marker
+(`___` followed by `### **PR Type**`) is absent (no review has run yet),
+PATCH the whole body directly — otherwise split just before the marker,
+insert the new text into the description half, rejoin, PATCH the whole body.
 ---
 
 ## Part 2: Post-Creation — Monitor Checks
@@ -200,12 +199,9 @@ non-reply: it carries no referent, so neither bot nor human can verify it,
 and the thread reopens the same question it was meant to close.
 Pass the reply body as ONE argument — `-f body="…"` from a script, or
 `--input` from a file. A body that travels through shell word-splitting
-(`set -- $pair`, unquoted expansion) truncates to its first word, so a
-thread gets `Fixed` or `No` and nothing else.
-
 ```bash
 gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
-  -f body="Fixed in 92b53e6 — docs/documentation-structure.md:12 restores the docs/ prefix; the gate passes with lucidlint.json acknowledging the one intentional reference." 
+  -f body="Fixed in <commit-sha> — <file>:<line> now <what changed>; <the one check that confirms it>." 
 ```
 
 The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
