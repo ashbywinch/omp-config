@@ -23,6 +23,10 @@ jobs:
           # ${{ github.head_ref }} lets any same-repo branch ship its own
           # .pr_agent.toml (e.g. api_base pointing at an attacker endpoint)
           # and exfiltrate the API key.
+          #
+          # pr-agent-config is LOAD-BEARING: it is the review config source,
+          # diverges from main by design, and has no open PRs by definition —
+          # an audit reading it as stale is wrong. Never delete it.
           PR_AGENT_CONFIG_BRANCH: pr-agent-config
   verify:
     # A SEPARATE job that runs AFTER the bot job completes: GitHub does not
