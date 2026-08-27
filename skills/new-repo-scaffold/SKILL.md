@@ -206,7 +206,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern) and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
 - [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
-- [ ] dependabot: weekly for package ecosystem + `github-actions`
+- [ ] dependabot configured per the 'Dependency updates are automated, with a human boundary' rule in standards/coding-standards.md — grouping and auto-merge as in the examples
 - [ ] Branch workflow: never commit to main, PRs required, protected main
 - [ ] Git hooks run the fast checks — lint, typecheck, secrets scan (gitleaks) — installed by `make setup`; never the full test suite
 - [ ] End-to-end green: `make setup && make lint && make test` locally and CI green on push

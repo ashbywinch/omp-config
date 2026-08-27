@@ -318,6 +318,16 @@ without a check is a wish:
   mirrored test that fails means the port is wrong until verified against
   the reference — never edit the reference's expected values to match the
   port.
+- **Dependency updates are automated, with a human boundary.** Every repo
+  runs dependabot (weekly) for its package ecosystem(s) and
+  `github-actions`. Patch and minor bumps group per ecosystem and
+  auto-merge on green CI; major package bumps group per ecosystem but are
+  human-reviewed, never auto-merged; `github-actions` ref bumps are never
+  grouped and never auto-merged — an action ref bump is a SHA-pin update
+  under the scaffold CI rule (every action pins to a commit SHA, never the
+  mutable tag) and needs the pin treatment by a human. The exact
+  config and the auto-merge workflow are the scaffold examples; the
+  review bot flags a PR that removes or weakens them.
 
 ### Suppressions carry checkable evidence
 
