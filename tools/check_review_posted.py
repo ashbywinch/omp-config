@@ -194,8 +194,11 @@ def main() -> int:
         try:
             run = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}", token)
             reviewed_after = run["run_started_at"]
-        except (HTTPError, KeyError, ValueError):
-            pass  # fall back to the committer date — the run API may lag or the token may lack actions: read
+        except (HTTPError, KeyError, ValueError) as e:
+            # fall back to the committer date — the run API may lag or the
+            # token may lack actions: read. Never silent: a degraded anchor
+            # is still a conservative one (committer date predates the push).
+            print(f"::warning::run_started_at unavailable ({type(e).__name__}) — anchoring coverage to the committer date")
 
     try:
         comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments?per_page=100", token)
