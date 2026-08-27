@@ -101,8 +101,7 @@ equivalent.
 **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points. The critical bits, with the reasoning (also in the file's comments):
 
 - `[tool.ruff.lint] select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, quote-style double. **No `ignore` list** — don't cargo-cult chat-workflow/energy_envelope's UP046/UP047 skip (a reflection constraint there, not a general practice).
-- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
-- ALTERNATIVE — basedpyright: config-driven, no subcommand; scope with `include` NOT `exclude` (an exclude key replaces the implicit .venv/cache exclusions and the scan explodes into site-packages); `--level=error` lives in the Makefile + hook; its lock mode is the gold standard the pyrefly wrapper replicates.
+- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`) and `unbound-name = false` (three-LSP: ruff owns F821). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
 
 ### JS/TS (side-by-side, houses/frontend, kilocode)
 
