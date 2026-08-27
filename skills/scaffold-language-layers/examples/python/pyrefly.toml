@@ -21,3 +21,4 @@ preset = "default"
 [errors]
 missing-override-decorator = true   # every override must carry @override — real correctness guard for structurally-typed frameworks
 missing-super-call = true           # __init__ must call super().__init__() — caught a real test-stub bug
+unknown-name = false                # three-LSP: never-defined names belong to ruff F821 — pyrefly must not double-report

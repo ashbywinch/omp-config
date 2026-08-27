@@ -42,9 +42,14 @@ equivalent.
 - **ruff** (lint + format): `select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, `quote-style = "double"`. The scaffold does NOT carry `ignore = ["UP046","UP047"]` (PEP 695 type-parameter syntax). If a new repo hits a real reflection incompatibility, fix the reflection, don't ignore the rule.
 - **pytest**: `testpaths = ["tests"]`, tests mirror package layout; `pytest-cov` for coverage. Default for everything — fixtures, `parametrize`, plugins. Deviation is justified only for eval/API harnesses that need module-level discovery with a custom runner: chat-workflow runs `python -m unittest discover tests/evals/` under a timeout wrapper for exactly that. That's a niche — before choosing unittest, check whether a thin wrapper around pytest gives the same control.
 - **Semantic types, the library choices** (the generic rules are in the global standard — `docs/coding-standards.md`): **pint** for quantities (`pint.Quantity`, never bare `float`/`int` for distances, durations, speeds), and a **Money type with currency** for money (houses uses `money.Money`; never bare `float`, never bare `Decimal` in signatures). Houses' conventions: turn numeric literals into quantities by *multiplying by a one-unit `Quantity` constant* (`KM = 1.0 * ureg.km; radius = 4.0 * KM`), never by calling the `Quantity` constructor with a literal unit string; define the constants once per package from a single `UnitRegistry` (pint forbids mixing registries); wire formats stay unit-named bare numbers (pint has no JSON representation).
-- **Materialization.** These Python conventions — the library choices above, the ruff/pyrefly gates, pytest conventions, the flat layout — are appended to the repo's `docs/coding-standards.md` as a "Python conventions" section when scaffolding. The review bot reads only `repo_context_files`; a toolchain rule that stays only in this skill is invisible to review (a fresh repo would pass review while violating the semantic-type rules).
+- **Materialization.** These Python conventions — the library choices above, the ruff/pyrefly gates, pytest conventions, the three-LSP standard, the flat layout — are appended to the repo's `docs/coding-standards.md` as a "Python conventions" section when scaffolding. The review bot reads only `repo_context_files`; a toolchain rule that stays only in this skill is invisible to review (a fresh repo would pass review while violating the semantic-type rules).
 - Layout: flat package at repo root `<pkg>/` (newer repos) with `[tool.setuptools.packages.find] include = ["<pkg>*"]`; use `src/` layout only when distributing on PyPI (books_to_anki — it forces `pip install -e .` before tests, catching packaging bugs). Flat is the converged house style for internal tools. A CLI needs `<pkg>/__main__.py` — the run target (`python -m <pkg>`) fails with "No module named <pkg>.__main__" without it.
-- Type checker: **pyrefly** (recommended — houses, 2026-08) or **basedpyright** (houses, chat-workflow) or **mypy** (books_to_anki); gated via `make typecheck` inside `make test`. Pyrefly is ~15x faster on real code (~1s vs basedpyright's ~13s for the same project) with comparable strictness — prefer it for new repos.
+- Type checker: **pyrefly** — the only accepted type checker. **Decision
+  (2026-08-26): pyrefly alone** — one checker to configure, gate, and
+  support; previously "recommended" with basedpyright/mypy alternatives
+  (legacy repos keep what they have). Gated via `make typecheck` inside
+  `make test`; ~15x faster on real code than the alternatives with
+  comparable strictness.
 
   **pyrefly config — standalone `pyrefly.toml` uses TOP-LEVEL keys, no `[pyrefly]` wrapper.** The `[pyrefly]` header belongs in pyproject.toml's `[tool.pyrefly]`; in a standalone pyrefly.toml it is silently IGNORED (the file is parsed as already-pyrefly — a `[pyrefly]` section shows a "Extra keys found in config: pyrefly" warning and preset + errors do nothing). Correct standalone shape:
   ```toml
@@ -55,7 +60,7 @@ equivalent.
   ```
   Presets: `default` ≈ basedpyright's `standard`. `strict`/`all` may produce IDENTICAL error sets (their extra codes don't trigger on a given codebase — verify, don't assume). `--check-all` is the real strictness jump (~13x errors, mostly unannotated-internals noise like `bad-function-definition`) — not a sane gate. Enable strictness via the `[errors]` table instead: `missing-override-decorator` (every override must carry `@override` — a real correctness guard for structurally-typed frameworks like a DAG node base class) and `missing-super-call` (`__init__` must call `super().__init__()`). Both are default-off; enabling them + baselining adds real findings.
 
-  **The baseline lock is YOURS to build — pyrefly's built-in baseline is one-way.** Pyrefly's `baseline` suppresses errors that match it but NEVER flags a stale entry (an error the code no longer produces) — the exact regression that broke houses' CI: a code fix removed a diagnostic without refreshing the baseline, and the stale entry passed silently (exit 0, "0 errors (N suppressed)"). basedpyright's lock mode fails on drift in BOTH directions (new error OR stale baseline) — that property is why the gate matters. Restore it with a small wrapper — **working file: `examples/python/scripts/pyrefly-lock.py`** (copy + `make typecheck`/`typecheck-update-baseline` targets from `examples/python/Makefile`):
+  **The baseline lock is YOURS to build — pyrefly's built-in baseline is one-way.** Pyrefly's `baseline` suppresses errors that match it but NEVER flags a stale entry (an error the code no longer produces) — the exact regression that broke houses' CI: a code fix removed a diagnostic without refreshing the baseline, and the stale entry passed silently (exit 0, "0 errors (N suppressed)"). basedpyright's lock mode (the reference behavior this wrapper replicates) fails on drift in BOTH directions (new error OR stale baseline) — that property is why the gate matters. Restore it with a small wrapper — **working file: `examples/python/scripts/pyrefly-lock.py`** (copy + `make typecheck`/`typecheck-update-baseline` targets from `examples/python/Makefile`):
   - run `pyrefly check --output-format json` WITHOUT a baseline (the JSON has `{"errors": [{path, line, column, name, …}]}` — want every error, suppressed or not)
   - diff against the committed `.pyrefly-baseline.json` by `(path, line, column, name)`:
     - current-not-in-baseline → fail `NEW error(s)`
@@ -64,10 +69,19 @@ equivalent.
   - `update-baseline` writes the committed contract (sorted by path/line/column for diff-friendliness)
   Error keys are the same schema pyrefly's own baseline uses, so the wrapper's output is directly reusable. Wire `check` into `make typecheck` and a `typecheck-update-baseline` target; the pre-push hook runs `make check` (see General §1).
 
-  **basedpyright** (the alternative) — invocation is the BARE command; `basedpyright` is config-driven and has NO `check` subcommand (`basedpyright check` exits 4 treating `check` as a path). It exits 1 on WARNINGS by default — gate on the ERROR COUNT, not the exit code or `--level`: `basedpyright --outputjson | python -c "import json,sys; sys.exit(1 if json.load(sys.stdin)['summary']['errorCount'] else 0)"` — `--level=error` is ignored in CI because basedpyright has an "actions mode" (triggered by `GITHUB_ACTIONS`) where the `--level` filter doesn't apply to the exit code. Known open bug: DetachHead/basedpyright#1481; the JSON-summary parse is the community-standard fix. Its baseline lock mode is the gold standard the pyrefly wrapper replicates.
 
   **Bringing an existing repo into house shape** (not greenfield): bare `dict` annotations fail the strict checkers — use `dict[str, Any]`; pytest fixture params need explicit annotations (`tmp_path: Path`); DI fakes must SUBCLASS the real classes — plain `cast` fails with `reportInvalidCast` when the types don't overlap.
-- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff (+ type checker: pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
+
+- **Three-LSP standard** (Python, all repos): three language servers run side
+  by side in the editor — **ruff** (lint: undefined names F821, unused
+  imports, formatting, import sorting), **pyrefly** (type checking), and
+  **lucidlint** (the house gate-findings linter). Each owns one job and
+  none re-implements another's. Name diagnostics partition by class:
+  never-defined names are ruff F821's (pyrefly's `unknown-name` is OFF in
+  the sample config), while possibly-unbound-across-flows is pyrefly's
+  `unbound-name` — ruff does not cover that class — so each class shows
+  exactly one diagnostic, from the right server, at the moment of typing.
+- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, **lucidlint** (the gate linter), **pyrefly**, and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
 - Git hooks: **raw `scripts/pre-commit` + `scripts/pre-push`** (working
   files: `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`),
   installed by `make install-hooks` (via `make setup`). The pre-commit hook
@@ -87,8 +101,7 @@ equivalent.
 **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points. The critical bits, with the reasoning (also in the file's comments):
 
 - `[tool.ruff.lint] select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, quote-style double. **No `ignore` list** — don't cargo-cult chat-workflow/energy_envelope's UP046/UP047 skip (a reflection constraint there, not a general practice).
-- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
-- ALTERNATIVE — basedpyright: config-driven, no subcommand; scope with `include` NOT `exclude` (an exclude key replaces the implicit .venv/cache exclusions and the scan explodes into site-packages); `--level=error` lives in the Makefile + hook; its lock mode is the gold standard the pyrefly wrapper replicates.
+- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`) and `unknown-name = false` (three-LSP: ruff owns F821). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
 
 ### JS/TS (side-by-side, houses/frontend, kilocode)
 

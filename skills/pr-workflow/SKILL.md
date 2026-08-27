@@ -350,6 +350,10 @@ The sections above are the how-to; these are the one-line reminders.
   suggestions accumulate; check the latest PR Reviewer Guide (§7).
 - **Fixing AI config suggestions** — `.pr_agent.toml`/workflow
   self-reviews are almost never actionable (§9).
+- **Deleting a branch a workflow references** — never. Before deleting any
+  branch, grep `.github/workflows/` for its name. `pr-agent-config`'s role
+  and its two false-stale signals are stated in the workflow that pins
+  it — read that comment before auditing branches.
 
 ---
 
