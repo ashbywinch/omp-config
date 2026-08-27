@@ -76,11 +76,11 @@ equivalent.
   by side in the editor — **ruff** (lint: undefined names F821, unused
   imports, formatting, import sorting), **pyrefly** (type checking), and
   **lucidlint** (the house gate-findings linter). Each owns one job and
-  none re-implements another's: undefined names are ruff F821's, deliberately
-  NOT a lucidlint rule — pyrefly's overlapping `unbound-name` diagnostic is
-  OFF in the sample config (examples/python/pyrefly.toml), so a buffer with
-  an undefined name shows exactly one diagnostic, from the right server, at
-  the moment of typing.
+  none re-implements another's. Name diagnostics partition by class:
+  never-defined names are ruff F821's (pyrefly's `unknown-name` is OFF in
+  the sample config), while possibly-unbound-across-flows is pyrefly's
+  `unbound-name` — ruff does not cover that class — so each class shows
+  exactly one diagnostic, from the right server, at the moment of typing.
 - Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, **lucidlint** (the gate linter), **pyrefly**, and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
 - Git hooks: **raw `scripts/pre-commit` + `scripts/pre-push`** (working
   files: `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`),
@@ -101,7 +101,7 @@ equivalent.
 **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points. The critical bits, with the reasoning (also in the file's comments):
 
 - `[tool.ruff.lint] select = ["E","F","I","UP","B","SIM","N"]`, `line-length = 120`, quote-style double. **No `ignore` list** — don't cargo-cult chat-workflow/energy_envelope's UP046/UP047 skip (a reflection constraint there, not a general practice).
-- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`) and `unbound-name = false` (three-LSP: ruff owns F821). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
+- `[tool.pyrefly]` (or standalone `pyrefly.toml` — top-level keys, no `[pyrefly]` wrapper): `preset = "default"` + the two default-off `[errors]` rules (`missing-override-decorator`, `missing-super-call`) and `unknown-name = false` (three-LSP: ruff owns F821). The baseline lock lives in `scripts/pyrefly-lock.py` (see the type-checker bullet) — pyrefly's OWN baseline is one-way and misses stale entries.
 
 ### JS/TS (side-by-side, houses/frontend, kilocode)
 
