@@ -116,6 +116,13 @@ install-lucidlint:
 # intentionally does not exist inside this exempt repo. The key is file-level:
 # any NEW unresolved path in that file shares it — review its links by hand
 # when editing. Everything else must keep passing clean.
+#
+# TEMPORARY (2026-08-27): the doc-set paths must stay backticked (their
+# formatting is the instruction) and the baseline acknowledges the
+# unresolvable-in-this-repo references until a proper fix is designed —
+# options under consideration: a docs-link exemption for known target-repo
+# doc-set names, or a scoped resolver config. Do not extend this baseline
+# to anything else.
 test: install-lucidlint
 	@python3 tools/check_docs_links.py
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
