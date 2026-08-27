@@ -77,6 +77,15 @@ gh api -X PATCH repos/<owner>/<repo>/pulls/<number> --input body.json \
 `body.json` is `{"body": "<description>"}` with newlines escaped as `\n`
 (raw newlines break the JSON).
 
+**Never append to the tail of an existing body.** PR-Agent appends its own
+boilerplate (`### PR Type`, Description, File Walkthrough) to the description
+after each review. A body edit that concatenates text at the end lands BELOW
+that boilerplate — and the reviewer's compliance check reads only the
+description portion, so the addition is invisible to it. To add anything,
+rebuild the description: fetch the current body; if the boilerplate marker
+(`___` followed by `### **PR Type**`) is absent (no review has run yet),
+PATCH the whole body directly — otherwise split just before the marker,
+insert the new text into the description half, rejoin, PATCH the whole body.
 ---
 
 ## Part 2: Post-Creation — Monitor Checks
@@ -180,9 +189,22 @@ one concise line per comment: how it was fixed, or why you disagree. A
 silently-resolved comment leaves the reviewer unsure their feedback was
 seen. Reply to a thread with:
 
+**Self-verifying replies only.** A reply must let the reviewer confirm the
+disposition without re-deriving it. Fixed: name the commit (sha or message)
+AND the exact referent — file:line, config key, or doc section — plus the
+one check that confirms it. Disagreed (no change): cite the evidence —
+source file:line at the pinned version, a config read path, or a command
+and its output — that refutes the claim. A bare `Fixed` or `No` is a
+non-reply: it carries no referent, so neither bot nor human can verify it,
+and the thread reopens the same question it was meant to close.
+Pass the reply body as ONE argument — `-f body="…"` from a script, or
+`--input` from a file. A body that travels through shell word-splitting
+(`set -- $pair`, unquoted expansion) is split into separate arguments and
+truncates to its first word — quote the argument, or write the body to a
+file and pass it with `--input`.
 ```bash
 gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
-  -f body="Fixed — <what changed>" 
+  -f body="Fixed in <commit-sha> — <file>:<line> now <what changed>; <the one check that confirms it>." 
 ```
 
 The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
@@ -197,8 +219,6 @@ answering it — reply, push, and leave every thread unresolved.
 ### 8. Parse AI Review Comments Thoroughly
 
 If the repo has an AI code reviewer (PR-Agent or similar), its review comment contains **multiple distinct sections**. Do NOT rely on counting `<details>` elements — you will miss issues.
-
-The typical AI review comment has these sections, all of which can contain findings:
 
 | Section | Location in comment | How it reports issues |
 |---|---|---|
@@ -308,13 +328,18 @@ The sections above are the how-to; these are the one-line reminders.
   reverted fix).
 - **Cancelling runs prematurely** — checks take minutes and `updatedAt`
   lags; investigate step-level status before cancelling (§5).
+- **Updating a PR description** — never `gh pr edit`, and never append at the
+  tail (it lands below the bot's boilerplate, invisible to compliance) —
+  rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
-- **Updating a PR description** — never `gh pr edit`; see §4.
 - **Resolving review threads yourself** — never; resolution is the reviewer's
   verdict. Reply and stop (§7b).
+- **Terse thread replies** (`Fixed` / `No`) — every reply names its
+  referent: the commit + file:line (or the evidence that refutes the
+  claim). A reply with no checkable referent is a non-reply (§7b).
 - **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
   fetches any `#N`; a PR number or unfetchable issue crashes the review
   with `Error extracting tickets` (§3).
