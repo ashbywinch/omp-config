@@ -144,12 +144,13 @@ def _failure_reason(bot_lines: list[str]) -> str:
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
 
 
-def _review_covers(comments, sha: str, head_committed_at: str) -> bool:
+def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
     """Does any comment cover the head commit? A human /skip opt-out (applies
     to the whole PR), a posted guide (regular or incremental, referencing the
-    sha or created after the head commit), or the bot's own incremental-skip
-    verdict (created after the head commit — the diff was examined and found
-    empty, so the skip is the review, not a failure)."""
+    sha or created after the head was received), or the bot's own
+    incremental-skip verdict (created after the head was received — the diff
+    was examined and found empty, so the skip is the review, not a
+    failure)."""
     if any(c.get("body", "").strip() == "/skip" for c in comments):
         return True
     return any(
@@ -158,17 +159,16 @@ def _review_covers(comments, sha: str, head_committed_at: str) -> bool:
             and (
                 sha in c.get("body", "")
                 or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
-                or c.get("created_at", "") >= head_committed_at
+                or c.get("created_at", "") >= reviewed_after
             )
         )
         or (
             c.get("body", "").startswith("Incremental Review Skipped")
-            and c.get("user", {}).get("type") == "Bot"
-            and c.get("created_at", "") >= head_committed_at
+            and (c.get("user") or {}).get("type") == "Bot"
+            and c.get("created_at", "") >= reviewed_after
         )
         for c in comments
     )
-
 
 def main() -> int:
     sha = os.environ["SHA"]
@@ -182,14 +182,27 @@ def main() -> int:
         # surfaces via the ::error line + the non-zero exit — not a swallow
         print(f"::error::commit {sha} is not fetchable ({e.code}) — the review cannot cover it.")
         return 1
-    head_committed_at = commit["commit"]["committer"]["date"]
+
+    # "Reviewed after" is anchored to the workflow run's start, not the
+    # commit's committer date: the committer date is author-controlled and
+    # predates the push, so a review posted for an earlier revision could
+    # "cover" a newer head authored before it. A review that covers THIS
+    # push must post after the run that checks it started.
+    reviewed_after = commit["commit"]["committer"]["date"]
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    if run_id:
+        try:
+            run = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}", token)
+            reviewed_after = run["run_started_at"]
+        except (HTTPError, KeyError, ValueError):
+            pass  # fall back to the committer date — the run API may lag or the token may lack actions: read
 
     try:
         comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments?per_page=100", token)
     except HTTPError as e:
         print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
         return 1
-    if not _review_covers(comments, sha, head_committed_at):
+    if not _review_covers(comments, sha, reviewed_after):
         reason = _bot_failure_reason(repo, token)
         print(f"::error::AI review did not post for commit {sha} — {reason}.")
         return 1
