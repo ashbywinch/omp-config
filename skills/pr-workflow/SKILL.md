@@ -199,6 +199,9 @@ non-reply: it carries no referent, so neither bot nor human can verify it,
 and the thread reopens the same question it was meant to close.
 Pass the reply body as ONE argument — `-f body="…"` from a script, or
 `--input` from a file. A body that travels through shell word-splitting
+(`set -- $pair`, unquoted expansion) is split into separate arguments and
+truncates to its first word — quote the argument, or write the body to a
+file and pass it with `--input`.
 ```bash
 gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
   -f body="Fixed in <commit-sha> — <file>:<line> now <what changed>; <the one check that confirms it>." 
@@ -216,8 +219,6 @@ answering it — reply, push, and leave every thread unresolved.
 ### 8. Parse AI Review Comments Thoroughly
 
 If the repo has an AI code reviewer (PR-Agent or similar), its review comment contains **multiple distinct sections**. Do NOT rely on counting `<details>` elements — you will miss issues.
-
-The typical AI review comment has these sections, all of which can contain findings:
 
 | Section | Location in comment | How it reports issues |
 |---|---|---|
