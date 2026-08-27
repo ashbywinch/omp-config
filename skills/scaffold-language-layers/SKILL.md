@@ -44,7 +44,9 @@ equivalent.
 - **Semantic types, the library choices** (the generic rules are in the global standard — `docs/coding-standards.md`): **pint** for quantities (`pint.Quantity`, never bare `float`/`int` for distances, durations, speeds), and a **Money type with currency** for money (houses uses `money.Money`; never bare `float`, never bare `Decimal` in signatures). Houses' conventions: turn numeric literals into quantities by *multiplying by a one-unit `Quantity` constant* (`KM = 1.0 * ureg.km; radius = 4.0 * KM`), never by calling the `Quantity` constructor with a literal unit string; define the constants once per package from a single `UnitRegistry` (pint forbids mixing registries); wire formats stay unit-named bare numbers (pint has no JSON representation).
 - **Materialization.** These Python conventions — the library choices above, the ruff/pyrefly gates, pytest conventions, the three-LSP standard, the flat layout — are appended to the repo's `docs/coding-standards.md` as a "Python conventions" section when scaffolding. The review bot reads only `repo_context_files`; a toolchain rule that stays only in this skill is invisible to review (a fresh repo would pass review while violating the semantic-type rules).
 - Layout: flat package at repo root `<pkg>/` (newer repos) with `[tool.setuptools.packages.find] include = ["<pkg>*"]`; use `src/` layout only when distributing on PyPI (books_to_anki — it forces `pip install -e .` before tests, catching packaging bugs). Flat is the converged house style for internal tools. A CLI needs `<pkg>/__main__.py` — the run target (`python -m <pkg>`) fails with "No module named <pkg>.__main__" without it.
-- Type checker: **pyrefly** (recommended — houses, 2026-08) or **basedpyright** (houses, chat-workflow) or **mypy** (books_to_anki); gated via `make typecheck` inside `make test`. Pyrefly is ~15x faster on real code (~1s vs basedpyright's ~13s for the same project) with comparable strictness — prefer it for new repos.
+- Type checker: **pyrefly** — the only accepted type checker (the scaffold is
+  opinionated); gated via `make typecheck` inside `make test`. ~15x faster
+  on real code than the alternatives with comparable strictness.
 
   **pyrefly config — standalone `pyrefly.toml` uses TOP-LEVEL keys, no `[pyrefly]` wrapper.** The `[pyrefly]` header belongs in pyproject.toml's `[tool.pyrefly]`; in a standalone pyrefly.toml it is silently IGNORED (the file is parsed as already-pyrefly — a `[pyrefly]` section shows a "Extra keys found in config: pyrefly" warning and preset + errors do nothing). Correct standalone shape:
   ```toml
@@ -70,15 +72,14 @@ equivalent.
 
 - **Three-LSP standard** (Python, all repos): three language servers run side
   by side in the editor — **ruff** (lint: undefined names F821, unused
-  imports, formatting, import sorting), **pyrefly** (type checking; the
-  toolchain bullet's basedpyright/mypy alternatives apply), and **lucidlint**
-  (the house gate-findings linter). Each owns one job and
+  imports, formatting, import sorting), **pyrefly** (type checking), and
+  **lucidlint** (the house gate-findings linter). Each owns one job and
   none re-implements another's: undefined names are ruff F821's, deliberately
-  NOT a lucidlint rule — and the type checker must not be configured to
-  duplicate F821 either (a buffer with an undefined name shows one
-  diagnostic, from the right server, at the moment of typing; check the
-  type checker's config if it reports undefined names too).
-- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, **lucidlint** (the gate linter), the type checker (pyrefly or basedpyright), and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
+  NOT a lucidlint rule — pyrefly's overlapping `unbound-name` diagnostic is
+  OFF in the sample config (examples/python/pyrefly.toml), so a buffer with
+  an undefined name shows exactly one diagnostic, from the right server, at
+  the moment of typing.
+- Dev deps in PEP 735 `[dependency-groups] dev`: pytest, pytest-cov, ruff, **lucidlint** (the gate linter), **pyrefly**, and **archunitpython** for the architecture-layer self-check (§3b). `uv sync` installs them by default. No plain-pip support, so extras (`[project.optional-dependencies]`) are not used. Never split deps across both mechanisms — chat-workflow does, which is a smell. **Working file: `examples/python/pyproject.toml`** — copy it, edit the CHANGE points.
 - Git hooks: **raw `scripts/pre-commit` + `scripts/pre-push`** (working
   files: `examples/python/scripts/pre-commit` + `examples/python/scripts/pre-push`),
   installed by `make install-hooks` (via `make setup`). The pre-commit hook
