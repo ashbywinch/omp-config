@@ -137,9 +137,9 @@ layer test worthless, so follow the skill, not any repo's existing test):
 
 ### 6b. LLM provider convention
 
-All code reads LLM provider config from `OPENAI_BASE_URL` + `OPENAI_API_KEY`. See `skill://cloudflare-ai-gateway` for the gateway URL, model names, and configuration. Forkers change these two env vars and model names.
+All code reads LLM provider config from `OPENAI_BASE_URL` + `OPENAI_API_KEY` at runtime, with a loud failure when either is missing. See `skill://cloudflare-ai-gateway` for the gateway URL, model names, and configuration. Never hardcode a provider URL or key in code — a client pinned to one provider's direct endpoint bypasses the gateway and its failover (observed failure: an opencode-hardwired client died with the provider's billing error while the gateway's funded fallback sat unused). Forkers change these two env vars and model names.
 
-- `.github/dependabot.yml` — **working file: `examples/.github/dependabot.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence.
+- `.github/dependabot.yml` + `.github/workflows/dependabot-automerge.yml` — **working files: `examples/.github/dependabot.yml` + `examples/.github/workflows/dependabot-automerge.yml`**. For uv projects the package ecosystem is dependabot's `pip` ecosystem (it reads `uv.lock`); weekly is the house cadence. Note: dependabot-triggered workflow runs get a read-only token and NO secrets, so any step needing one (an eval gate, a review) can only fail on dependabot PRs — skip it ONLY for the actor `dependabot[bot]` (never by a key-presence test), and always run it on main. The automerge example's comments carry the full trigger/permissions reasoning.
 
 ### 7. Repo creation & branch protection
 

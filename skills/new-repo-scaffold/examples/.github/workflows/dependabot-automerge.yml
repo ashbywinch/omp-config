@@ -12,14 +12,26 @@
 #   the SHA-pin treatment by a human.
 # - dependabot/fetch-metadata is pinned to a commit SHA, never the tag.
 # - Non-dependabot PRs are untouched (job-level actor guard).
+# - The trigger is pull_request_target, NOT pull_request: dependabot-triggered
+#   pull_request runs get a read-only token and NO secrets, so `gh pr merge`
+#   can never work there. The target trigger runs in base-repo context with
+#   real permissions; the actor guard still limits it to dependabot PRs, and
+#   the job never checks out PR code, so the trigger is safe.
+# - contents: write — the auto-merge performs a merge commit; read alone
+#   fails the arm step.
+# - Allow auto-merge must be enabled in the repo: Settings → General → Pull
+#   Requests → Allow auto-merge.
+# - Any OTHER CI step that needs a secret (an eval gate, a review) fails on
+#   dependabot PRs for the same reason: skip it ONLY for the actor
+#   dependabot[bot] (never by a key-presence test), and always run it on main.
 
 name: Dependabot auto-merge
 
-on: pull_request
+on: pull_request_target
 
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write # the auto-merge performs the merge commit
+  pull-requests: write # enabling auto-merge on the PR
 
 jobs:
   dependabot:

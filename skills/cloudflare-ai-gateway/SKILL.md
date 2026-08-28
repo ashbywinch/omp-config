@@ -151,7 +151,7 @@ Per-request headers that override the model node's settings:
 | `cf-aig-retry-delay` | Delay between retries (ms, max 5000) |
 | `cf-aig-backoff` | `constant`, `linear`, or `exponential` |
 
-The local proxy adds these headers to every request. PR-Agent in GitHub Actions needs them sent via `[litellm] extra_headers` in `.pr_agent.toml` (see below).
+The local proxy adds these headers to every request. PR-Agent in GitHub Actions needs them sent via `[litellm] extra_headers` in `.pr_agent.toml` — as a JSON **string**: the handler runs `json.loads(get_settings().litellm.extra_headers)`, so an inline TOML table fails every call with "the JSON object must be str, bytes or bytearray, not DynaBox". `extra_headers = '{"cf-aig-max-attempts": "0", "cf-aig-request-timeout": "300000"}'`.
 
 ## Why the local proxy exists
 
