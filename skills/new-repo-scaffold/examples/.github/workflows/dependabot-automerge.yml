@@ -25,20 +25,18 @@
 # - Allow auto-merge must be enabled in the repo: Settings → General → Pull
 #   Requests → Allow auto-merge.
 # - Any OTHER CI step that needs a secret (an eval gate, a review) fails on
-#   dependabot PRs for the same reason: skip it ONLY for the actor
-#   dependabot[bot] (never by a key-presence test), and always run it on main.
-
 name: Dependabot auto-merge
 
 on: pull_request_target
 
-permissions:
-  contents: write # the auto-merge performs the merge commit
-  pull-requests: write # enabling auto-merge on the PR
-
 jobs:
   dependabot:
     runs-on: ubuntu-latest
+    # job-level, not workflow-level: a future job in this file must not
+    # silently inherit write permissions (least privilege, bot review 2026-08-29)
+    permissions:
+      contents: write # the auto-merge performs the merge commit
+      pull-requests: write # enabling auto-merge on the PR
     if: github.actor == 'dependabot[bot]'
     steps:
       - name: Fetch dependabot metadata
