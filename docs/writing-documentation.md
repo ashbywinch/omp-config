@@ -67,6 +67,24 @@ details" and links to column-reference.md.
 **Bad:** the development guide repeats the column layout inline — two
 copies, one of which will go stale.
 
+**Config snippets are code, not prose.** A block a tool would parse — a
+workflow, a `.toml`/`.json`/`.yaml` snippet, an env-var table with literal
+values — lives in a real `examples/` file (for skills:
+`skill://<name>/examples/`), referenced by link, never inlined in a doc or
+skill body. A real file is parsed, linted, and exercised like the shipped
+artifact; an inline copy is not, and it drifts when the canonical copy
+changes. If the file does not exist yet, create it — the doc references the
+artifact, not a paraphrase of it.
+
+**Good:** the gateway skill says "the working block lives in the sample:
+`skill://new-repo-scaffold/examples/.pr_agent.toml` (the `[litellm]`
+section)" — one copy, tooling-checked.
+
+**Bad:** the same skill pastes `extra_headers = '{...}'` inline — a second,
+unchecked copy that silently diverges (observed: the inline copy had a 5
+minute timeout and no metadata while the sample had 10 minutes, metadata,
+and backoff).
+
 ## One topic per file — the docs' separation of concerns
 
 One reason to change per doc file, exactly as one reason to change per
