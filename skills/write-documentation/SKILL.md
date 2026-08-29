@@ -48,6 +48,9 @@ there instead. Cross-reference by linking, never by copying.
 - You're tempted to copy-paste content from another doc
 - A reader has to skip large sections to find what they need
 - Content is duplicated or concepts are explained twice
+- You're inlining a config snippet (workflow, toml/JSON, env-var table with
+  literal values) that belongs in an `examples/` file — the standard's
+  'Single source of truth' rule: reference the artifact, never copy it
 
 ## How to update documentation
 
