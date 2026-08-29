@@ -118,6 +118,13 @@ install-lucidlint:
 # when editing. Everything else must keep passing clean.
 test: install-lucidlint
 	@python3 tools/check_docs_links.py
+	@cmp -s tools/check_review_posted.py skills/new-repo-scaffold/examples/tools/check_review_posted.py || \
+	  (echo "check_review_posted twins diverged — run 'make sync-examples' (tools/ is canonical)" && exit 1)
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
 	@python3 -m unittest discover -s tools/tests
+
+.PHONY: sync-examples
+sync-examples:
+	cp tools/check_review_posted.py skills/new-repo-scaffold/examples/tools/check_review_posted.py
+	@echo "Synced — tools/ is canonical, the scaffold example is generated."
