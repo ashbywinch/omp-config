@@ -114,41 +114,6 @@ Only the local proxy stamps `purpose: "harness"`; PR-Agent sends `source: "revie
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). We confirmed the gateway recognizes it (14s test returned 200).
 
-### What we're uncertain about
-
-Whether the model node `timeout` is:
-- **Timeout to first byte** — DeepSeek took >30s to produce the first token on a cold start with a 32K-token prompt, and the stream then continued for ~5 minutes of inference.
-- **Total request timeout** — DeepSeek completed the full response, and the timeout covers the total duration including streaming.
-
-Both are consistent with the evidence. The 300s timeout works either way.
-
-### Retries
-
-Cloudflare's model node retries ALL errors — it can't distinguish between:
-- **Non-retryable**: 402 billing, 401 auth, 400 invalid request, 404 model not found (retrying wastes time)
-- **Retryable**: 429 rate limit, 500/502/503 transient, 529 overloaded, timeouts (retrying helps)
-
-**Decision (2026-08-19): Cloudflare-side retries are DISABLED (`retries: 0` on model nodes, `cf-aig-max-attempts: 0` header). The client owns retries.**
-
-Rationale:
-- A review timing out will fail again on retry — the same large diff, the same cost. Retrying at the gateway wastes tokens.
-- A transient provider error IS worth retrying, and the client (PR-Agent, Paseo/OMP) does that with full context about whether it's a long-running review or a genuine error.
-- The client can distinguish "this is a complex request that needs more time" (no retry, wait longer) from "the provider errored" (retry). The gateway cannot.
-
-Cloudflare's model node retries on all errors equally, so it would waste attempts on both non-retryable errors AND on long-running reviews that simply need more time.
-
-**The timeout ambiguity problem** — it's a known industry issue (see A Field Guide to LLM API Error Messages, Multigrid). A timeout can mean either:
-- The provider is broken (should retry/failover)
-- The request is complex and needs more time (should wait longer)
-
-Solutions other gateways use:
-- **LiteLLM**: separate `timeout` (total) and `stream_timeout` (first-byte) settings
-- **AISIX APISIX**: inspects response body to classify error types before retrying
-- **Portkey, others**: similar pattern — classify by status code + error message body
-
-Cloudflare's model node has a single `timeout` and retries on all errors. For our use case:
-- Primary (OpenCode, out of credits): 2 retries at 120s timeout — errors are instant, so retries are fast
-- Fallback (DeepSeek): 2 retries at 300s timeout — gives enough time for complex requests
 
 ### cf-aig-* headers
 
