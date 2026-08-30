@@ -36,9 +36,16 @@ export default {
 		const timer = setTimeout(() => controller.abort(), Number(env.UPSTREAM_TIMEOUT_MS || 300000));
 
 		try {
+			// Forward only what the provider needs — the caller's hop-by-hop and
+			// Cloudflare-internal headers must not leak upstream.
+			const headers = new Headers();
+			for (const name of ["authorization", "content-type", "accept", "user-agent"]) {
+				const value = request.headers.get(name);
+				if (value) headers.set(name, value);
+			}
 			const upstream = await fetch(env.UPSTREAM, {
 				method: "POST",
-				headers: request.headers,
+				headers,
 				body: request.body,
 				signal: controller.signal,
 			});

@@ -114,9 +114,8 @@ hold no secrets. Three behaviors beyond the rewrite:
   rejected with `Model ... is not supported`. Check the catalog:
   `GET {base}/v1/models` is public for OpenCode Zen Go.
 - OpenCode Zen Go errors past the path fix: `MonthlyLimitError` (HTTP 401) —
-  the workspace monthly spending cap, raisable at
-  `https://opencode.ai/workspace/<workspace>/billing`. This, not a broken
-  config, is why opencode-go cascaded to deepseek for months.
+  the workspace monthly spending cap. Raise the cap at
+  `https://opencode.ai/workspace/<workspace>/billing`.
 
 ## z.ai specifics (the worked example)
 
