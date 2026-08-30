@@ -33,11 +33,8 @@ isolation before touching a route.
    route exists.
 2. **Create the custom provider**: `POST /ai-gateway/custom-providers`
    `{name, slug, base_url}`.
-3. **Add the BYOK key** via the dashboard (Provider Keys → Add API Key → select
-   the custom provider). The dashboard creates the Secrets Store secret
-   `{gateway}_{slug}_{alias}` automatically. The API path needs a token with
-   Secrets Store Write AND a pre-created secret — prefer the dashboard unless
-   you have that scope.
+3. **Add the BYOK key** via the dashboard Provider Keys (secret contract and
+   dashboard-vs-API choice live in the Provider keys section of `SKILL.md`).
 4. **Test the provider-specific endpoint** with the real model name in the
    body: `.../{gateway}/custom-{slug}/<path>`. This isolates key/base/model
    from route construction. Success here + failure in the route = the
@@ -63,11 +60,13 @@ isolation before touching a route.
 ## Fail-back semantics (read before trusting a cascade)
 
 - A model node's `fallback` output fires on non-2xx status or timeout. Proven:
-  z.ai returning 404 → cascade → deepseek served.
-- **Provider business errors delivered as HTTP 200 do NOT cascade** — the
-  gateway sees success and returns the error body to the client. z.ai returns
-  200-with-error-body on some of its paths. A cascade is only as good as the
-  status codes the provider actually sends.
+  z.ai returning 404 → cascade → deepseek served. (The shims also remap
+  providers' HTTP-200 business errors to 502 for exactly this reason — see
+  the shim pattern above.)
+- **Uncorrected 200-with-error-body still bypasses the cascade** for any
+  provider called without a shim. z.ai returns 200-with-error-body on some of
+  its paths; a cascade is only as good as the status codes the provider
+  actually sends.
 - Failed intermediate nodes are NOT logged separately — logs show only the
   final serving provider. A missing log entry does not mean "not attempted".
 
@@ -84,7 +83,21 @@ environment per provider (`zai-shim` → z.ai Coding Plan, `opencode-shim` →
 OpenCode Zen Go). Each rewrites `POST /v1/chat/completions` → the provider's
 real path, forwarding headers and streaming the response back. The gateway
 attaches the BYOK key as `Authorization` on its upstream call, so the shims
-hold no secrets.
+hold no secrets. Three behaviors beyond the rewrite:
+
+- **Access control**: the `SHIM_TOKEN` wrangler secret gates the Worker — set
+  it (`echo "<token>" | npx wrangler secret put SHIM_TOKEN --name <name>`) and
+  mirror the value in the custom provider's `headers` field
+  (`{"x-shim-token":"<token>"}` as a JSON-encoded string); the gateway
+  attaches that header to upstream calls. Without the secret the Worker is an
+  open proxy to a paid upstream.
+- **Error remap**: z.ai delivers business errors (auth, quota) as HTTP 200
+  with a JSON error body; the shim buffers non-SSE JSON 2xx responses and
+  remaps error-shaped bodies to 502 so the fallback cascade fires. SSE and
+  non-JSON responses stream through untouched.
+- **Timeout**: `UPSTREAM_TIMEOUT_MS` aborts a hung upstream and returns 502
+  (cascade) — set it at or below the model-node timeout of every route using
+  the shim.
 
 - Costs nothing at harness scale: Workers free tier = 100k requests/day; a
   passthrough is I/O-only so the 10ms CPU cap does not bind. On Workers Paid,
