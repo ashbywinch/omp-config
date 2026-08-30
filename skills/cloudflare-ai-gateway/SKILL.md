@@ -5,7 +5,7 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 # Cloudflare AI Gateway
 
-Routes all AI API calls through Cloudflare AI Gateway with OpenCode (primary) → DeepSeek (fallback). Per-repo analytics tagging via local proxy. The canonical LLM provider config for all projects.
+Routes all AI API calls through Cloudflare AI Gateway. The `fallback2` route is purpose-gated: harness traffic (via the local proxy) tries z.ai GLM-5.3-Flash first, then cascades to DeepSeek; all other traffic (evals, apps, review bot) goes straight to the DeepSeek cascade. Per-repo analytics tagging via local proxy. The canonical LLM provider config for all projects.
 
 ## Architecture
 
@@ -37,8 +37,8 @@ Routes all AI API calls through Cloudflare AI Gateway with OpenCode (primary) �
                            │
               ┌────────────┴────────────┐
               ▼                         ▼
-      OpenCode (primary)      DeepSeek (fallback)
-      (out of credits → fail)  (funded)
+      z.ai GLM-5.3-Flash        DeepSeek cascade
+      (harness only, via shim)  (opencode-go → deepseek)
 ```
 
 ### Two env vars — single source of truth
@@ -94,7 +94,17 @@ Route names are referenced in config as `dynamic/{route-name}`. If a route is re
 
 ### Provider keys
 
-Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers).
+Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers). Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically; the API path needs Secrets Store Write plus a pre-created secret — use the dashboard unless you hold that scope.
+
+#### Purpose-gated topology (`fallback2`)
+
+`fallback2` starts with a conditional on `metadata.purpose == "harness"`:
+
+- **true (harness)**: z.ai GLM-5.3-Flash (`custom-zai`, via shim) → fallback → opencode-go → fallback → deepseek
+- **false (evals, apps, review bot)**: opencode-go → deepseek — never touches z.ai
+- `dynamic/image` (vision): opencode-go `mimo-v2.5` → fallback → openrouter `xiaomi/mimo-v2.5`
+
+Only the local proxy stamps `purpose: "harness"`; PR-Agent sends `source: "review"`; untagged direct traffic has no purpose. The shims live in `tools/ai-gateway-shims/` (`deploy.sh` deploys both). Adding providers — the forced `/v1/chat/completions` route-node constraint, validation sequence, shim pattern, fail-back caveats — see `references/adding-providers.md`.
 
 ## Timeouts and retries
 
@@ -157,7 +167,7 @@ The local proxy adds these headers to every request. PR-Agent in GitHub Actions 
 
 The proxy exists for two reasons:
 
-1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","repo":"<name>"}`. This lets Cloudflare's analytics show per-repo token usage, cost, and request patterns. Without the proxy, every request would show as coming from "unknown".
+1. **Per-repo analytics tagging + purpose gating** — the proxy reads the repo name (tagged by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}`. `purpose: "harness"` selects the z.ai branch of `fallback2`; direct traffic has no purpose and keeps the DeepSeek cascade. Without the proxy, every request would show as coming from "unknown".
 
 2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml` (which we confirmed works). The proxy covers local OMP sessions.
 
@@ -173,7 +183,7 @@ The proxy is NOT needed for:
 A Bun script (`cf-proxy.ts`) running as a systemd user service. It:
 1. Receives requests from OMP on `localhost:9123`
 2. Reads the repo name (tagged by `omp-yolo.sh`)
-3. Adds `cf-aig-metadata: {"source":"agent","repo":"<name>"}` header
+3. Adds `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}` header
 4. Adds timeout/retry headers (values from `cf-aig-request-timeout` config)
 5. Forwards to Cloudflare
 

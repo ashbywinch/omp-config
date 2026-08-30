@@ -5,7 +5,7 @@
         "command": ["~/.paseo/omp-yolo.sh"],
         "models": [{
           "id": "cloudflare-gateway/dynamic/fallback2",
-          "label": "DeepSeek V4 Flash (via Cloudflare)",
+          "label": "GLM-5.3-Flash (z.ai plan, via Cloudflare)",
           "isDefault": true
         }],
         "enabled": true

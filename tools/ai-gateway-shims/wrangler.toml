@@ -1,0 +1,18 @@
+# Two deployments of the same path-rewrite shim. For each provider whose
+# OpenAI-compatible path is not /v1/chat/completions, add an [env.<name>]
+# block (name + vars.UPSTREAM), extend deploy.sh, and point the custom
+# provider's base_url at https://<name>.<account-subdomain>.workers.dev.
+name = "zai-shim"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[vars]
+UPSTREAM = "https://api.z.ai/api/coding/paas/v4/chat/completions"
+
+[env.opencode]
+name = "opencode-shim"
+workers_dev = true
+
+[env.opencode.vars]
+UPSTREAM = "https://opencode.ai/zen/go/v1/chat/completions"
