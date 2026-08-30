@@ -1,12 +1,11 @@
 ---
 name: code-review-graph
 description: |
-  The one skill for the code-review-graph knowledge graph: query it instead
-  of grep for structural questions (callers, imports, impact, flows, test
-  targeting), keep it healthy across branch switches, and recover a stale
-  graph. Load when graph answers contradict the code, when a branch switch
-  happened without the watcher running, or when choosing between grep and
-  the mcp__code_review_graph_* tools.
+  How to use the code-review-graph code knowledge graph: answer structural
+  questions with its tools before falling back to grep — who calls this
+  function, where is this handled, what would this change affect, which
+  tests cover this code. Also what to do when the graph is stale, e.g.
+  after a branch switch while the watcher was down.
 alwaysApply: true
 ---
 
