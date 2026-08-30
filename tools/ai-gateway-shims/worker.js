@@ -23,7 +23,7 @@ export default {
 			);
 		}
 
-		if (env.SHIM_TOKEN && request.headers.get("x-shim-token") !== env.SHIM_TOKEN) {
+		if (!env.SHIM_TOKEN || request.headers.get("x-shim-token") !== env.SHIM_TOKEN) {
 			return new Response(
 				JSON.stringify({ error: { message: "Unauthorized", type: "authentication_error" } }),
 				{ status: 401, headers: { "content-type": "application/json" } },
@@ -60,7 +60,12 @@ export default {
 				let isError = false;
 				try {
 					const parsed = JSON.parse(bodyText);
-					isError = Boolean(parsed && (parsed.error || parsed.success === false || parsed.code !== undefined));
+					isError = Boolean(
+						parsed &&
+						(parsed.error ||
+							parsed.success === false ||
+							(typeof parsed.code === "number" && parsed.code !== 0 && parsed.code !== 200)),
+					);
 				} catch {}
 				const headers = new Headers(upstream.headers);
 				headers.delete("content-length");

@@ -3,8 +3,10 @@
 # block (name + vars.UPSTREAM), extend deploy.sh, and point the custom
 # provider's base_url at https://<name>.<account-subdomain>.workers.dev.
 #
-# UPSTREAM_TIMEOUT_MS must sit at or below the gateway model-node timeout of
-# every route that uses the shim, so the shim 502s before the node would.
+# UPSTREAM_TIMEOUT_MS aborts a hung upstream so the shim 502s and the route
+# cascade fires. Set it at or below the LARGEST model-node timeout among the
+# routes using the shim — a shorter node's own timeout fires first and its
+# fallback proceeds; the shim just finishes alone.
 #
 # SHIM_TOKEN is a wrangler SECRET (never committed): set it with
 #   echo "<token>" | npx wrangler secret put SHIM_TOKEN
