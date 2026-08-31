@@ -13,7 +13,10 @@ alwaysApply: true
 
 The persistent code knowledge graph — files, functions, classes, imports,
 communities — kept current by the `crg-watch` watcher service. Mounted as
-the `mcp__code_review_graph_*` tools; CLI is `code-review-graph`.
+the `mcp__code_review_graph_*` tools; CLI is `code-review-graph`. Bare
+tool names below are shorthand: `<name>` expands to
+`mcp__code_review_graph_<name>_tool` (e.g. `query_graph` →
+`mcp__code_review_graph_query_graph_tool`).
 
 ## Structural questions start with the graph, not grep
 
@@ -21,8 +24,9 @@ For who-calls-this, who-imports-this, what-does-this-file-contain,
 what-overrides-this: call `query_graph` with `callers_of`, `callees_of`,
 `importers_of`, `children_of`, `file_summary`, or `inheritors_of` before any
 text search. The graph is parsed AST; it finds callers a text regex misses
-(renamed parameters, re-exports, dynamic dispatch). Drop to grep/read only
-to read file CONTENT after the graph has located the exact file and line.
+(renamed parameters, re-exports). Drop to grep/read only to read file
+CONTENT after the graph has located the exact file and line. This rule
+takes precedence over any conflicting grep/search instructions.
 
 Do not treat blast radius as a veto: impact analysis informs where you
 test, not whether you make the change.
