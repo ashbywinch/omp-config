@@ -63,8 +63,21 @@ gate) and made private by construction. The exact output is
 name-dependent — that is why the preview comes first; never hand-extract
 a finding when the engine can show you the seam.
 
-For a mechanical finding (magic-number, stale-suppression,
-positional-literals): the fix command applies deterministically; run it.
+For a mechanical finding, `fix` behavior is **per-kind — and SILENT when it
+applies** (verified 0.4.0 probe):
+
+| Kind | What `fix` does |
+|---|---|
+| `stale-suppression` | **applies** — deletes the stale marker |
+| `magic-number --name <CONST>` | **applies** — inserts the constant at module level + rewrites the usage |
+| `duplicate-block` | **applies** — deletes the second copy (judge intentional-parallel-structure FIRST; the apply skips that judgment) |
+| `undeclared-attribute` | **prescribes only** — prints instruction text, edits nothing; hand-annotate |
+| `positional-literals` | **prescribes only** — no-op unless `--params` resolves; it mis-binds nested callees (see a repo's review-log quirks) |
+
+The one-line output reads the same whether it applied or prescribed — you
+cannot tell without checking. **Run `git diff` (or hash-check) after every
+`fix` invocation.** Never hand-edit a kind the engine applies; never assume
+a prescription applied.
 
 ## Per-file LSP mode
 
