@@ -96,8 +96,9 @@ hold no secrets. Three behaviors beyond the rewrite:
   remaps error-shaped bodies to 502 so the fallback cascade fires. SSE and
   non-JSON responses stream through untouched.
 - **Timeout**: `UPSTREAM_TIMEOUT_MS` aborts a hung upstream and returns 502
-  (cascade) — set it at or below the model-node timeout of every route using
-  the shim.
+  (cascade) — set it at or below the LARGEST model-node timeout among routes
+  using the shim; a shorter node's own timeout fires first and its fallback
+  proceeds while the shim finishes alone.
 
 - Costs nothing at harness scale: Workers free tier = 100k requests/day; a
   passthrough is I/O-only so the 10ms CPU cap does not bind. On Workers Paid,

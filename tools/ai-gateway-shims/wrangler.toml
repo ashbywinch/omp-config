@@ -18,7 +18,7 @@ workers_dev = true
 
 [vars]
 UPSTREAM = "https://api.z.ai/api/coding/paas/v4/chat/completions"
-UPSTREAM_TIMEOUT_MS = "300000"
+UPSTREAM_TIMEOUT_MS = "1800000"
 
 [env.opencode]
 name = "opencode-shim"
