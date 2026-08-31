@@ -72,7 +72,7 @@ applies** (verified 0.4.0 probe):
 | `magic-number --name <CONST>` | **applies** — inserts the constant at module level + rewrites the usage |
 | `duplicate-block` | **applies** — deletes the second copy (judge intentional-parallel-structure FIRST; the apply skips that judgment) |
 | `undeclared-attribute` | **prescribes only** — prints instruction text, edits nothing; hand-annotate |
-| `positional-literals` | **prescribes only** — no-op unless `--params` resolves; it mis-binds nested callees (see a repo's review-log quirks) |
+| `positional-literals` | **prescribes only** — no-op unless `--params` resolves; it mis-binds nested callees (a nested call on the same line gets the outer call's keyword names), so verify any rewrite against the actual call site before acting |
 
 The one-line output reads the same whether it applied or prescribed — you
 cannot tell without checking. **Run `git diff` (or hash-check) after every

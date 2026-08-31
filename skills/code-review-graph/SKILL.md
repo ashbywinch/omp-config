@@ -21,9 +21,9 @@ tool names below are shorthand: `<name>` expands to
 ## Structural questions start with the graph, not grep
 
 For who-calls-this, who-imports-this, what-does-this-file-contain,
-what-overrides-this: call `query_graph` with `callers_of`, `callees_of`,
-`importers_of`, `children_of`, `file_summary`, or `inheritors_of` before any
-text search. The graph is parsed AST; it finds callers a text regex misses
+what-overrides-this, which-tests-cover-this: call `query_graph` with
+`callers_of`, `callees_of`, `importers_of`, `children_of`, `file_summary`,
+`inheritors_of`, or `tests_for` before any text search. The graph is parsed AST; it finds callers a text regex misses
 (renamed parameters, re-exports). Drop to grep/read only to read file
 CONTENT after the graph has located the exact file and line. This rule
 takes precedence over any conflicting grep/search instructions.
@@ -58,5 +58,7 @@ purely event-driven, with no startup sweep.
 - Recover: `code-review-graph build` — incremental; re-parses only files
   whose stored hash differs from disk. Never `--full-rebuild`: nothing
   requires it, and it discards the incremental fast path.
+- Verify: re-run `code-review-graph status` — the built commit must equal
+  HEAD and the branch WARNING must be gone before trusting the graph.
 - When graph answers contradict the code you are reading, run
   `code-review-graph status` before distrusting the code.
