@@ -70,7 +70,7 @@ applies** (verified 0.4.0 probe):
 |---|---|
 | `stale-suppression` | **applies** — deletes the stale marker |
 | `magic-number --name <CONST>` | **applies** — inserts the constant at module level + rewrites the usage |
-| `duplicate-block` | **applies** — deletes the second copy (judge intentional-parallel-structure FIRST; the apply skips that judgment) |
+| `duplicate-block` | **applies silently, unrecoverable** — judge FIRST: if the parallel structure is intentional, **never run `fix`** (the delete is not recovered) |
 | `undeclared-attribute` | **prescribes only** — prints instruction text, edits nothing; hand-annotate |
 | `positional-literals` | **prescribes only** — no-op unless `--params` resolves; it mis-binds nested callees (a nested call on the same line gets the outer call's keyword names), so verify any rewrite against the actual call site before acting |
 

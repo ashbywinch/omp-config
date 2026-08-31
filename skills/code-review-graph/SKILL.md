@@ -47,7 +47,9 @@ test, not whether you make the change.
 The watcher converges the graph automatically: a checkout is just file
 events, and additions, deletions, and the recorded branch/commit update
 within seconds. Do not run rebuild ceremonies after a branch switch while
-the watcher is running.
+the watcher is running. Convergence is event-driven, not atomic: if you must
+trust graph answers immediately after a checkout, first confirm with
+`code-review-graph status` that the built commit equals HEAD.
 
 If the watcher was down during a switch (boot, crash), the graph is
 silently stale, and restarting the watcher does NOT recover it — it is
