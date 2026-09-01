@@ -6,40 +6,54 @@
 //
 // No provider secrets live here: the gateway attaches the provider's BYOK key
 // as the Authorization header on its upstream call, and we forward it
-// untouched. Access control: when the SHIM_TOKEN secret is set, callers must
-// carry the same value in x-shim-token (put it in the custom provider's
-// `headers` field so the gateway attaches it automatically).
+// untouched. Access control: the SHIM_TOKEN secret must be set — the guard
+// fails closed, so a misconfigured deploy returns 401 instead of proxying to
+// a paid upstream. Mirror the token in the custom provider's `headers` field
+// so the gateway attaches it automatically.
 //
-// Deploy: ./deploy.sh  (deploys the zai and opencode environments)
+// Behavior beyond the rewrite (so route fallbacks actually fire):
+// - Providers that deliver business errors as HTTP 200 (z.ai does this for
+//   auth and quota, and sends them without a choices array) are remapped
+//   to 502.
+// - Empty provider responses (a 200 that carries no body bytes) are remapped
+//   to 502 — degraded z.ai states otherwise surface to the client as a
+//   silent empty answer.
+//
+// CPU discipline: Workers free tier caps CPU at 10ms/request. Streams are
+// forwarded with no per-chunk work; the only buffering is the whole body of
+// non-SSE JSON responses and the first chunk of SSE streams (both small).
+//
+// Deploy: ./deploy.sh (deploys the zai and opencode environments).
+
+const FORWARDED = ["authorization", "content-type", "accept", "user-agent"];
+
+function errorResponse(status, message) {
+	return new Response(
+		JSON.stringify({ error: { message, type: "upstream_error" } }),
+		{ status, headers: { "content-type": "application/json" } },
+	);
+}
 
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
 
 		if (request.method !== "POST" || url.pathname !== "/v1/chat/completions") {
-			return new Response(
-				JSON.stringify({ error: { message: "Not Found", type: "invalid_request_error" } }),
-				{ status: 404, headers: { "content-type": "application/json" } },
-			);
+			return errorResponse(404, "Not Found");
 		}
 
 		if (!env.SHIM_TOKEN || request.headers.get("x-shim-token") !== env.SHIM_TOKEN) {
-			return new Response(
-				JSON.stringify({ error: { message: "Unauthorized", type: "authentication_error" } }),
-				{ status: 401, headers: { "content-type": "application/json" } },
-			);
+			return errorResponse(401, "Unauthorized");
 		}
 
-		// Abort below the gateway's model-node timeout so a hung upstream 502s
-		// and the route's fallback cascade fires instead of stalling.
+		// Abort a hung upstream so the route's fallback cascade fires instead of
+		// stalling; sits at/below the model-node timeout of the routes served.
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), Number(env.UPSTREAM_TIMEOUT_MS || 300000));
 
 		try {
-			// Forward only what the provider needs — the caller's hop-by-hop and
-			// Cloudflare-internal headers must not leak upstream.
 			const headers = new Headers();
-			for (const name of ["authorization", "content-type", "accept", "user-agent"]) {
+			for (const name of FORWARDED) {
 				const value = request.headers.get(name);
 				if (value) headers.set(name, value);
 			}
@@ -51,47 +65,82 @@ export default {
 			});
 
 			const contentType = upstream.headers.get("content-type") || "";
-			// Some providers return business errors as HTTP 200 with a JSON error
-			// body (z.ai does this for auth and quota). Remap those to 502 so the
-			// gateway's fallback cascade fires; stream everything else (SSE
-			// included) untouched.
+
+			// Non-SSE JSON: buffer and validate. z.ai reports auth/quota business
+			// errors as 200 with an error-shaped body (no choices array), and
+			// degraded states as empty bodies. Both must 502 so the route
+			// cascade fires.
 			if (upstream.status >= 200 && upstream.status < 300 && contentType.includes("application/json")) {
 				const bodyText = await upstream.text();
-				let isError = false;
-				try {
-					const parsed = JSON.parse(bodyText);
+				const empty = !bodyText.trim();
+				let isError = empty;
+				if (!empty) {
+					let parsed = null;
+					try { parsed = JSON.parse(bodyText); } catch {}
 					isError = Boolean(
-						parsed &&
-						(parsed.error ||
-							parsed.success === false ||
+						parsed && !Array.isArray(parsed.choices) &&
+						(parsed.error || parsed.success === false ||
 							(typeof parsed.code === "number" && parsed.code !== 0 && parsed.code !== 200)),
 					);
-				} catch {}
-				const headers = new Headers(upstream.headers);
-				headers.delete("content-length");
+				}
+				if (isError) {
+					console.log(JSON.stringify({ event: "provider_error_remapped", upstream_status: upstream.status, body: bodyText.slice(0, 300) }));
+					return errorResponse(502, "provider returned an error response");
+				}
 				return new Response(bodyText, {
-					status: isError ? 502 : upstream.status,
+					status: upstream.status,
 					statusText: upstream.statusText,
-					headers,
+					headers: upstream.headers,
 				});
 			}
 
-			return new Response(upstream.body, {
-				status: upstream.status,
-				statusText: upstream.statusText,
-				headers: upstream.headers,
-			});
+			// Streams (SSE etc.): gate on the first chunk — an empty stream must
+			// 502 (cascade) instead of completing as an empty 200, and a leading
+			// error event must not stream through as if it were content.
+			// Everything after the first chunk streams through with no
+			// per-chunk work.
+			if (upstream.body) {
+				const reader = upstream.body.getReader();
+				const first = await reader.read();
+				if (first.done) {
+					console.log(JSON.stringify({ event: "empty_stream", upstream_status: upstream.status }));
+					return errorResponse(502, "empty response from provider");
+				}
+				const firstText = new TextDecoder().decode(first.value.slice(0, 2048));
+				if (firstText.includes('"error"') && !firstText.includes('"choices"')) {
+					console.log(JSON.stringify({ event: "provider_error_stream", first: firstText.slice(0, 300) }));
+					return errorResponse(502, "provider returned an error response");
+				}
+				const stream = new ReadableStream({
+					async start(controller) {
+						try {
+							controller.enqueue(first.value);
+							for (;;) {
+								const next = await reader.read();
+								if (next.done) break;
+								controller.enqueue(next.value);
+							}
+							controller.close();
+						} catch (err) {
+							controller.error(err);
+						}
+					},
+					cancel(reason) {
+						try { reader.cancel(reason); } catch {}
+					},
+				});
+				return new Response(stream, {
+					status: upstream.status,
+					statusText: upstream.statusText,
+					headers: upstream.headers,
+				});
+			}
+
+			console.log(JSON.stringify({ event: "empty_response", upstream_status: upstream.status }));
+			return errorResponse(502, "empty response from provider");
 		} catch (err) {
 			const aborted = err?.name === "AbortError";
-			return new Response(
-				JSON.stringify({
-					error: {
-						message: aborted ? "upstream_timeout" : `upstream_error: ${String(err)}`,
-						type: "upstream_error",
-					},
-				}),
-				{ status: 502, headers: { "content-type": "application/json" } },
-			);
+			return errorResponse(502, aborted ? "upstream_timeout" : `upstream_error: ${String(err)}`);
 		} finally {
 			clearTimeout(timer);
 		}
