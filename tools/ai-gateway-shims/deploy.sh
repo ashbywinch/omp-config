@@ -10,5 +10,6 @@
 # and mirror the token in the custom provider's `headers` field.
 set -euo pipefail
 cd "$(dirname "$0")"
+bun test
 npx --yes wrangler deploy
 npx --yes wrangler deploy -e opencode
