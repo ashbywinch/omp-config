@@ -47,9 +47,10 @@ test, not whether you make the change.
 The watcher converges the graph automatically: a checkout is just file
 events, and additions, deletions, and the recorded branch/commit update
 within seconds. Do not run rebuild ceremonies after a branch switch while
-the watcher is running. Convergence is event-driven, not atomic: if you must
-trust graph answers immediately after a checkout, first confirm with
-`code-review-graph status` that the built commit equals HEAD.
+the watcher is running. Convergence is event-driven, not atomic — and the
+watcher being down during a switch is unobservable from the outside — so
+after ANY branch switch, confirm with `code-review-graph status` that the
+built commit equals HEAD before trusting graph answers.
 
 If the watcher was down during a switch (boot, crash), the graph is
 silently stale, and restarting the watcher does NOT recover it — it is
@@ -58,8 +59,10 @@ purely event-driven, with no startup sweep.
 - Detect: `code-review-graph status` — "Built at commit" ≠ HEAD, or a
   branch WARNING.
 - Recover: `code-review-graph build` — incremental; re-parses only files
-  whose stored hash differs from disk. Never `--full-rebuild`: nothing
-  requires it, and it discards the incremental fast path.
+  whose stored hash differs from disk. `--full-rebuild` is the last resort
+  ONLY when `status` still reports a stale built commit after `build`
+  (corrupt or partial state); otherwise never — it discards the
+  incremental fast path.
 - Verify: re-run `code-review-graph status` — the built commit must equal
   HEAD and the branch WARNING must be gone before trusting the graph.
 - When graph answers contradict the code you are reading, run
