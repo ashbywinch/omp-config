@@ -90,6 +90,33 @@ returns 200 from a fallback model. NEVER activate a config that fails `test.sh`.
 - PR-Agent (GitHub Actions): stays on Cloudflare — it cannot reach
   localhost, and direct provider calls there never used the shim.
 
+### Paseo sessions pin the model per session — restarts never migrate them
+
+Each session stores its model in `~/.paseo/agents/<worktree>/<agent>.json`
+(`config.model`, duplicated in `runtimeInfo.model` and
+`persistence.metadata.model`). Those pins OVERRIDE `modelRoles.default`:
+sessions created before the migration keep
+`cloudflare-gateway/dynamic/fallback2` no matter how often the daemon
+restarts. Migration = rewrite the pins:
+
+1. `systemctl --user stop paseo` FIRST — editing under a live daemon loses
+   the race: dirty in-memory session state flushes back on shutdown and
+   reverts the edit (observed: 4 of 21 pins reverted through a live edit).
+2. Rewrite pins with an exact match (spares the historical `lastError`
+   strings, which reference the old model with `model=` syntax):
+
+   ```bash
+   grep -rl '"model": "cloudflare-gateway/dynamic/fallback2"' \
+     ~/.paseo/agents --include='*.json' | xargs sed -i \
+     's/"model": "cloudflare-gateway\/dynamic\/fallback2"/"model": "litellm\/primary"/g'
+   ```
+
+3. `systemctl --user start paseo`, then re-grep: expect 0 hits.
+
+New sessions follow `agents.providers.omp.models[].isDefault` in
+`~/.paseo/config.json`; the per-session pin is what the Paseo UI model
+dropdown sets.
+
 ## Diagnostics
 
 - 429 on the z.ai general endpoint = wrong endpoint for the Coding Plan key
