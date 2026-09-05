@@ -34,8 +34,13 @@ class SessionIdentity:
 sys.path.insert(0, ".")
 from tools.auth import session_secret  # noqa: E402  (sys.path bootstrap must precede the import)
 
+try:
+    email = os.environ["LOFT_REVIEW_EMAIL"]
+except KeyError:
+    sys.exit("LOFT_REVIEW_EMAIL is required — set it in the loft repo's gitignored .env and source it before running.")
+
 identity = SessionIdentity(
-    email=os.environ["LOFT_REVIEW_EMAIL"],
+    email=email,
     name=os.environ.get("LOFT_REVIEW_NAME", "Review"),
     picture="",
 )
