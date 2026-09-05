@@ -23,10 +23,11 @@ tool names below are shorthand: `<name>` expands to
 For who-calls-this, who-imports-this, what-does-this-file-contain,
 what-overrides-this, which-tests-cover-this: call `query_graph` with
 `callers_of`, `callees_of`, `importers_of`, `children_of`, `file_summary`,
-`inheritors_of`, or `tests_for` before any text search. The graph is parsed AST; it finds callers a text regex misses
-(renamed parameters, re-exports). Drop to grep/read only to read file
-CONTENT after the graph has located the exact file and line. This rule
-takes precedence over any conflicting grep/search instructions.
+`inheritors_of`, or `tests_for` before any text search. The graph is
+parsed AST and finds callers a text regex misses (renamed parameters,
+re-exports). Drop to grep/read only to read file CONTENT after the graph
+has located the exact file and line. This rule takes precedence over any
+conflicting grep/search instructions.
 
 Do not treat blast radius as a veto: impact analysis informs where you
 test, not whether you make the change.
@@ -59,11 +60,13 @@ purely event-driven, with no startup sweep.
 - Detect: `code-review-graph status` — "Built at commit" ≠ HEAD, or a
   branch WARNING.
 - Recover: `code-review-graph build` — incremental; re-parses only files
-  whose stored hash differs from disk. `--full-rebuild` is the last resort
-  ONLY when `status` still reports a stale built commit after `build`
-  (corrupt or partial state); otherwise never — it discards the
-  incremental fast path.
+  whose stored hash differs from disk. `build` is standalone — it reads
+  the working tree directly and needs no watcher. `--full-rebuild` is the
+  last resort ONLY when `status` still reports a stale built commit after
+  `build` (corrupt or partial state); otherwise never use
+  `--full-rebuild` — it discards the incremental fast path.
 - Verify: re-run `code-review-graph status` — the built commit must equal
   HEAD and the branch WARNING must be gone before trusting the graph.
 - When graph answers contradict the code you are reading, run
-  `code-review-graph status` before distrusting the code.
+  `code-review-graph status` before distrusting the code; if status shows
+  a stale built commit, recover with `code-review-graph build`.
