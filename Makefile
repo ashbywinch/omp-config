@@ -115,7 +115,9 @@ install-lucidlint:
 # names the app-repo doc set (docs/TECHSPEC.md, docs/UX.md, docs/PLAN.md) which
 # intentionally does not exist inside this exempt repo. The key is file-level:
 # any NEW unresolved path in that file shares it — review its links by hand
-# when editing. Everything else must keep passing clean.
+# when editing. Everything else must keep passing clean. The doc-set paths
+# stay backticked — the formatting is the instruction; never extend this
+# baseline to anything else.
 test: install-lucidlint
 	@python3 tools/check_docs_links.py
 	@cmp -s tools/check_review_posted.py skills/new-repo-scaffold/examples/tools/check_review_posted.py || \
