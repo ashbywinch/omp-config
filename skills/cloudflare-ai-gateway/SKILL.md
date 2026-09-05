@@ -5,7 +5,7 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 # Cloudflare AI Gateway
 
-Routes all AI API calls through Cloudflare AI Gateway. The `fallback2` route is purpose-gated: harness traffic (via the local proxy) tries z.ai GLM-5.3-Flash first, then cascades to DeepSeek; all other traffic (evals, apps, review bot) goes straight to the DeepSeek cascade. Per-repo analytics tagging via local proxy. The canonical LLM provider config for all projects.
+Routes all AI API calls through Cloudflare AI Gateway. The `fallback2` route is purpose-gated: harness traffic (via the local proxy) tries z.ai GLM-5.3-Flash first, then cascades to DeepSeek; all other traffic (evals, apps, review bot) goes straight to the DeepSeek cascade. Per-repo analytics tagging via local proxy. The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`); Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback.
 
 ## Architecture
 

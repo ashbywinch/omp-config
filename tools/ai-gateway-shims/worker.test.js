@@ -143,4 +143,65 @@ describe("ai-gateway provider shim", () => {
 		const body = await res.json();
 		expect(body.error.message).toContain("upstream_timeout");
 	});
+
+	it("remaps a leading SSE error event to 502 even when split across transport chunks", async () => {
+		const encoder = new TextEncoder();
+		let sink;
+		const body = new ReadableStream({ start(c) { sink = c; } });
+		globalThis.fetch = fakeUpstream(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
+		const resPromise = worker.fetch(shimRequest({ model: "glm-5.3-flash" }), env);
+		sink.enqueue(encoder.encode('data: {"err'));
+		sink.enqueue(encoder.encode('or":{"code":"1113"}}\n\ndata: [DONE]\n\n'));
+		sink.close();
+		const res = await resPromise;
+		expect(res.status).toBe(502);
+	});
+
+	it("remaps a 200 with an empty choices array to 502 so the cascade fires", async () => {
+		globalThis.fetch = fakeUpstream(new Response(JSON.stringify({ choices: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+		const res = await worker.fetch(shimRequest({ model: "glm-5.3-flash" }), env);
+		expect(res.status).toBe(502);
+	});
+
+	it("remaps a 200 with an unparseable JSON body to 502 so the cascade fires", async () => {
+		globalThis.fetch = fakeUpstream(new Response("not json at all", { status: 200, headers: { "content-type": "application/json" } }));
+		const res = await worker.fetch(shimRequest({ model: "glm-5.3-flash" }), env);
+		expect(res.status).toBe(502);
+	});
+
+	it("drops content-length/content-encoding when re-serving a decoded JSON body", async () => {
+		globalThis.fetch = fakeUpstream(new Response(JSON.stringify(completion()), {
+			status: 200,
+			headers: { "content-type": "application/json", "content-encoding": "gzip", "content-length": "999" },
+		}));
+		const res = await worker.fetch(shimRequest({ model: "glm-5.3-flash" }), env);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-encoding")).toBe(null);
+		expect(res.headers.get("content-length")).not.toBe("999");
+	});
+
+	it("ignores a non-numeric UPSTREAM_TIMEOUT_MS instead of aborting every request instantly", async () => {
+		globalThis.fetch = fakeUpstream(new Response(JSON.stringify(completion()), { status: 200, headers: { "content-type": "application/json" } }));
+		const res = await worker.fetch(shimRequest({ model: "glm-5.3-flash" }), { ...env, UPSTREAM_TIMEOUT_MS: "soon" });
+		expect(res.status).toBe(200);
+	});
+
+	it("aborts the upstream when the client cancels the stream", async () => {
+		const encoder = new TextEncoder();
+		let upstreamController;
+		const body = new ReadableStream({
+			start(c) {
+				upstreamController = c;
+				c.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'));
+				// never closes — a live generation stream
+			},
+		});
+		globalThis.fetch = fakeUpstream(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
+		const res = await worker.fetch(shimRequest({ model: "glm-5.3-flash" }), env);
+		const reader = res.body.getReader();
+		await reader.read();
+		await reader.cancel();
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(captured.signal.aborted).toBe(true);
+	});
 });

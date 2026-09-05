@@ -15,9 +15,7 @@ API path segments like /v1" (the gateway appends the path itself).
   → a route node works directly.
 - Provider path differs (z.ai: `/api/coding/paas/v4/chat/completions`;
   opencode-go: `/zen/go/v1`) → a route node CANNOT reach it. The `custom-*`
-  node is not a path — you need a path-rewrite shim (below). This is why
-  custom-opencode-go never served through routes despite having a valid key.
-
+  node is not a path — you need a path-rewrite shim (below).
 The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`) appends
 everything after the slug to base_url — full path control — but does NOT run
 dynamic routes (no conditional, no fallback). Use it to validate a provider in
@@ -114,6 +112,8 @@ hold no secrets. Three behaviors beyond the rewrite:
   `mimo-v2.5`) — vendor-prefixed ids (`deepseek/deepseek-v4-flash`) are
   rejected with `Model ... is not supported`. Check the catalog:
   `GET {base}/v1/models` is public for OpenCode Zen Go.
+- `DataPolicyError` (OpenCode) = the model requires the workspace opt-in
+  (e.g. muse-spark contributors).
 - OpenCode Zen Go errors past the path fix: `MonthlyLimitError` (HTTP 401) —
   the workspace monthly spending cap. Raise the cap at
   `https://opencode.ai/workspace/<workspace>/billing`.

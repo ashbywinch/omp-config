@@ -20,8 +20,9 @@
 //   silent empty answer.
 //
 // CPU discipline: Workers free tier caps CPU at 10ms/request. Streams are
-// forwarded with no per-chunk work; the only buffering is the whole body of
-// non-SSE JSON responses and the first chunk of SSE streams (both small).
+// forwarded with no per-chunk parsing — the only per-chunk work is a timeout
+// re-arm; the only buffering is the whole body of non-SSE JSON responses and
+// the first SSE event (both small).
 //
 // Deploy: ./deploy.sh (deploys the zai and opencode environments).
 
@@ -48,8 +49,18 @@ export default {
 
 		// Abort a hung upstream so the route's fallback cascade fires instead of
 		// stalling; sits at/below the model-node timeout of the routes served.
+		// Re-armed on every streamed chunk (inactivity timeout), so a stream
+		// that stalls mid-body is still bounded. A non-numeric or non-positive
+		// UPSTREAM_TIMEOUT_MS falls back to the default instead of NaN (which
+		// setTimeout treats as 0 — aborting every request instantly).
+		const configured = Number(env.UPSTREAM_TIMEOUT_MS);
+		const timeoutMs = Number.isFinite(configured) && configured > 0 ? configured : 300000;
 		const controller = new AbortController();
-		const timer = setTimeout(() => controller.abort(), Number(env.UPSTREAM_TIMEOUT_MS || 300000));
+		let timer = setTimeout(() => controller.abort(), timeoutMs);
+		const arm = () => {
+			clearTimeout(timer);
+			timer = setTimeout(() => controller.abort(), timeoutMs);
+		};
 
 		try {
 			const headers = new Headers();
@@ -66,67 +77,81 @@ export default {
 
 			const contentType = upstream.headers.get("content-type") || "";
 
-			// Non-SSE JSON: buffer and validate. z.ai reports auth/quota business
-			// errors as 200 with an error-shaped body (no choices array), and
-			// degraded states as empty bodies. Both must 502 so the route
-			// cascade fires.
+			// Non-SSE JSON: buffer and validate. This shim only serves
+			// /v1/chat/completions, so a healthy 2xx body has a non-empty
+			// choices array — anything else (z.ai auth/quota error bodies,
+			// empty bodies, unparseable junk, empty choices) must 502 so the
+			// route cascade fires.
 			if (upstream.status >= 200 && upstream.status < 300 && contentType.includes("application/json")) {
 				const bodyText = await upstream.text();
-				const empty = !bodyText.trim();
-				let isError = empty;
-				if (!empty) {
-					let parsed = null;
-					try { parsed = JSON.parse(bodyText); } catch {}
-					isError = Boolean(
-						parsed && !Array.isArray(parsed.choices) &&
-						(parsed.error || parsed.success === false ||
-							(typeof parsed.code === "number" && parsed.code !== 0 && parsed.code !== 200)),
-					);
-				}
+				let parsed = null;
+				try { parsed = JSON.parse(bodyText); } catch {}
+				const isError = !parsed || !Array.isArray(parsed.choices) || parsed.choices.length === 0;
 				if (isError) {
 					console.log(JSON.stringify({ event: "provider_error_remapped", upstream_status: upstream.status, body: bodyText.slice(0, 300) }));
 					return errorResponse(502, "provider returned an error response");
 				}
+				// bodyText is decoded text: drop length/encoding headers that
+				// describe the wire bytes, or the gateway tries to inflate it.
+				const passthrough = new Headers(upstream.headers);
+				passthrough.delete("content-length");
+				passthrough.delete("content-encoding");
 				return new Response(bodyText, {
 					status: upstream.status,
 					statusText: upstream.statusText,
-					headers: upstream.headers,
+					headers: passthrough,
 				});
 			}
 
-			// Streams (SSE etc.): gate on the first chunk — an empty stream must
-			// 502 (cascade) instead of completing as an empty 200, and a leading
-			// error event must not stream through as if it were content.
-			// Everything after the first chunk streams through with no
-			// per-chunk work.
+			// Streams (SSE etc.): an empty stream must 502 (cascade) instead of
+			// completing as an empty 200, and a leading error event must not
+			// stream through as if it were content. Buffer until the first SSE
+			// event is complete (\r?\n\r?\n) so an error event split across
+			// transport chunks still 502s; the 64 KiB cap bounds a pathological
+			// upstream. Everything after the gate streams through untouched.
 			if (upstream.body) {
 				const reader = upstream.body.getReader();
-				const first = await reader.read();
-				if (first.done) {
+				const decoder = new TextDecoder();
+				const buffered = [];
+				let scan = "";
+				while (scan.length < 65536 && !/\r?\n\r?\n/.test(scan)) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					buffered.push(value);
+					scan += decoder.decode(value, { stream: true });
+				}
+				if (buffered.length === 0) {
 					console.log(JSON.stringify({ event: "empty_stream", upstream_status: upstream.status }));
 					return errorResponse(502, "empty response from provider");
 				}
-				const firstText = new TextDecoder().decode(first.value.slice(0, 2048));
-				if (firstText.includes('"error"') && !firstText.includes('"choices"')) {
-					console.log(JSON.stringify({ event: "provider_error_stream", first: firstText.slice(0, 300) }));
+				if (scan.includes('"error"') && !scan.includes('"choices"')) {
+					console.log(JSON.stringify({ event: "provider_error_stream", first: scan.slice(0, 300) }));
 					return errorResponse(502, "provider returned an error response");
 				}
 				const stream = new ReadableStream({
-					async start(controller) {
+					async start(streamController) {
 						try {
-							controller.enqueue(first.value);
+							for (const chunk of buffered) {
+								streamController.enqueue(chunk);
+								arm();
+							}
 							for (;;) {
 								const next = await reader.read();
 								if (next.done) break;
-								controller.enqueue(next.value);
+								streamController.enqueue(next.value);
+								arm();
 							}
-							controller.close();
+							clearTimeout(timer);
+							streamController.close();
 						} catch (err) {
-							controller.error(err);
+							clearTimeout(timer);
+							streamController.error(err);
 						}
 					},
 					cancel(reason) {
+						clearTimeout(timer);
 						try { reader.cancel(reason); } catch {}
+						controller.abort();
 					},
 				});
 				return new Response(stream, {

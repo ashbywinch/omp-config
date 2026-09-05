@@ -42,7 +42,7 @@ BEFORE running any `swap.sh activate` (or any change to the live chain):
    is failing.
 
 ```
-# Revert LightLLM chain to last-known-good:
+# Revert LiteLLM chain to last-known-good:
 ~/.paseo/litellm/swap.sh rollback
 # manual equivalent:
 ln -sf ~/.paseo/litellm/config.green.yaml ~/.paseo/litellm/config.current.yaml
@@ -119,10 +119,8 @@ dropdown sets.
 
 ## Diagnostics
 
-- 429 on the z.ai general endpoint = wrong endpoint for the Coding Plan key
-  (must be `/api/coding/paas/v4`).
-- `DataPolicyError` (OpenCode) = model requires the workspace opt-in
-  (e.g. muse-spark contributors).
-- `MonthlyLimitError` (OpenCode) = workspace spend cap reached; raise at
-  opencode.ai/workspace/.../billing.
+- Provider-side errors — z.ai `429` (wrong endpoint for the Coding Plan
+  key), `DataPolicyError` (OpenCode workspace opt-in), `MonthlyLimitError`
+  (OpenCode spend cap) — meanings and fixes are canonical in
+  `skill://cloudflare-ai-gateway/references/adding-providers.md`.
 - Keys live in `~/.paseo/litellm/env` (600); never print them.
