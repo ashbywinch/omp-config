@@ -10,6 +10,15 @@ contain the head SHA). The range-start SHA in the incremental body is the
 first NEW commit, not the head — coverage still falls to the posted-after
 rule; the explicit form is belt-and-braces for reviews that embed it.
 
+The bot's own SKIP verdict also covers: an incremental review with no
+files changed since the previous review posts "Incremental Review
+Skipped" (linking the previous review) instead of a guide. That skip IS
+the reviewed verdict — the diff since the last review was examined and
+found empty (merging the base branch in, for example, changes nothing in
+the PR's diff) — so it covers the commit exactly like the human /skip
+opt-out does. A run that genuinely failed to post leaves no comment and
+still fails.
+
 Why the bot's own step cannot fail (2026-08-11, read from the v0.41.1
 source): ``PRAgent.handle_request`` catches EVERY exception with a bare
 ``except`` — it logs "Failed to process the command." plus the traceback
@@ -135,6 +144,32 @@ def _failure_reason(bot_lines: list[str]) -> str:
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
 
 
+def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
+    """Does any comment cover the head commit? A human /skip opt-out (applies
+    to the whole PR), a posted guide (regular or incremental, referencing the
+    sha or created after the head was received), or the bot's own
+    incremental-skip verdict (created after the head was received — the diff
+    was examined and found empty, so the skip is the review, not a
+    failure)."""
+    if any(c.get("body", "").strip() == "/skip" for c in comments):
+        return True
+    return any(
+        (
+            c.get("body", "").startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
+            and (
+                sha in c.get("body", "")
+                or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
+                or c.get("created_at", "") >= reviewed_after
+            )
+        )
+        or (
+            c.get("body", "").startswith("Incremental Review Skipped")
+            and (c.get("user") or {}).get("type") == "Bot"
+            and c.get("created_at", "") >= reviewed_after
+        )
+        for c in comments
+    )
+
 def main() -> int:
     sha = os.environ["SHA"]
     repo = os.environ["GITHUB_REPOSITORY"]
@@ -147,31 +182,31 @@ def main() -> int:
         # surfaces via the ::error line + the non-zero exit — not a swallow
         print(f"::error::commit {sha} is not fetchable ({e.code}) — the review cannot cover it.")
         return 1
-    head_committed_at = commit["commit"]["committer"]["date"]
+
+    # "Reviewed after" is anchored to the workflow run's start, not the
+    # commit's committer date: the committer date is author-controlled and
+    # predates the push, so a review posted for an earlier revision could
+    # "cover" a newer head authored before it. A review that covers THIS
+    # push must post after the run that checks it started.
+    reviewed_after = commit["commit"]["committer"]["date"]
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    if run_id:
+        try:
+            run = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}", token)
+            reviewed_after = run["run_started_at"]
+        # lucidlint: ignore swallow the run API is best-effort data availability — the ::warning print surfaces the degradation at runtime, and re-raising would fail the check when the committer-date anchor is still a conservative fallback
+        except (HTTPError, KeyError, ValueError) as e:
+            # fall back to the committer date — the run API may lag or the
+            # token may lack actions: read. Never silent: a degraded anchor
+            # is still a conservative one (committer date predates the push).
+            print(f"::warning::run_started_at unavailable ({type(e).__name__}: {e}) — anchoring coverage to the committer date")
 
     try:
         comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments?per_page=100", token)
     except HTTPError as e:
         print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
         return 1
-    # Human opt-out: a comment with body "/skip" passes the check silently
-    if any(c.get("body", "").strip() == "/skip" for c in comments):
-        return 0
-
-    # the review posts with the regular header ("## PR Reviewer Guide") or
-    # the incremental form ("## Incremental PR Reviewer Guide" — the -i
-    # path, 2026-08-11: the first incremental run posted exactly that and
-    # the check missed it, failing a review that had succeeded)
-    covered = any(
-        c.get("body", "").startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
-        and (
-            sha in c.get("body", "")
-            or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
-            or c.get("created_at", "") >= head_committed_at
-        )
-        for c in comments
-    )
-    if not covered:
+    if not _review_covers(comments, sha, reviewed_after):
         reason = _bot_failure_reason(repo, token)
         print(f"::error::AI review did not post for commit {sha} — {reason}.")
         return 1
