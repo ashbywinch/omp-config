@@ -63,24 +63,21 @@ gate) and made private by construction. The exact output is
 name-dependent — that is why the preview comes first; never hand-extract
 a finding when the engine can show you the seam.
 
-For a mechanical finding, `fix` behavior is **per-kind — and SILENT when it
-applies** (verified 0.4.0 probe):
+For a mechanical finding, `fix` behavior is **per-kind** (probed at the
+pinned build — all kinds APPLY; none are prescription-only):
 
 | Kind | What `fix` does |
 |---|---|
-| `stale-suppression` | **applies** — deletes the stale marker |
-| `magic-number --name <CONST>` | **applies** — inserts the constant at module level + rewrites the usage |
-| `duplicate-block` | **applies silently, no engine undo** — judge FIRST: if the parallel structure is intentional, **never run `fix`**; a misjudged delete is visible in `git diff` and recoverable with `git restore <file>` before further changes |
-| `undeclared-attribute` | **prescribes only** — prints instruction text, edits nothing; hand-annotate |
-| `positional-literals` | **prescribes only** — no-op unless `--params` resolves; it mis-binds nested callees (a nested call on the same line gets the outer call's keyword names), so verify any rewrite against the actual call site before acting |
+| `stale-suppression` | applies — deletes the stale marker |
+| `magic-number --name <CONST>` | applies — inserts the constant at module level + rewrites the usage |
+| `duplicate-block` | applies with no engine undo — judge FIRST: if the parallel structure is intentional, **never run `fix`**; a misjudged delete is visible in `git diff` and recoverable with `git restore <file>` before further changes |
+| `undeclared-attribute` | applies — writes the inferred annotation (`self.x: T = v`) |
+| `positional-literals` | applies when the callee resolves (same-file, or `--params`); declines with a remedy otherwise; keywords can mis-bind nested same-line calls — verify any rewrite against the call site |
 
-The one-line output reads the same whether it applied or prescribed — you
-cannot tell without checking. **For kinds that apply (stale-suppression,
-magic-number, duplicate-block): run `git diff` (or hash-check) after every
-`fix` invocation.** For prescription-only kinds (undeclared-attribute,
-positional-literals): verify the printed instruction against the actual
-code — no diff will appear. Never hand-edit a kind the engine applies;
-never assume a prescription applied.
+At this pin the one-line output does not announce applied vs declined —
+**run `git diff` (or hash-check) after every `fix` invocation.** Never
+hand-edit a kind the engine applies.
+
 
 ## Per-file LSP mode
 
