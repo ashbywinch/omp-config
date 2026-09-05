@@ -16,7 +16,7 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@df20e9238351b7ef84ad822a248d144cf7dbc6c7"` — the
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@87613051e8478368147427e61920e9dce3b65c79"` — the
 working pip install from the GitHub repo page, pinned to a commit (the
 package is not yet on PyPI; once published, `pip install lucidlint` is the
 plain form). Re-pin when the package is published or a newer commit is
@@ -63,21 +63,23 @@ gate) and made private by construction. The exact output is
 name-dependent — that is why the preview comes first; never hand-extract
 a finding when the engine can show you the seam.
 
-For a mechanical finding, `fix` behavior is **per-kind** (probed at the
-pinned build — all kinds APPLY; none are prescription-only):
+`fix` output has exactly three shapes — the pinned build announces its
+outcome, so there is nothing to check sideband:
 
-| Kind | What `fix` does |
-|---|---|
-| `stale-suppression` | applies — deletes the stale marker |
-| `magic-number --name <CONST>` | applies — inserts the constant at module level + rewrites the usage |
-| `duplicate-block` | applies with no engine undo — judge FIRST: if the parallel structure is intentional, **never run `fix`**; a misjudged delete is visible in `git diff` and recoverable with `git restore <file>` before further changes |
-| `undeclared-attribute` | applies — writes the inferred annotation (`self.x: T = v`) |
-| `positional-literals` | applies when the callee resolves (same-file, or `--params`); declines with a remedy otherwise; keywords can mis-bind nested same-line calls — verify any rewrite against the call site |
+- **applied** — `fix: applied <kind> at <file>:<line> — <description>`;
+  the write landed. `duplicate-block` applies with no engine undo: judge
+  FIRST — an intentional parallel structure must never be `fix`ed
+  (recoverable with `git restore <file>`).
+- **needs input** — the auto-fix is real but requires an agent parameter:
+  `--name` for semantic names, `--params entries` for unresolvable
+  callees. A named or parametrized retry IS an auto-fix.
+  `positional-literals` can mis-bind nested same-line calls — verify any
+  rewrite against the call site.
+- **silence** — nothing of that kind remains to fix; move on.
 
-At this pin the one-line output does not announce applied vs declined —
-**run `git diff` (or hash-check) after every `fix` invocation.** Never
-hand-edit a kind the engine applies.
-
+A moved anchor re-attaches: the tool announces `anchor moved — <kind> now
+at <file>:<line>` and applies at the finding's current line (the tool owns
+its own coordinates).
 
 ## Per-file LSP mode
 
