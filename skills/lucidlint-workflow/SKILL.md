@@ -75,9 +75,12 @@ applies** (verified 0.4.0 probe):
 | `positional-literals` | **prescribes only** — no-op unless `--params` resolves; it mis-binds nested callees (a nested call on the same line gets the outer call's keyword names), so verify any rewrite against the actual call site before acting |
 
 The one-line output reads the same whether it applied or prescribed — you
-cannot tell without checking. **Run `git diff` (or hash-check) after every
-`fix` invocation.** Never hand-edit a kind the engine applies; never assume
-a prescription applied.
+cannot tell without checking. **For kinds that apply (stale-suppression,
+magic-number, duplicate-block): run `git diff` (or hash-check) after every
+`fix` invocation.** For prescription-only kinds (undeclared-attribute,
+positional-literals): verify the printed instruction against the actual
+code — no diff will appear. Never hand-edit a kind the engine applies;
+never assume a prescription applied.
 
 ## Per-file LSP mode
 

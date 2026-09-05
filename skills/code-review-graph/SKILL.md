@@ -29,6 +29,8 @@ re-exports). Drop to grep/read only to read file CONTENT after the graph
 has located the exact file and line. This rule takes precedence over any
 conflicting grep/search instructions.
 
+## Impact analysis
+
 Do not treat blast radius as a veto: impact analysis informs where you
 test, not whether you make the change.
 
@@ -67,6 +69,6 @@ purely event-driven, with no startup sweep.
   `--full-rebuild` — it discards the incremental fast path.
 - Verify: re-run `code-review-graph status` — the built commit must equal
   HEAD and the branch WARNING must be gone before trusting the graph.
-- When graph answers contradict the code you are reading, run
-  `code-review-graph status` before distrusting the code; if status shows
-  a stale built commit, recover with `code-review-graph build`.
+- When graph answers contradict the code you are reading, suspect a stale
+  graph first and run the Detect/Recover/Verify sequence above before
+  distrusting the code.
