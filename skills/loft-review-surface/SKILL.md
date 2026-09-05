@@ -18,49 +18,31 @@ enough — they test data, not the rendered UI.
    ```
    cd <loft-repo>
    . ~/.secrets
-   source .env
-   ./.loft serve --host 0.0.0.0 --port 8000
+   ./loft serve --host 0.0.0.0 --port 8000
    ```
 
-   (Run in background. The `./loft` script loads the `.env` file and
-   creates the session secret.)
+   Run it in the background. The `loft` script sources the repo's
+   `.env` itself (session secret, review identity) and inherits the
+   shell secrets from `~/.secrets`.
 
-2. Create a valid session cookie using the server's own secret.
-   The secret is `THE_LOFT_SESSION_SECRET` from the `.env` file.
-   You MUST source `.env` (or export the secret) BEFORE calling
-   the serializer — a different secret produces an invalid cookie
-   that the server silently rejects with `authenticated: false`.
+2. Create a valid session cookie with the server's own secret:
+   [make_session_cookie.py](skill://loft-review-surface/examples/make_session_cookie.py).
+   Source `.env` (or export the secret) BEFORE calling the serializer —
+   a different secret produces an invalid cookie that the server
+   silently rejects with `authenticated: false`. The reviewed identity
+   comes from `LOFT_REVIEW_EMAIL` (required) and `LOFT_REVIEW_NAME`
+   (optional) — keep them in the loft repo's gitignored `.env`, never
+   in this repo.
 
-   ```python
-   # in .venv/bin/python (NOT .venv-htr — the main venv has the deps)
-   import os, sys
-   sys.path.insert(0, ".")
-   # source .env first, or export the secret before calling this
-   from tools.auth import _serializer
-   cookie = _serializer().dumps({
-       "email": "emily.winch@gmail.com",
-       "name": "Emily Winch",
-       "picture": "",
-   })
-   ```
+3. Set the cookie in the headless browser and open the review page:
+   [open_review_page.mjs](skill://loft-review-surface/examples/open_review_page.mjs).
+   Use Puppeteer's `page.setCookie()` — NOT `document.cookie` (the
+   harness's `run` action executes in a Node.js context, not the
+   page's DOM).
 
-3. Set the cookie in the headless browser using Puppeteer's
-   `page.setCookie()` — NOT `document.cookie` (the headless browser's
-   `run` action executes in a Node.js context, not the page's DOM).
-
-   ```
-   await page.setCookie({name: "session", value: <cookie>, domain: "localhost", path: "/"})
-   await page.goto("http://localhost:8000/#/review/<batch_id>/<doc_index>/<page_index>", {waitUntil: "networkidle2"})
-   ```
-
-   The URL format: `#/review/<batch_id>/<doc_index>/<page_index>`
-   (all 0-indexed). For example, page-01 of the first document in
-   batch `adopt-20260813-201004`:
-   `#/review/adopt-20260813-201004/0/0`
-
-4. Take a screenshot with `page.screenshot({path: ...})` and inspect
-   it. Check: do the boxes sit on the text? Are all lines covered?
-   Are margin annotations separate?
+4. Inspect the screenshot from `open_review_page.mjs`. Check: do the
+   boxes sit on the text? Are all lines covered? Are margin
+   annotations separate?
 
 ## Common mistakes (each cost the agent a full session)
 
