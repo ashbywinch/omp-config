@@ -63,8 +63,21 @@ gate) and made private by construction. The exact output is
 name-dependent — that is why the preview comes first; never hand-extract
 a finding when the engine can show you the seam.
 
-For a mechanical finding (magic-number, stale-suppression,
-positional-literals): the fix command applies deterministically; run it.
+For a mechanical finding, `fix` behavior is **per-kind** (probed at the
+pinned build — all kinds APPLY; none are prescription-only):
+
+| Kind | What `fix` does |
+|---|---|
+| `stale-suppression` | applies — deletes the stale marker |
+| `magic-number --name <CONST>` | applies — inserts the constant at module level + rewrites the usage |
+| `duplicate-block` | applies with no engine undo — judge FIRST: if the parallel structure is intentional, **never run `fix`**; a misjudged delete is visible in `git diff` and recoverable with `git restore <file>` before further changes |
+| `undeclared-attribute` | applies — writes the inferred annotation (`self.x: T = v`) |
+| `positional-literals` | applies when the callee resolves (same-file, or `--params`); declines with a remedy otherwise; keywords can mis-bind nested same-line calls — verify any rewrite against the call site |
+
+At this pin the one-line output does not announce applied vs declined —
+**run `git diff` (or hash-check) after every `fix` invocation.** Never
+hand-edit a kind the engine applies.
+
 
 ## Per-file LSP mode
 
