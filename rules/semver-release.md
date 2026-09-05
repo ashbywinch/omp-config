@@ -10,8 +10,10 @@ the bundles/wheels from the tag.
 
 ## Compute the increment yourself
 
-1. `LAST=$(git tag --sort=-v:refname | head -1)` — the current published version.
-2. `git log "$LAST"..HEAD --oneline` — classify every change:
+1. `LAST=$(git tag --merged HEAD --sort=-v:refname | head -1)` — the current
+   published version; empty means the first release ever.
+2. `git log "${LAST:+$LAST..HEAD}" --oneline` — classify every change (with
+   `LAST` empty this lists the whole history):
    - any **breaking** change — a removed or changed CLI/API contract, a scan-
      schema or wire-format change, a behavior a caller relies on that flips
      → bump **MAJOR**.
