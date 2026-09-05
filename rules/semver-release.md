@@ -16,7 +16,7 @@ the bundles/wheels from the tag.
    `LAST` empty this lists the whole history):
    - any **breaking** change — a removed or changed CLI/API contract, a scan-
      schema or wire-format change, a behavior a caller relies on that flips
-     → bump **MAJOR**.
+     (e.g., a changed default that alters a command's output) → bump **MAJOR**.
    - a backwards-compatible **feature** (a new rule, fix kind, option, or
      command) → bump **MINOR**.
    - **bug fixes only** → bump **PATCH**.
@@ -38,4 +38,4 @@ the bundles/wheels from the tag.
 - Hardcode the version in code or docs — derive it from the version sources,
   and keep examples version-less (`<version>` placeholders).
 - Bump only one source (a pyproject/Cargo mismatch is a broken wheel).
-- Ask the user which number to use.
+- Ask the user which number to use — compute it from the diff classification.
