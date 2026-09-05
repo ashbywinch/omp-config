@@ -32,7 +32,10 @@ class SessionIdentity:
 
 
 sys.path.insert(0, ".")
-from tools.auth import session_secret  # noqa: E402  (sys.path bootstrap must precede the import)
+try:
+    from tools.auth import session_secret
+except ImportError:
+    sys.exit("tools/auth.py not found — run from the loft repo root: this script imports the loft repo's auth module.")
 
 try:
     email = os.environ["LOFT_REVIEW_EMAIL"]
@@ -42,6 +45,6 @@ except KeyError:
 identity = SessionIdentity(
     email=email,
     name=os.environ.get("LOFT_REVIEW_NAME", "Review"),
-    picture="",
+    picture=os.environ.get("LOFT_REVIEW_PICTURE", ""),
 )
 print(URLSafeTimedSerializer(session_secret(), salt="loft-session").dumps(asdict(identity)))
