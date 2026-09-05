@@ -1,0 +1,29 @@
+# Two deployments of the same path-rewrite shim. For each provider whose
+# OpenAI-compatible path is not /v1/chat/completions, add an [env.<name>]
+# block (name + vars.UPSTREAM), extend deploy.sh, and point the custom
+# provider's base_url at https://<name>.<account-subdomain>.workers.dev.
+#
+# UPSTREAM_TIMEOUT_MS aborts a hung upstream so the shim 502s and the route
+# cascade fires. Set it at or below the LARGEST model-node timeout among the
+# routes using the shim — a shorter node's own timeout fires first and its
+# fallback proceeds; the shim just finishes alone.
+#
+# SHIM_TOKEN is a wrangler SECRET (never committed): set it with
+#   echo "<token>" | npx wrangler secret put SHIM_TOKEN
+# and mirror the value in the custom provider's `headers` field.
+name = "zai-shim"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[vars]
+UPSTREAM = "https://api.z.ai/api/coding/paas/v4/chat/completions"
+UPSTREAM_TIMEOUT_MS = "1800000"
+
+[env.opencode]
+name = "opencode-shim"
+workers_dev = true
+
+[env.opencode.vars]
+UPSTREAM = "https://opencode.ai/zen/go/v1/chat/completions"
+UPSTREAM_TIMEOUT_MS = "1800000"
