@@ -16,7 +16,7 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@df20e9238351b7ef84ad822a248d144cf7dbc6c7"` — the
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@2518f2bc45347f38d76333e744bdcdf7e79ae5d2"` — the
 working pip install from the GitHub repo page, pinned to a commit (the
 package is not yet on PyPI; once published, `pip install lucidlint` is the
 plain form). Re-pin when the package is published or a newer commit is
@@ -63,8 +63,25 @@ gate) and made private by construction. The exact output is
 name-dependent — that is why the preview comes first; never hand-extract
 a finding when the engine can show you the seam.
 
-For a mechanical finding (magic-number, stale-suppression,
-positional-literals): the fix command applies deterministically; run it.
+`fix` output has exactly three shapes — the pinned build announces its
+outcome, so there is nothing to check sideband:
+
+- **applied** — `fix: applied <kind> at <file>:<line> — <description>`;
+  the write landed. `duplicate-block` applies with no engine undo: judge
+  FIRST — an intentional parallel structure must never be `fix`ed
+  (recoverable with `git restore <file>` — only before that file is
+  committed; run `git status` first and never discard unrelated
+  uncommitted work).
+- **needs input** — the auto-fix is real but requires an agent parameter:
+  `--name` for semantic names, `--params entries` for unresolvable
+  callees. A named or parametrized retry IS an auto-fix.
+  `positional-literals` can mis-bind nested same-line calls — verify any
+  rewrite against the call site.
+- **silence** — nothing of that kind remains to fix; move on.
+
+A moved anchor re-attaches: the tool announces `anchor moved — <kind> now
+at <file>:<line>` and applies at the finding's current line (the tool owns
+its own coordinates).
 
 ## Per-file LSP mode
 
