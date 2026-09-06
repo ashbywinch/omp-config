@@ -27,6 +27,7 @@ links to.
 | Doc folder structure (the required doc set) | `docs/documentation-structure.md` |
 | How the standards deploy to new repos | `docs/standards-deployment.md` |
 | Trigger rules | `rules/*.md` |
+| Release versioning (semver increments) | `rule://semver-release` |
 | System prompt append | `APPEND_SYSTEM.md` |
 | GitHub App auth for gh (omp vs terminal) | `tools/gh-app-shim` + `tools/secrets.template` (README section) |
 | Agent git auth (bot identity, contract) | `tools/git-app-shim` + `tools/gen-agent-gitconfig.py` (contract in the tool headers) |
