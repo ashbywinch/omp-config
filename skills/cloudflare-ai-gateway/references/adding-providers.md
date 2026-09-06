@@ -14,8 +14,10 @@ API path segments like /v1" (the gateway appends the path itself).
 - Provider serves OpenAI chat completions at exactly `{origin}/v1/chat/completions`
   → a route node works directly.
 - Provider path differs (z.ai: `/api/coding/paas/v4/chat/completions`;
-  opencode-go: `/zen/go/v1`) → a route node CANNOT reach it. The `custom-*`
-  node is not a path — you need a path-rewrite shim (below).
+  opencode-go: `/zen/go/v1`) → the provider CANNOT be onboarded to a route.
+  This is a selection criterion, not an engineering problem: pick a
+  provider that serves at the forced path, or reach the non-standard one
+  outside the gateway (the LiteLLM local chain calls them natively).
 The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`) appends
 everything after the slug to base_url — full path control — but does NOT run
 dynamic routes (no conditional, no fallback). Use it to validate a provider in
@@ -58,13 +60,10 @@ isolation before touching a route.
 ## Fail-back semantics (read before trusting a cascade)
 
 - A model node's `fallback` output fires on non-2xx status or timeout. Proven:
-  z.ai returning 404 → cascade → deepseek served. (The shims also remap
-  providers' HTTP-200 business errors to 502 for exactly this reason — see
-  the shim pattern above.)
-- **Uncorrected 200-with-error-body still bypasses the cascade** for any
-  provider called without a shim. z.ai returns 200-with-error-body on some of
-  its paths; a cascade is only as good as the status codes the provider
-  actually sends.
+  z.ai returning 404 → cascade → deepseek served.
+- **200-with-error-body bypasses the cascade** — a plan-provider pathology.
+  Standard pay-per-token APIs return real status codes, which is one more
+  reason the routes only carry them.
 - Failed intermediate nodes are NOT logged separately — logs show only the
   final serving provider. A missing log entry does not mean "not attempted".
 
@@ -74,37 +73,14 @@ The gateway caches responses (`cache_ttl` on the gateway). A ~9ms response
 that echoes an earlier prompt is a cache hit — cache-bust tests with a random
 token in the prompt.
 
-## The shim pattern (providers with non-/v1 paths)
+## Non-standard-path providers (z.ai Coding Plan, OpenCode Zen)
 
-The shims live in `tools/ai-gateway-shims/` — one generic Worker, one wrangler
-environment per provider (`zai-shim` → z.ai Coding Plan, `opencode-shim` →
-OpenCode Zen Go). Each rewrites `POST /v1/chat/completions` → the provider's
-real path, forwarding headers and streaming the response back. The gateway
-attaches the BYOK key as `Authorization` on its upstream call, so the shims
-hold no secrets. Three behaviors beyond the rewrite:
-
-- **Access control**: the `SHIM_TOKEN` wrangler secret gates the Worker — set
-  it (`echo "<token>" | npx wrangler secret put SHIM_TOKEN --name <name>`) and
-  mirror the value in the custom provider's `headers` field
-  (`{"x-shim-token":"<token>"}` as a JSON-encoded string); the gateway
-  attaches that header to upstream calls. Without the secret the Worker is an
-  open proxy to a paid upstream.
-- **Error remap**: z.ai delivers business errors (auth, quota) as HTTP 200
-  with a JSON error body; the shim buffers non-SSE JSON 2xx responses and
-  remaps error-shaped bodies to 502 so the fallback cascade fires. SSE and
-  non-JSON responses stream through untouched.
-- **Timeout**: `UPSTREAM_TIMEOUT_MS` aborts a hung upstream and returns 502
-  (cascade) — set it at or below the LARGEST model-node timeout among routes
-  using the shim; a shorter node's own timeout fires first and its fallback
-  proceeds while the shim finishes alone.
-
-- Costs nothing at harness scale: Workers free tier = 100k requests/day; a
-  passthrough is I/O-only so the 10ms CPU cap does not bind. On Workers Paid,
-  10M requests/mo are included.
-- Deploy: `tools/ai-gateway-shims/deploy.sh` (needs `npx wrangler login`
-  once), or dashboard paste (Workers & Pages → Create). New provider = new
-  `[env.<name>]` block in `wrangler.toml` + a line in `deploy.sh`, then point
-  the custom provider's base_url at `https://<name>.<account-subdomain>.workers.dev`.
+The plans serve at their own paths and cannot join a route. They still have
+value: the LiteLLM local chain (`'/home/ashby/.omp/agent/skills/litellm-gateway'`) calls them
+natively — LiteLLM sets the full URL, no forced path. If a plan model is
+also listed on a standard-path aggregator (e.g. OpenRouter carries
+`meta/muse-spark-1.3-contributor`), prefer the aggregator for route traffic
+and keep the plan for local traffic.
 
 ## Model ids and catalog drift (OpenCode Zen Go worked example)
 

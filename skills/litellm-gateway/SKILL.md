@@ -88,7 +88,7 @@ returns 200 from a fallback model. NEVER activate a config that fails `test.sh`.
 - `designer`/`vision` roles: still `cloudflare-gateway/dynamic/image`
   (Cloudflare image route, free of the text-chain).
 - PR-Agent (GitHub Actions): stays on Cloudflare — it cannot reach
-  localhost, and direct provider calls there never used the shim.
+  localhost.
 
 ### Paseo sessions pin the model per session — restarts never migrate them
 

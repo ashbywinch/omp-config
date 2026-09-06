@@ -5,7 +5,7 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 # Cloudflare AI Gateway
 
-Routes all AI API calls through Cloudflare AI Gateway. The `fallback2` route is purpose-gated: harness traffic (via the local proxy) tries z.ai GLM-5.3-Flash first, then cascades to DeepSeek; all other traffic (evals, apps, review bot) goes straight to the DeepSeek cascade. Per-repo analytics tagging via local proxy. The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`); Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback.
+Routes AI API calls for remote clients (PR-Agent, evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer. `fallback2` (text): Muse Spark 1.3 contributor (OpenRouter) → DeepSeek V4 Flash (OpenRouter) → DeepSeek direct. `image` (vision): z-ai/glm-4.6v (OpenRouter). The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively; Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. Per-repo analytics tagging via local proxy.
 
 ## Architecture
 
@@ -35,10 +35,11 @@ Routes all AI API calls through Cloudflare AI Gateway. The `fallback2` route is 
           │  Auth: CLOUDFLARE_AIGATEWAY_TOKEN       │
           └────────────────┬────────────────────────┘
                            │
-              ┌────────────┴────────────┐
-              ▼                         ▼
-      z.ai GLM-5.3-Flash        DeepSeek cascade
-      (harness only, via shim)  (opencode-go → deepseek)
+              ┌───────────────────┴───────────────────┐
+              ▼                                       ▼
+   fallback2 (text): Muse Spark 1.3 →       image (vision):
+   DeepSeek V4 Flash (OpenRouter) →         z-ai/glm-4.6v
+   DeepSeek direct                          (OpenRouter)
 ```
 
 ### Two env vars — single source of truth
@@ -96,15 +97,22 @@ Route names are referenced in config as `dynamic/{route-name}`. If a route is re
 
 Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers). Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically; the API path needs Secrets Store Write plus a pre-created secret — use the dashboard unless you hold that scope.
 
-#### Purpose-gated topology (`fallback2`)
+#### Route topology (all providers standard-path)
 
-`fallback2` starts with a conditional on `metadata.purpose == "harness"`:
+Every provider on a route must serve at the forced `/v1/chat/completions`
+path — it is an onboarding criterion, not an engineering problem. A
+provider whose endpoint differs is not added to a route.
 
-- **true (harness)**: z.ai GLM-5.3-Flash (`custom-zai`, via shim) → fallback → opencode-go → fallback → deepseek
-- **false (evals, apps, review bot)**: opencode-go → deepseek — never touches z.ai
-- `dynamic/image` (vision): opencode-go `mimo-v2.5` → fallback → openrouter `xiaomi/mimo-v2.5`
+- `fallback2` (text): openrouter `meta/muse-spark-1.3-contributor`
+  ($0.10/$0.20 per M) → openrouter `deepseek/deepseek-v4-flash` →
+  deepseek direct `deepseek-v4-flash`
+- `image` (vision): openrouter `z-ai/glm-4.6v`
 
-Only the local proxy stamps `purpose: "harness"`; PR-Agent sends `source: "review"`; untagged direct traffic has no purpose. The shims live in `tools/ai-gateway-shims/` (`deploy.sh` deploys both). Adding providers — the forced `/v1/chat/completions` route-node constraint, validation sequence, shim pattern, fail-back caveats — see `references/adding-providers.md`.
+The former purpose-gating conditional and its path-rewrite Workers are
+gone: the z.ai Coding Plan and OpenCode Zen serve local harness traffic
+directly through LiteLLM (`skill://litellm-gateway`), which has no forced
+path. Route changes are versioned — redeploy an older `version_id` to
+roll back (versions preceding 2026-09-06 are the shim-era cascades).
 
 ## Timeouts and retries
 
@@ -132,7 +140,10 @@ The local proxy adds these headers to every request. PR-Agent in GitHub Actions 
 
 The proxy exists for two reasons:
 
-1. **Per-repo analytics tagging + purpose gating** — the proxy reads the repo name (tagged by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}`. `purpose: "harness"` selects the z.ai branch of `fallback2`; direct traffic has no purpose and keeps the DeepSeek cascade. Without the proxy, every request would show as coming from "unknown".
+1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged
+   by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}`. Without the proxy, every request
+   would show as coming from "unknown". (The purpose field no longer
+   selects a route branch — routes are unconditional cascades.)
 
 2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml` (which we confirmed works). The proxy covers local OMP sessions.
 
