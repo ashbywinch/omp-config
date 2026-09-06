@@ -48,6 +48,18 @@ a generic principle first — no codebase-specific file names or project
 jargon in the rule itself (a Notion-relational quirk belongs in
 `notion-database-management`, not in a repo's standards).
 
+Then pass the **placement test**: who needs this information, and where
+will they be standing when they need it? Knowledge an agent needs while
+working in ANY repo — updating a shared tool's installed component,
+harness behaviour, cross-repo conventions — belongs in a harness skill
+HERE. A tool repo's own docs are invisible to client-repo agents: they
+load their own repo's context and never another repo's AGENTS.md or docs
+directory, so "it's documented in the tool's repo" is documentation
+nobody will find. Project internals stay in the project; shared
+operations and installed tooling live here. (2026-09-06: a complete
+LSP-update procedure written into the tool repo's own docs was
+unreadable by exactly the agents who needed it, in every other repo.)
+
 ## Anti-patterns
 
 ✗ editing `~/.omp/agent/skills/...` directly without `make install` — the

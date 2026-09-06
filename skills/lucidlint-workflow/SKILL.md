@@ -16,14 +16,17 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@df20e9238351b7ef84ad822a248d144cf7dbc6c7"` — the
-working pip install from the GitHub repo page, pinned to a commit (the
-package is not yet on PyPI; once published, `pip install lucidlint` is the
-plain form). Re-pin when the package is published or a newer commit is
-needed. The pip install gives the `lucidlint` command. If the pip install
-does not install everything required, that is a bug in the package — fix
-the package, don't document a workaround. `python3 lucidlint.py` in a repo
+The package is not on PyPI. Install a release wheel from the GitHub
+releases page (each release publishes per-platform wheels) or pin a tag:
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@v0.5.0"`.
+The pip install gives the `lucidlint` command. If the pip install does
+not install everything required, that is a bug in the package — fix the
+package, don't document a workaround. `python3 lucidlint.py` in a repo
 checkout works without install (its `libcst` need is above).
+
+Updating the installed LSP server (the binary omp LSP clients run):
+`skill://lucidlint-lsp-update` — the release bundle, client restart, and
+served-version check in one pass.
 
 ## The gate
 
