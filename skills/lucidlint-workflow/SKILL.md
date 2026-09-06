@@ -16,7 +16,7 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@87613051e8478368147427e61920e9dce3b65c79"` — the
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@2518f2bc45347f38d76333e744bdcdf7e79ae5d2"` — the
 working pip install from the GitHub repo page, pinned to a commit (the
 package is not yet on PyPI; once published, `pip install lucidlint` is the
 plain form). Re-pin when the package is published or a newer commit is
