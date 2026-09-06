@@ -18,7 +18,8 @@ serving old rules until replaced AND its running clients are killed.
 ## Update in one pass
 
 ```sh
-VER=v0.5.0   # the release to install
+VER=$(gh release view --repo ashbywinch/lucidlint --json tagName -q .tagName)
+             # ^ latest release; pin one instead (VER=v0.5.0) to repeat an install
 gh release download $VER --repo ashbywinch/lucidlint \
   -p "lucidlint-$VER-x86_64-unknown-linux-musl.tar.gz"
 tar xzf "lucidlint-$VER-x86_64-unknown-linux-musl.tar.gz"

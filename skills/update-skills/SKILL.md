@@ -74,4 +74,8 @@ runnable code through the deployment mechanism).
 in skills or the Where-things-live table — they resolve only on one
 machine; use repo-relative paths (docs/writing-documentation.md: never
 reference machine-specific paths).
+✗ embedding per-release facts in a skill (a version, a tag pin, a
+"latest" claim) — they rot silently and nothing detects it; teach the
+lookup that resolves the current value at run time instead, and put the
+version only in the verification step's expectation.
 ✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.

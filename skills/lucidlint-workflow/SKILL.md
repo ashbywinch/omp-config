@@ -16,9 +16,19 @@ venv (the engine refuses without it).
 
 ## Install
 
-The package is not on PyPI. Install a release wheel from the GitHub
-releases page (each release publishes per-platform wheels) or pin a tag:
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@v0.5.0"`.
+The package is not on PyPI. Every release publishes per-platform wheels
+as GitHub release assets — resolve the latest one and install it; never
+embed a version or tag here, they rot (the old pin was a pre-PyPI
+commit for months):
+
+```sh
+# pick this platform's wheel from the LATEST release — `gh release
+# download` with a pattern already resolves the newest one
+gh release download --repo ashbywinch/lucidlint \
+  --pattern 'lucidlint-*-py3-none-linux_x86_64.whl'
+pip install ./lucidlint-*-py3-none-linux_x86_64.whl
+```
+
 The pip install gives the `lucidlint` command. If the pip install does
 not install everything required, that is a bug in the package — fix the
 package, don't document a workaround. `python3 lucidlint.py` in a repo
