@@ -5,7 +5,7 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 # Cloudflare AI Gateway
 
-Routes all AI API calls through Cloudflare AI Gateway with OpenCode (primary) → DeepSeek (fallback). Per-repo analytics tagging via local proxy. The canonical LLM provider config for all projects.
+Routes AI API calls for remote clients (PR-Agent, evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer. `fallback2` (text): Muse Spark 1.3 contributor (OpenRouter) → DeepSeek V4 Flash (OpenRouter) → DeepSeek direct. `image` (vision): z-ai/glm-4.6v (OpenRouter). The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively; Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. Per-repo analytics tagging via local proxy.
 
 ## Architecture
 
@@ -35,10 +35,11 @@ Routes all AI API calls through Cloudflare AI Gateway with OpenCode (primary) �
           │  Auth: CLOUDFLARE_AIGATEWAY_TOKEN       │
           └────────────────┬────────────────────────┘
                            │
-              ┌────────────┴────────────┐
-              ▼                         ▼
-      OpenCode (primary)      DeepSeek (fallback)
-      (out of credits → fail)  (funded)
+              ┌───────────────────┴───────────────────┐
+              ▼                                       ▼
+   fallback2 (text): Muse Spark 1.3 →       image (vision):
+   DeepSeek V4 Flash (OpenRouter) →         z-ai/glm-4.6v
+   DeepSeek direct                          (OpenRouter)
 ```
 
 ### Two env vars — single source of truth
@@ -94,7 +95,24 @@ Route names are referenced in config as `dynamic/{route-name}`. If a route is re
 
 ### Provider keys
 
-Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers).
+Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers). Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically; the API path needs Secrets Store Write plus a pre-created secret — use the dashboard unless you hold that scope.
+
+#### Route topology (all providers standard-path)
+
+Every provider on a route must serve at the forced `/v1/chat/completions`
+path — it is an onboarding criterion, not an engineering problem. A
+provider whose endpoint differs is not added to a route.
+
+- `fallback2` (text): openrouter `meta/muse-spark-1.3-contributor`
+  ($0.10/$0.20 per M) → openrouter `deepseek/deepseek-v4-flash` →
+  deepseek direct `deepseek-v4-flash`
+- `image` (vision): openrouter `z-ai/glm-4.6v`
+
+The former purpose-gating conditional and its path-rewrite Workers are
+gone: the z.ai Coding Plan and OpenCode Zen serve local harness traffic
+directly through LiteLLM (`skill://litellm-gateway`), which has no forced
+path. Route changes are versioned — redeploy an older `version_id` to
+roll back (versions preceding 2026-09-06 are the shim-era cascades).
 
 ## Timeouts and retries
 
@@ -104,41 +122,6 @@ Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Use
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). We confirmed the gateway recognizes it (14s test returned 200).
 
-### What we're uncertain about
-
-Whether the model node `timeout` is:
-- **Timeout to first byte** — DeepSeek took >30s to produce the first token on a cold start with a 32K-token prompt, and the stream then continued for ~5 minutes of inference.
-- **Total request timeout** — DeepSeek completed the full response, and the timeout covers the total duration including streaming.
-
-Both are consistent with the evidence. The 300s timeout works either way.
-
-### Retries
-
-Cloudflare's model node retries ALL errors — it can't distinguish between:
-- **Non-retryable**: 402 billing, 401 auth, 400 invalid request, 404 model not found (retrying wastes time)
-- **Retryable**: 429 rate limit, 500/502/503 transient, 529 overloaded, timeouts (retrying helps)
-
-**Decision (2026-08-19): Cloudflare-side retries are DISABLED (`retries: 0` on model nodes, `cf-aig-max-attempts: 0` header). The client owns retries.**
-
-Rationale:
-- A review timing out will fail again on retry — the same large diff, the same cost. Retrying at the gateway wastes tokens.
-- A transient provider error IS worth retrying, and the client (PR-Agent, Paseo/OMP) does that with full context about whether it's a long-running review or a genuine error.
-- The client can distinguish "this is a complex request that needs more time" (no retry, wait longer) from "the provider errored" (retry). The gateway cannot.
-
-Cloudflare's model node retries on all errors equally, so it would waste attempts on both non-retryable errors AND on long-running reviews that simply need more time.
-
-**The timeout ambiguity problem** — it's a known industry issue (see A Field Guide to LLM API Error Messages, Multigrid). A timeout can mean either:
-- The provider is broken (should retry/failover)
-- The request is complex and needs more time (should wait longer)
-
-Solutions other gateways use:
-- **LiteLLM**: separate `timeout` (total) and `stream_timeout` (first-byte) settings
-- **AISIX APISIX**: inspects response body to classify error types before retrying
-- **Portkey, others**: similar pattern — classify by status code + error message body
-
-Cloudflare's model node has a single `timeout` and retries on all errors. For our use case:
-- Primary (OpenCode, out of credits): 2 retries at 120s timeout — errors are instant, so retries are fast
-- Fallback (DeepSeek): 2 retries at 300s timeout — gives enough time for complex requests
 
 ### cf-aig-* headers
 
@@ -157,7 +140,10 @@ The local proxy adds these headers to every request. PR-Agent in GitHub Actions 
 
 The proxy exists for two reasons:
 
-1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","repo":"<name>"}`. This lets Cloudflare's analytics show per-repo token usage, cost, and request patterns. Without the proxy, every request would show as coming from "unknown".
+1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged
+   by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}`. Without the proxy, every request
+   would show as coming from "unknown". (The purpose field no longer
+   selects a route branch — routes are unconditional cascades.)
 
 2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml` (which we confirmed works). The proxy covers local OMP sessions.
 
@@ -173,7 +159,7 @@ The proxy is NOT needed for:
 A Bun script (`cf-proxy.ts`) running as a systemd user service. It:
 1. Receives requests from OMP on `localhost:9123`
 2. Reads the repo name (tagged by `omp-yolo.sh`)
-3. Adds `cf-aig-metadata: {"source":"agent","repo":"<name>"}` header
+3. Adds `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}` header
 4. Adds timeout/retry headers (values from `cf-aig-request-timeout` config)
 5. Forwards to Cloudflare
 
