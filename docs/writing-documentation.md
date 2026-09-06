@@ -38,6 +38,18 @@ from the entry point of AGENTS.md. Skills are exempt from the reachability
 rule — a harness discovers them through its own mechanism (rationale and
 scope in docs/documentation-structure.md).
 
+## Project-specific content lives in the project
+
+This repo's skills hold **reusable procedures** — a task an agent performs
+in any house repo. Content that applies to one project only (that repo's
+endpoints, batch IDs, layout details, app-specific commands) belongs in
+that project's own docs, linked from there — never in a skill here. A skill
+written for one app is a project-specific skill: split the generic
+procedure (which stays here, as its own skill) from the project specifics
+(which move to the project's repo). Enforcement: the review bot checks
+skill changes against this standard; a skill whose body names one
+project's internals — without a generic core — is a finding.
+
 ## AGENTS.md is a bootloader, not an operating system
 
 AGENTS.md loads everything else and gets out of the way. It holds the quick
