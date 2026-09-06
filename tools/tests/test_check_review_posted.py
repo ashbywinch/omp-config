@@ -37,6 +37,22 @@ class ReviewCoversTest(unittest.TestCase):
         c = comment("## PR Reviewer Guide 🔍\nHere are some observations")
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
+    def test_persistent_guide_edited_after_head_covers(self):
+        """The persistent guide is EDITED in place on every run: created_at
+        stays at its original date and pr-agent's persistent-state machinery
+        sometimes publishes without the 'updated until commit <SHA>' footer.
+        An edit (updated_at) after the head was received is coverage."""
+        c = comment("## PR Reviewer Guide 🔍\nNo major issues detected")
+        c["created_at"] = BEFORE_HEAD
+        c["updated_at"] = AFTER_HEAD
+        self.assertTrue(_covers([c], SHA, HEAD_AT))
+
+    def test_persistent_guide_untouched_since_before_head_does_not_cover(self):
+        c = comment("## PR Reviewer Guide 🔍\nSome older review")
+        c["created_at"] = BEFORE_HEAD
+        c["updated_at"] = BEFORE_HEAD
+        self.assertFalse(_covers([c], SHA, HEAD_AT))
+
     def test_incremental_guide_with_sha_covers(self):
         c = comment(f"## Incremental PR Reviewer Guide 🔍\nStarting from commit https://github.com/o/r/commit/{SHA}")
         self.assertTrue(_covers([c], SHA, HEAD_AT))
