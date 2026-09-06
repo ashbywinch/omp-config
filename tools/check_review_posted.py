@@ -160,6 +160,7 @@ def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
                 sha in c.get("body", "")
                 or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
                 or c.get("created_at", "") >= reviewed_after
+                or c.get("updated_at", "") >= reviewed_after  # the persistent guide is EDITED in place: its created_at never advances, and pr-agent's persistent-state read sometimes fails so the edit carries no SHA footer — an edit after the head was received is still coverage
             )
         )
         or (
