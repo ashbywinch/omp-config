@@ -46,9 +46,7 @@ endpoints, batch IDs, layout details, app-specific commands) belongs in
 that project's own docs, linked from there — never in a skill here. A skill
 written for one app is a project-specific skill: split the generic
 procedure (which stays here, as its own skill) from the project specifics
-(which move to the project's repo). Enforcement: PR review — a skill whose
-body names one project's internals without a generic core is a review
-finding.
+(which move to the project's repo).
 
 ## AGENTS.md is a bootloader, not an operating system
 
