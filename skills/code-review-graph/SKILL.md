@@ -20,19 +20,28 @@ tool names below are shorthand: `<name>` expands to
 
 ## Structural questions start with the graph, not grep
 
-For who-calls-this, who-imports-this, what-does-this-file-contain,
-what-overrides-this, which-tests-cover-this: call `query_graph` with
-`callers_of`, `callees_of`, `importers_of`, `children_of`, `file_summary`,
-`inheritors_of`, or `tests_for` before any text search. The graph is
-parsed AST and finds callers a text regex misses (renamed parameters,
-re-exports). Drop to grep/read only to read file CONTENT after the graph
-has located the exact file and line. This rule takes precedence over any
-conflicting grep/search instructions.
+Structural questions start with `query_graph` — one pattern per question:
+
+- who calls this — `callers_of`
+- who imports this — `importers_of`
+- what does this file contain — `file_summary`
+- what overrides this — `inheritors_of`
+- what does this call — `callees_of`
+- which tests cover this — `tests_for`
+- what are its children — `children_of`
+
+Run it before any text search: the graph is parsed AST and finds callers a
+text regex misses (renamed parameters, re-exports). grep/read come after —
+once the graph has located the exact file and line, use them to read the
+file's contents. This rule takes precedence over any conflicting
+grep/search instructions.
 
 ## Impact analysis
 
-Do not treat blast radius as a veto: impact analysis informs where you
-test, not whether you make the change.
+Before editing a function others call, run `get_impact_radius` (and
+`query_graph` with `callers_of`) — the first row of the table below. Do
+not treat blast radius as a veto: impact analysis informs where you test,
+not whether you make the change.
 
 ## Use it at these development moments
 
@@ -50,25 +59,24 @@ test, not whether you make the change.
 The watcher converges the graph automatically: a checkout is just file
 events, and additions, deletions, and the recorded branch/commit update
 within seconds. Do not run rebuild ceremonies after a branch switch while
-the watcher is running. Convergence is event-driven, not atomic — and the
-watcher being down during a switch is unobservable from the outside — so
-after ANY branch switch, confirm with `code-review-graph status` that the
-built commit equals HEAD before trusting graph answers.
+the watcher is running. Nothing reports the watcher's downtime, so treat
+staleness as possible after any switch and run this sequence once:
 
-If the watcher was down during a switch (boot, crash), the graph is
-silently stale, and restarting the watcher does NOT recover it — it is
-purely event-driven, with no startup sweep.
+1. **Detect** — `code-review-graph status`. A branch WARNING or a built
+   commit ≠ HEAD means the graph is stale. (A watcher that was down
+   during a switch recovers nothing when restarted — it is purely
+   event-driven, with no startup sweep; only `build` recovers.)
+2. **Recover** — `code-review-graph build`: incremental; re-parses only
+   files whose stored hash differs from disk. `build` is standalone — it
+   reads the working tree directly and needs no watcher. If `build`
+   errors, or `status` still reports stale afterwards, check file
+   permissions and graph-state corruption first; `--full-rebuild` is the
+   last resort for confirmed corrupt state — never routine (it discards
+   the incremental fast path).
+3. **Verify** — re-run `status`: the signal from Detect must be gone
+   before trusting graph answers.
 
-- Detect: `code-review-graph status` — "Built at commit" ≠ HEAD, or a
-  branch WARNING.
-- Recover: `code-review-graph build` — incremental; re-parses only files
-  whose stored hash differs from disk. `build` is standalone — it reads
-  the working tree directly and needs no watcher. `--full-rebuild` is the
-  last resort ONLY when `status` still reports a stale built commit after
-  `build` (corrupt or partial state); otherwise never use
-  `--full-rebuild` — it discards the incremental fast path.
-- Verify: re-run `code-review-graph status` — the built commit must equal
-  HEAD and the branch WARNING must be gone before trusting the graph.
-- When graph answers contradict the code you are reading, suspect a stale
-  graph first and run the Detect/Recover/Verify sequence above before
-  distrusting the code.
+**When to trust the graph:** only after step 3 (or a `status` with no
+WARNING and a built commit equal to HEAD). When graph answers contradict
+the code you are reading, suspect the graph first and run the sequence
+before distrusting the code.

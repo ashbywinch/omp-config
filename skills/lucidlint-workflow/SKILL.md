@@ -69,7 +69,9 @@ outcome, so there is nothing to check sideband:
 - **applied** — `fix: applied <kind> at <file>:<line> — <description>`;
   the write landed. `duplicate-block` applies with no engine undo: judge
   FIRST — an intentional parallel structure must never be `fix`ed
-  (recoverable with `git restore <file>`).
+  (recoverable with `git restore <file>` — only before that file is
+  committed; run `git status` first and never discard unrelated
+  uncommitted work).
 - **needs input** — the auto-fix is real but requires an agent parameter:
   `--name` for semantic names, `--params entries` for unresolvable
   callees. A named or parametrized retry IS an auto-fix.
