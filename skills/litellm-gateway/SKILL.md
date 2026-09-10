@@ -119,11 +119,15 @@ cp ~/.paseo/litellm/config.green.yaml.prev ~/.paseo/litellm/config.green.yaml
 
 - NEVER edit the live side — a restart mid-edit serves the half-staged config.
   The guard is the check, not a lock: `config.current.yaml` is a symlink and
-  symlink permissions are ignored on Linux, so run `swap.sh status` and edit
-  only the side it does not name as live. `activate` refuses to make the side
-  you are editing the live one.
-- NEVER promote to make a failure go away: promotion copies the live chain over
-  the rollback target.
+  the filesystem does not stop you writing to the live side's config file.
+  Always run `swap.sh status` first and edit only the side it does not name as
+  live. `activate` refuses to make the side you are editing the live one.
+- NEVER promote to make a failure go away: promotion runs the same gate, but it
+  is still the step that copies the live chain over the rollback target. If what
+  you are working around is something the gate cannot see, green is overwritten
+  with the bad chain — `rollback` no longer reverts it, and the ways back are the
+  one-step `.prev` restore (until the next promote) or the manual Cloudflare
+  switch in `~/.omp/agent/config.yml`.
 - A restart takes tens of seconds; `swap.sh` polls health for up to 120 s. A
   shell that times out while waiting is not evidence of failure — check
   `swap.sh status`.
