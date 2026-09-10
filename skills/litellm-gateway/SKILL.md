@@ -56,7 +56,7 @@ procedure — no judgement calls:
 ```bash
 cd ~/.paseo/litellm
 swap.sh status                 # confirm: live side GREEN, blue free to edit
-$EDITOR config.blue.yaml       # order, models, keys, timeouts — blue ONLY
+${EDITOR:-vi} config.blue.yaml  # order, models, keys, timeouts — blue ONLY
 swap.sh test                   # gate: 3 probes must PASS (≈20 s, :4001 only)
 swap.sh activate               # dry run: prints rollback + plan, switches nothing
 swap.sh activate --yes         # re-runs the gate, then live -> blue, then verifies
