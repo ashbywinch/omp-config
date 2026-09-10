@@ -12,14 +12,15 @@ default; Cloudflare stays configured as the manual rollback.
 
 ## The chain (what `primary` means)
 
-`primary` = DeepSeek V4 Flash (OpenCode Go) → DeepSeek (direct). Chain order and
-models live in the LiteLLM config only — clients never change. Editing the chain
-never touches omp/Paseo config.
+`primary` = DeepSeek V4 Flash (OpenCode Go) → Muse Spark 1.3 (OpenCode Go) →
+DeepSeek (direct). Chain order and models live in the LiteLLM config only —
+clients never change. Editing the chain never touches omp/Paseo config.
 
-A model may sit in the chain only while it passes the gate on its own (probe
-3): `muse-spark-1.3-contributor` does not — OpenCode 500s it on
-`/chat/completions`, and its `/responses` path streams no content. Re-add a
-model when the member probe passes for it.
+A model may sit in the chain only while it passes the gate on its own (probe 3).
+Muse Spark is reachable on OpenCode Go only through the Responses API — its
+`/chat/completions` route answers 500 at the provider edge — so its deployment is
+`openai/responses/muse-spark-1.3-contributor`, which LiteLLM bridges to chat
+completions, streaming included.
 
 ## Blue-green: the sides and the invariant
 
@@ -84,8 +85,9 @@ not a matter of remembering.
      that catches a broken head hidden behind a working fallback;
   4. a copy with the head's `api_base` patched to `http://127.0.0.1:9/` still
      serves a fallback (the head's `api_base` is the first one in the file).
-  Probes 1-3 assert content, not just HTTP 200: a reasoning model handed too
-  small a token budget answers 200 with an empty message and looks healthy.
+  Probes 1-3 assert content, not just HTTP 200, and drive the chain with
+  AGENT-SHAPED traffic on a reasoning-sized budget: a trivial "reply OK" prompt
+  makes a reasoning model answer 200 with empty content and look broken.
 - `swap.sh activate` — refuses when BLUE is already live (the one edit
   blue-green exists to prevent) and refuses unless the gate passes. The flip
   is: symlink, restart, poll `/health/readiness` (≤120 s), then a real
