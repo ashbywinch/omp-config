@@ -12,10 +12,14 @@ default; Cloudflare stays configured as the manual rollback.
 
 ## The chain (what `primary` means)
 
-`primary` = DeepSeek V4 Flash (OpenCode Go) → Muse Spark (OpenCode) →
-DeepSeek V4 Flash (direct DeepSeek API). Chain order and models live in the
-LiteLLM config only — clients never change. Editing the chain never touches
-omp/Paseo config. (z.ai / GLM was removed from the chain 2026-09-10.)
+`primary` = DeepSeek V4 Flash (OpenCode Go) → DeepSeek (direct). Chain order and
+models live in the LiteLLM config only — clients never change. Editing the chain
+never touches omp/Paseo config.
+
+A model may sit in the chain only while it passes the gate on its own (probe
+3): `muse-spark-1.3-contributor` does not — OpenCode 500s it on
+`/chat/completions`, and its `/responses` path streams no content. Re-add a
+model when the member probe passes for it.
 
 ## Blue-green: the sides and the invariant
 
@@ -26,7 +30,7 @@ omp/Paseo config. (z.ai / GLM was removed from the chain 2026-09-10.)
   config.green.yaml.prev  chain replaced at the last promote (one step back)
   config.current.yaml     symlink -> green|blue ; what :4000 serves
   swap.sh                 status | test | activate --yes | promote --yes | rollback
-  test.sh                 validates a config on :4001 (3 probes, no live traffic)
+  test.sh                 validates a config on :4001 (4 probes, no live traffic)
   env                     keys: OPENCODE_API_KEY, DEEPSEEK_API_KEY (600; never print)
                           (+ ZAI_API_KEY while config.green.yaml.prev still needs it)
 ```
@@ -57,7 +61,7 @@ procedure — no judgement calls:
 cd ~/.paseo/litellm
 swap.sh status                 # confirm: live side GREEN, blue free to edit
 ${EDITOR:-vi} config.blue.yaml  # order, models, keys, timeouts — blue ONLY
-swap.sh test                   # gate: 3 probes must PASS (≈20 s, :4001 only)
+swap.sh test                   # gate: 4 probes must PASS (:4001 only)
 swap.sh activate               # dry run: prints rollback + plan, switches nothing
 swap.sh activate --yes         # re-runs the gate, then live -> blue, then verifies
 # ... soak: use the system normally ...
@@ -73,13 +77,15 @@ not a matter of remembering.
 
 ## What each part guarantees
 
-- `test.sh` — 3 probes on a throwaway instance at :4001, no live traffic:
-  `primary` → 200, streamed `primary` ends with `[DONE]`, and a copy of the
-  config with the head deployment's `api_base` patched to an unreachable host
-  still returns 200 from a fallback. The cascade probe takes the first
-  `api_base` line in the file (that is the head deployment's) and patches it to
-  `http://127.0.0.1:9/`, so it stays a real test when the head changes — it
-  cannot pass vacuously.
+- `test.sh` — 4 probes on throwaway instances at :4001, no live traffic:
+  1. the chain alias returns 200 **with content**;
+  2. the streamed alias delivers content deltas;
+  3. **every chain member answers alone, with fallbacks disabled** — the probe
+     that catches a broken head hidden behind a working fallback;
+  4. a copy with the head's `api_base` patched to `http://127.0.0.1:9/` still
+     serves a fallback (the head's `api_base` is the first one in the file).
+  Probes 1-3 assert content, not just HTTP 200: a reasoning model handed too
+  small a token budget answers 200 with an empty message and looks healthy.
 - `swap.sh activate` — refuses when BLUE is already live (the one edit
   blue-green exists to prevent) and refuses unless the gate passes. The flip
   is: symlink, restart, poll `/health/readiness` (≤120 s), then a real
@@ -115,8 +121,12 @@ cp ~/.paseo/litellm/config.green.yaml.prev ~/.paseo/litellm/config.green.yaml
 #   ~/.omp/agent/config.yml -> modelRoles.default: cloudflare-gateway/dynamic/fallback2
 ```
 
-## Traps (each cost a real incident)
+## Traps
 
+- NEVER accept "the alias answers" as proof the chain works: a dead head behind
+  a working fallback answers every request while the chain silently runs on the
+  last resort. Probe 3 is the guard; `extra_headers` satisfies OpenCode Go's
+  session requirement.
 - NEVER edit the live side — a restart mid-edit serves the half-staged config.
   The guard is the check, not a lock: `config.current.yaml` is a symlink and
   the filesystem does not stop you writing to the live side's config file.
@@ -153,17 +163,11 @@ sessions created before the migration keep
 `cloudflare-gateway/dynamic/fallback2` no matter how often the daemon
 restarts. Migration = rewrite the pins:
 
-1. `systemctl --user stop paseo` FIRST — editing under a live daemon loses
-   the race: dirty in-memory session state flushes back on shutdown and
-   reverts the edit (observed: 4 of 21 pins reverted through a live edit).
-2. Rewrite pins with an exact match (spares the historical `lastError`
-   strings, which reference the old model with `model=` syntax):
-
-   ```bash
-   grep -rl '"model": "cloudflare-gateway/dynamic/fallback2"' \
-     ~/.paseo/agents --include='*.json' | xargs -r sed -i \
-     's/"model": "cloudflare-gateway\/dynamic\/fallback2"/"model": "litellm\/primary"/g'
-   ```
+1. `systemctl --user stop paseo` FIRST — editing under a live daemon loses the
+   race: in-memory session state flushes back on shutdown and reverts the edit.
+2. Rewrite the pins with `skill://litellm-gateway/examples/migrate-paseo-pins.sh`.
+   Its match is exact, so `lastError` strings — which name the old model as
+   `model=...` — are spared.
 
 3. `systemctl --user start paseo`, then re-grep: expect 0 hits.
 
@@ -173,6 +177,10 @@ dropdown sets.
 
 ## Diagnostics
 
+- OpenCode Go requires `x-opencode-session` plus its own `user-agent` on every
+  request; without them `/chat/completions` answers 400 `MissingSessionID`
+  (`deepseek-v4-flash`) or 500 (`muse`) and the chain silently falls through.
+  Both are set per deployment in `extra_headers` — never remove them.
 - OpenCode errors: `DataPolicyError` = the workspace has not opted in to its
   data policy; `MonthlyLimitError` = the OpenCode spend cap is reached. Both
   are fixed on the OpenCode side, not in this chain's config.
