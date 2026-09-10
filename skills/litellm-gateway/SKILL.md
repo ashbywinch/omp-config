@@ -118,7 +118,10 @@ cp ~/.paseo/litellm/config.green.yaml.prev ~/.paseo/litellm/config.green.yaml
 ## Traps (each cost a real incident)
 
 - NEVER edit the live side — a restart mid-edit serves the half-staged config.
-  `activate` refuses in that state and prints the way out.
+  The guard is the check, not a lock: `config.current.yaml` is a symlink and
+  symlink permissions are ignored on Linux, so run `swap.sh status` and edit
+  only the side it does not name as live. `activate` refuses to make the side
+  you are editing the live one.
 - NEVER promote to make a failure go away: promotion copies the live chain over
   the rollback target.
 - A restart takes tens of seconds; `swap.sh` polls health for up to 120 s. A
@@ -166,7 +169,9 @@ dropdown sets.
 
 ## Diagnostics
 
-- Provider-side errors — OpenCode `DataPolicyError` (workspace opt-in),
-  `MonthlyLimitError` (OpenCode spend cap) — meanings and fixes are canonical
-  in `skill://cloudflare-ai-gateway/references/adding-providers.md`.
+- OpenCode errors: `DataPolicyError` = the workspace has not opted in to its
+  data policy; `MonthlyLimitError` = the OpenCode spend cap is reached. Both
+  are fixed on the OpenCode side, not in this chain's config.
+- Provider configuration for these routes (Cloudflare, OpenCode, DeepSeek) is
+  in `skill://cloudflare-ai-gateway`.
 - Keys live in `~/.paseo/litellm/env` (600); never print them.

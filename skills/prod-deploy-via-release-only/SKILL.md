@@ -30,6 +30,10 @@ equivalent); no interactive login can restart the app units or mutate the
 deployment directly. Then a direct deployment is not merely discouraged —
 it is impossible. Read-only diagnostics (logs, status) stay available.
 
+Acceptance check: `sudo -l` as the deploy user lists ONLY the release
+scripts; any other command is a finding. Run it when the host is built and
+again after any permissions change.
+
 ## Guardrails
 
 - Deploy via the workflow/release script, or don't deploy.
