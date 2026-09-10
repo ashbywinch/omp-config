@@ -1,104 +1,129 @@
 ---
 name: litellm-gateway
-description: LiteLLM proxy for Paseo/OMP — provider failover chain (OpenCode Go deepseek-flash -> Muse -> DeepSeek), blue-green swaps, rollback-first operations
+description: LiteLLM proxy for Paseo/OMP — deterministic blue-green chain runbook (edit blue -> test -> activate -> promote), rollback-first, one local failover chain
 ---
 
 # LiteLLM Gateway
 
-One local endpoint (`http://localhost:4000/v1`) that owns the model fallback
-chain. Clients (omp, Paseo agents) ask for model `primary`; LiteLLM routes
-through the chain and fails over per request. Replaces Cloudflare AI Gateway
-for the text default; Cloudflare stays configured as the manual rollback.
+One local endpoint (`http://localhost:4000/v1`) owns the model fallback chain.
+Clients (omp, Paseo agents) ask for model `primary`; LiteLLM routes through the
+chain and fails over per request. Replaces Cloudflare AI Gateway for the text
+default; Cloudflare stays configured as the manual rollback.
 
 ## The chain (what `primary` means)
 
 `primary` = DeepSeek V4 Flash (OpenCode Go) → Muse Spark (OpenCode) →
 DeepSeek V4 Flash (direct DeepSeek API). Chain order and models live in the
 LiteLLM config only — clients never change. Editing the chain never touches
-omp/Paseo config.
+omp/Paseo config. (z.ai / GLM was removed from the chain 2026-09-10.)
 
-z.ai / GLM was removed from the chain (2026-09-10); the OpenCode Go
-deepseek-flash deployment is the head.
-
-## Blue-green layout
+## Blue-green: the sides and the invariant
 
 ```
 ~/.paseo/litellm/
-  config.green.yaml    # last-known-good chain (never edit in place)
-  config.blue.yaml     # staging chain (edit THIS for a change)
-  config.current.yaml  # symlink -> green|blue ; what :4000 serves
-  test.sh              # validate a config on :4001 (3 probes, no live traffic)
-  swap.sh              # status / activate / rollback
-  env                  # keys: OPENCODE_API_KEY, DEEPSEEK_API_KEY
-                       # (+ ZAI_API_KEY while GREEN still holds the z.ai chain)
+  config.green.yaml       last-known-good chain — the rollback target
+  config.blue.yaml        the ONLY side you edit
+  config.green.yaml.prev  chain replaced at the last promote (one step back)
+  config.current.yaml     symlink -> green|blue ; what :4000 serves
+  swap.sh                 status | test | activate --yes | promote --yes | rollback
+  test.sh                 validates a config on :4001 (3 probes, no live traffic)
+  env                     keys: OPENCODE_API_KEY, DEEPSEEK_API_KEY (600; never print)
+                          (+ ZAI_API_KEY while config.green.yaml.prev still needs it)
 ```
 
-Service: `litellm.service` (systemd --user), `ExecStart` uses
+INVARIANT: the live side is never the side you edit. Steady state is
+`live = GREEN` with `blue == green`; blue is then free staging.
+
+Service: `litellm.service` (systemd --user); `ExecStart` serves
 `config.current.yaml`, `EnvironmentFile=~/.paseo/litellm/env`.
+
+## Read the state, then follow the matching row
+
+`~/.paseo/litellm/swap.sh status` prints the live side, whether the sides
+differ, health, and the next command. This table is the whole decision
+procedure — no judgement calls:
+
+| live side | sides | meaning | next |
+|---|---|---|---|
+| GREEN | identical | steady state | edit `config.blue.yaml` |
+| GREEN | differ | a change is staged, not live | `swap.sh test` → `swap.sh activate --yes` |
+| BLUE | differ | new chain live, green = rollback target | soak → `swap.sh promote --yes` (or `swap.sh rollback` to revert) |
+| BLUE | identical | green == blue, so live can return to green for free | `swap.sh promote --yes` |
+| any | any | `health: NOT HEALTHY` | `swap.sh rollback` |
+
+## The change cycle — exact commands
+
+```bash
+cd ~/.paseo/litellm
+swap.sh status                 # confirm: live side GREEN, blue free to edit
+$EDITOR config.blue.yaml       # order, models, keys, timeouts — blue ONLY
+swap.sh test                   # gate: 3 probes must PASS (≈20 s, :4001 only)
+swap.sh activate               # dry run: prints rollback + plan, switches nothing
+swap.sh activate --yes         # re-runs the gate, then live -> blue, then verifies
+# ... soak: use the system normally ...
+swap.sh promote --yes          # gate, green.prev <- green, green <- blue, live -> green
+```
+
+Expected ends: activate prints `served by: <model>` naming the upstream that
+answered; promote prints `promoted: live side GREEN == BLUE`.
+
+`activate` and `promote` without `--yes` are dry runs: they print the plan and
+the rollback/undo command, then exit 1. The acknowledgment step is mechanical,
+not a matter of remembering.
+
+## What each part guarantees
+
+- `test.sh` — 3 probes on a throwaway instance at :4001, no live traffic:
+  `primary` → 200, streamed `primary` ends with `[DONE]`, and a copy of the
+  config with the head deployment's `api_base` killed still returns 200 from a
+  fallback. The cascade probe reads the head's endpoint from the config's first
+  `api_base` line, so it stays a real test when the head changes — it cannot
+  pass vacuously.
+- `swap.sh activate` — refuses when BLUE is already live (the one edit
+  blue-green exists to prevent) and refuses unless the gate passes. The flip
+  is: symlink, restart, poll `/health/readiness` (≤120 s), then a real
+  `primary` call. Any failure prints the rollback command.
+- `swap.sh promote` — refuses unless BLUE is live; runs the same gate; saves
+  the outgoing chain to `config.green.yaml.prev`; copies blue → green and
+  asserts `cmp` equality; then returns live to GREEN (byte-identical content,
+  so zero behaviour change). This is what makes `rollback` content-neutral in
+  steady state and frees blue for the next change.
+- `swap.sh rollback` — the emergency path, depending on NOTHING but the two
+  config files and systemd: no provider, no env file, no gate. It flips to
+  GREEN, restarts, and waits for health. Run it even if every LLM call is
+  failing. `rollback` and the second half of `promote` are the same code path,
+  so the emergency path is exercised on every promote.
 
 ## ROLLBACK FIRST — non-negotiable
 
-BEFORE running any `swap.sh activate` (or any change to the live chain):
-
-1. Print the rollback command and make the user acknowledge it.
-2. The rollback must never depend on a model provider: it is a symlink flip
-   plus a systemd restart, runnable from any terminal even if every LLM call
-   is failing.
+Before any command that changes the live side, print the rollback command and
+make the user acknowledge it. `swap.sh` prints it itself: on the dry run, on
+activate, and on every failure.
 
 ```
-# Revert LiteLLM chain to last-known-good:
-~/.paseo/litellm/swap.sh rollback
-# manual equivalent:
+~/.paseo/litellm/swap.sh rollback                # first choice, from any terminal
+# manual equivalent, if the script itself is broken:
 ln -sf ~/.paseo/litellm/config.green.yaml ~/.paseo/litellm/config.current.yaml
 systemctl --user restart litellm
-
-# Revert omp/Paseo to Cloudflare (skip LiteLLM entirely):
-# edit ~/.omp/agent/config.yml -> modelRoles.default (and advisor):
-#   cloudflare-gateway/dynamic/fallback2
-# (the cloudflare-gateway provider entry in ~/.omp/agent/models.yml remains)
+# undoing a PROMOTION (usable once): the chain the promote replaced
+cp ~/.paseo/litellm/config.green.yaml.prev ~/.paseo/litellm/config.green.yaml
+~/.paseo/litellm/swap.sh rollback
+# the prev chain needs its own key in env — keep ZAI_API_KEY until prev is dropped
+# all the way back to Cloudflare (no LiteLLM):
+#   ~/.omp/agent/config.yml -> modelRoles.default: cloudflare-gateway/dynamic/fallback2
 ```
 
-## Operations
+## Traps (each cost a real incident)
 
-```bash
-~/.paseo/litellm/swap.sh status    # which side is live
-~/.paseo/litellm/test.sh           # validate BLUE on :4001 (serve/SSE/cascade)
-~/.paseo/litellm/swap.sh activate  # current -> blue + restart (prints rollback first)
-~/.paseo/litellm/swap.sh rollback  # current -> green + restart
-systemctl --user status litellm    # service health
-curl -s http://localhost:4000/health/readiness
-```
-
-`test.sh` probes: `primary` returns 200 (head deployment healthy), streamed
-`primary` ends with `[DONE]`, and a copy of the config with the head
-deployment's `api_base` killed still returns 200 from a fallback model. The
-cascade probe derives the head endpoint from the config's first `api_base`
-line, so it stays a real test when the head changes. NEVER activate a config
-that fails `test.sh`.
-
-The systemd restart is slow (tens of seconds) — a shell that wraps
-`swap.sh activate` can time out while the service is still coming up. Check
-`swap.sh status` + `/health/readiness` before assuming failure.
-
-## Changing the chain
-
-0. `swap.sh status` MUST show `current -> config.green.yaml` before you touch
-   anything. If it shows blue, blue is the LIVE side: run `swap.sh rollback`
-   first (a content-identical restart when blue == green) so you are editing
-   the side nobody serves. NEVER edit the live side — any service restart
-   mid-edit serves the half-staged config.
-1. Edit `config.blue.yaml` (order, models, keys, timeouts).
-2. `~/.paseo/litellm/test.sh` — must pass ALL probes. It needs the keys in the
-   shell environment (the throwaway instance runs outside systemd):
-   `set -a; . ~/.paseo/litellm/env; set +a; ~/.paseo/litellm/test.sh`
-3. Print the rollback command (above) and confirm the user has it.
-4. `~/.paseo/litellm/swap.sh activate`.
-5. Verify `/health/readiness` and a `primary` call — the response `model`
-   names the upstream that served it (e.g. `deepseek-flash`).
-6. After a stable soak, promote blue → green is NOT automatic: copy
-   `config.blue.yaml` over `config.green.yaml` ONLY when you are ready for
-   the new chain to be the rollback target. Until then green holds the
-   previous chain.
+- NEVER edit the live side — a restart mid-edit serves the half-staged config.
+  `activate` refuses in that state and prints the way out.
+- NEVER promote to make a failure go away: promotion copies the live chain over
+  the rollback target.
+- A restart takes tens of seconds; `swap.sh` polls health for up to 120 s. A
+  shell that times out while waiting is not evidence of failure — check
+  `swap.sh status`.
+- `test.sh` needs the keys in the environment: run it as `swap.sh test` (which
+  sources `env`), never by hand from a bare shell.
 
 ## Clients
 
