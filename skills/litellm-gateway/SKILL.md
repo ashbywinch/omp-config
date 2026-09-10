@@ -75,10 +75,11 @@ not a matter of remembering.
 
 - `test.sh` — 3 probes on a throwaway instance at :4001, no live traffic:
   `primary` → 200, streamed `primary` ends with `[DONE]`, and a copy of the
-  config with the head deployment's `api_base` killed still returns 200 from a
-  fallback. The cascade probe reads the head's endpoint from the config's first
-  `api_base` line, so it stays a real test when the head changes — it cannot
-  pass vacuously.
+  config with the head deployment's `api_base` patched to an unreachable host
+  still returns 200 from a fallback. The cascade probe takes the first
+  `api_base` line in the file (that is the head deployment's) and patches it to
+  `http://127.0.0.1:9/`, so it stays a real test when the head changes — it
+  cannot pass vacuously.
 - `swap.sh activate` — refuses when BLUE is already live (the one edit
   blue-green exists to prevent) and refuses unless the gate passes. The flip
   is: symlink, restart, poll `/health/readiness` (≤120 s), then a real
@@ -106,6 +107,7 @@ activate, and on every failure.
 ln -sf ~/.paseo/litellm/config.green.yaml ~/.paseo/litellm/config.current.yaml
 systemctl --user restart litellm
 # undoing a PROMOTION (usable once): the chain the promote replaced
+# WARNING: works only once — a second promotion overwrites .prev
 cp ~/.paseo/litellm/config.green.yaml.prev ~/.paseo/litellm/config.green.yaml
 ~/.paseo/litellm/swap.sh rollback
 # the prev chain needs its own key in env — keep ZAI_API_KEY until prev is dropped
