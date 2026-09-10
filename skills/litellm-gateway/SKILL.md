@@ -161,7 +161,7 @@ restarts. Migration = rewrite the pins:
 
    ```bash
    grep -rl '"model": "cloudflare-gateway/dynamic/fallback2"' \
-     ~/.paseo/agents --include='*.json' | xargs sed -i \
+     ~/.paseo/agents --include='*.json' | xargs -r sed -i \
      's/"model": "cloudflare-gateway\/dynamic\/fallback2"/"model": "litellm\/primary"/g'
    ```
 
