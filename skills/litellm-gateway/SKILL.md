@@ -48,11 +48,15 @@ themselves and refuse on failure. The gate proves every chain member serves on
 its own, so a broken member cannot hide behind a working fallback, and it
 asserts real content — a chain that answers with empty messages is not working.
 
-## Rollback first
+## Rollback first — the rollback is on screen before any live-side command runs
 
-Before any change to the live side, have the rollback command in hand and the
-user's acknowledgment; `swap.sh` prints it on every dry run, activation and
-failure.
+- The only `swap.sh` invocations allowed before the rollback statement are
+  `swap.sh status` and the dry run (`swap.sh activate` without `--yes`):
+  both change nothing, and the dry run prints the rollback lines. Copy those
+  lines into your reply — never retype from memory.
+- Never run `swap.sh test` or `swap.sh activate --yes` before stating that
+  rollback and receiving the user's acknowledgment.
+- Never stage and activate in one turn: edit, gate, report, wait.
 
 `swap.sh rollback` is the emergency path: it depends on nothing but the two
 config files and systemd — no provider, no env file, no gate — so it runs from
