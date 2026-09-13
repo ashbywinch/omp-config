@@ -54,15 +54,12 @@ asserts real content — a chain that answers with empty messages is not working
 - GREEN is a rollback target only when live = GREEN, or when blue == green.
   When live = BLUE with sides differed, GREEN is a stale chain: state its
   head, label it stale, never present `swap.sh rollback` as covering live.
-- When live = BLUE with sides differed, snapshot before anything else: `cp`
-  the file `config.current.yaml` points at to a timestamped backup in the
-  same directory. `status`, `cmp`, `readlink`, reading the head, and this
-  `cp` change nothing live and are the only commands allowed before the
-  recovery statement.
-- State the recovery before `test`, `activate --yes`, or `promote --yes`:
-  the exact restore (`cp <backup> <live-file>` + `systemctl --user restart
-  litellm`) plus the Cloudflare fallback line from `swap.sh`'s output.
-  Never state a recovery that does not restore the live head.
+- When live = BLUE with sides differed, snapshot before anything else with
+  `skill://litellm-gateway/examples/snapshot-live.sh` — it prints the
+  timestamped backup and the exact restore lines; state that output plus
+  the Cloudflare fallback line from `swap.sh`'s output before `test`,
+  `activate --yes`, or `promote --yes`. Never state a recovery that leaves
+  the live head unrestored.
 - Never run `promote --yes` before stating that recovery and receiving the
   user's acknowledgment. Promote is the way out of soak — afterwards
   `swap.sh rollback` covers the live chain again.
