@@ -54,6 +54,7 @@ _TRACEBACK_TAIL = 12  # lines after a traceback/marker worth reporting
 def _get(url: str, token: str, accept: str = "application/vnd.github+json") -> bytes:
     req = urllib.request.Request(
         url,
+        # lucidlint: ignore record-shape the headers dict IS urllib's wire format — Request(headers=...) takes a mapping, a class breaks the call
         headers={"Authorization": f"Bearer {token}", "Accept": accept},
     )
     return urllib.request.urlopen(req).read()
@@ -87,6 +88,7 @@ def _job_log(repo: str, token: str) -> str | None:
             return None
         req = urllib.request.Request(
             f"https://api.github.com/repos/{repo}/actions/jobs/{jobs['jobs'][0]['id']}/logs",
+            # lucidlint: ignore record-shape the headers dict IS urllib's wire format — Request(headers=...) takes a mapping, a class breaks the call
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
         )
         try:
