@@ -20,7 +20,8 @@ there — never restate their contents in a doc or a skill.
   config.blue.yaml        the chain to edit: `model_list` order (head first) and
                           `fallbacks:` (the order after it), plus the header
                           comments carrying the provider constraints
-  config.green.yaml       the live chain / rollback target
+  config.green.yaml       the rollback target: last-known-good chain
+                          (live only when live = GREEN)
   config.green.yaml.prev  the chain the last promote replaced (one step back)
   config.current.yaml     symlink -> green|blue ; what :4000 serves
   swap.sh                 the state machine — run it with no arguments for the
@@ -50,18 +51,25 @@ asserts real content — a chain that answers with empty messages is not working
 
 ## Rollback first — the rollback is on screen before any live-side command runs
 
-- The only `swap.sh` invocations allowed before the rollback statement are
-  `swap.sh status` and the dry run (`swap.sh activate` without `--yes`):
-  both change nothing, and the dry run prints the rollback lines. Copy those
-  lines into your reply — never retype from memory.
-- Never run `swap.sh test` or `swap.sh activate --yes` before stating that
-  rollback and receiving the user's acknowledgment.
+- GREEN is a rollback target only when live = GREEN, or when blue == green.
+  When live = BLUE with sides differed, GREEN is a stale chain: state its
+  head, label it stale, never present `swap.sh rollback` as covering live.
+- When live = BLUE with sides differed, snapshot before anything else: `cp`
+  the file `config.current.yaml` points at to a timestamped backup in the
+  same directory. `status`, `cmp`, `readlink`, reading the head, and this
+  `cp` change nothing live and are the only commands allowed before the
+  recovery statement.
+- State the recovery before `test`, `activate --yes`, or `promote --yes`:
+  the exact restore (`cp <backup> <live-file>` + `systemctl --user restart
+  litellm`) plus the Cloudflare fallback line from `swap.sh`'s output.
+  Never state a recovery that does not restore the live head.
+- Never run `promote --yes` before stating that recovery and receiving the
+  user's acknowledgment. Promote is the way out of soak — afterwards
+  `swap.sh rollback` covers the live chain again.
+- At steady state the dry run (`swap.sh activate` without `--yes`) prints
+  the rollback lines: copy them, never retype, then wait for acknowledgment
+  before `test` or `activate --yes`.
 - Never stage and activate in one turn: edit, gate, report, wait.
-
-`swap.sh rollback` is the emergency path: it depends on nothing but the two
-config files and systemd — no provider, no env file, no gate — so it runs from
-any terminal while every LLM call is failing. The Cloudflare fallback for
-omp/Paseo is in `swap.sh`'s rollback output.
 
 ## Traps
 
