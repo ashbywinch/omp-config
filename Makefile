@@ -98,7 +98,7 @@ uninstall:
 # and drive via `make -C`; the orchestrator finds its sibling scan binary by
 # itself. Pinned to a release tag — never main (house rule).
 LUCIDLINT_DIR ?= .tools/lucidlint
-LUCIDLINT_PIN ?= v0.3.0
+LUCIDLINT_PIN ?= v0.6.1
 
 install-lucidlint:
 	@if [ "$$(cat $(LUCIDLINT_DIR)/version.txt 2>/dev/null)" = "$(LUCIDLINT_PIN)" ]; then \
