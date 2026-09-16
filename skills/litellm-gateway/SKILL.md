@@ -57,15 +57,17 @@ asserts real content — a chain that answers with empty messages is not working
 - When live = BLUE with sides differed, snapshot before anything else with
   `skill://litellm-gateway/examples/snapshot-live.sh` — it prints the
   timestamped backup and the exact restore lines; state that output plus
-  the Cloudflare fallback line from `swap.sh`'s output before `test`,
-  `activate --yes`, or `promote --yes`. Never state a recovery that leaves
-  the live head unrestored.
+  the Cloudflare fallback (`~/.omp/agent/config.yml` →
+  `modelRoles.default: cloudflare-gateway/dynamic/fallback2`) before
+  `test`, `activate --yes`, or `promote --yes`. State every path as the
+  full filesystem path the tool printed — never `swap.sh`, `skill://...`,
+  or `~` shorthand. Never state a recovery that leaves the live head unrestored.
 - Never run `promote --yes` before stating that recovery and receiving the
   user's acknowledgment. Promote is the way out of soak — afterwards
   `swap.sh rollback` covers the live chain again.
 - At steady state the dry run (`swap.sh activate` without `--yes`) prints
-  the rollback lines: copy them, never retype, then wait for acknowledgment
-  before `test` or `activate --yes`.
+  the rollback lines (full paths): copy them exactly, never retype or
+  shorten, then wait for acknowledgment before `test` or `activate --yes`.
 - Never stage and activate in one turn: edit, gate, report, wait.
 
 ## Traps
