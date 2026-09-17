@@ -26,10 +26,15 @@ there — never restate their contents in a doc or a skill.
   config.current.yaml     symlink -> green|blue ; what :4000 serves
   swap.sh                 the state machine — run it with no arguments for the
                           subcommand list; `swap.sh status` prints the live side,
-                          whether the sides differ, health, and the next command
-  test.sh                 the gate — its header documents the probes and the
-                          chain-shape contract it parses
+                          whether the sides differ, health, the last gate outcome
+                          (.gate-state), and the next command — activate/promote
+                          are only offered while blue's last gate passed
+  test.sh                 the gate — its header documents the probes, the
+                          chain-shape contract it parses, and the per-member
+                          error/consequence output on FAIL
   env                     the API keys (600; never print them)
+  .gate-state             the last gate outcome keyed to blue's content hash —
+                          status stops offering activate/promote while it is FAIL
 ```
 
 Service: `litellm.service` (systemd --user), serving `config.current.yaml` with
@@ -54,22 +59,16 @@ asserts real content — a chain that answers with empty messages is not working
 A member failing its probe with a provider-side error (401/403/429, billing,
 region gate, "model disabled") is BROKEN: requests that would have used it ride
 a later fallback instead, and a dead head is invisible to "the alias answers"
-— the member probe is the only proof a chain is whole (Traps).
+— the member probe is the only proof a chain is whole (Traps). The machinery
+reports and enforces: test.sh prints each failing member's exact error (status,
+type, message, remediation) plus the consequence; the gate refuses
+activate/promote and writes the outcome to `.gate-state`; `swap.sh status` reads
+it and stops offering activate/promote until the staged chain passes again.
 
-- Report EVERY failing member's exact error to the user: status, error type,
-  message, and the provider's remediation (e.g. the opt-in URL it prints).
-  Never a bare "member failed".
-- State what the user is accepting: every request that would have used the
-  broken member now rides a later fallback (or fails, if it was the last).
-- activate/promote of a chain with a failing member are REFUSED by the gate,
-  with no override: `--yes` acknowledges the stated recovery, it never bypasses
-  the probe, and there is no force flag.
-- The only ways to a passing gate are the provider-side fix or reshaping the
-  chain (drop/swap the broken member). User acceptance of an error is
-  acknowledgement, never a bypass.
-- While any member fails, never present activate/promote as available or route
-  toward a live-side command until the user has seen and acknowledged every
-  reported error.
+Protocol: pass the gate's printed errors to the user verbatim and wait for
+their acknowledgment before any live-side command. `--yes` is the tool-level
+acknowledgment — it never bypasses the probe. The only ways to a passing gate
+are the provider-side fix or reshaping the chain (drop/swap the broken member).
 
 ## Rollback first — the rollback is on screen before any live-side command runs
 
