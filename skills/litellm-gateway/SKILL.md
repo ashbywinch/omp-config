@@ -49,6 +49,28 @@ themselves and refuse on failure. The gate proves every chain member serves on
 its own, so a broken member cannot hide behind a working fallback, and it
 asserts real content — a chain that answers with empty messages is not working.
 
+## Provider errors block the chain
+
+A member failing its probe with a provider-side error (401/403/429, billing,
+region gate, "model disabled") is BROKEN: requests that would have used it ride
+a later fallback instead, and a dead head is invisible to "the alias answers"
+— the member probe is the only proof a chain is whole (Traps).
+
+- Report EVERY failing member's exact error to the user: status, error type,
+  message, and the provider's remediation (e.g. the opt-in URL it prints).
+  Never a bare "member failed".
+- State what the user is accepting: every request that would have used the
+  broken member now rides a later fallback (or fails, if it was the last).
+- activate/promote of a chain with a failing member are REFUSED by the gate,
+  with no override: `--yes` acknowledges the stated recovery, it never bypasses
+  the probe, and there is no force flag.
+- The only ways to a passing gate are the provider-side fix or reshaping the
+  chain (drop/swap the broken member). User acceptance of an error is
+  acknowledgement, never a bypass.
+- While any member fails, never present activate/promote as available or route
+  toward a live-side command until the user has seen and acknowledged every
+  reported error.
+
 ## Rollback first — the rollback is on screen before any live-side command runs
 
 - GREEN is a rollback target only when live = GREEN, or when blue == green.
@@ -98,7 +120,9 @@ made against a live daemon.
 
 ## Diagnostics
 
-- Provider-side errors (`DataPolicyError`, `MonthlyLimitError`) are fixed on the
-  provider side, not in this chain's config; provider configuration for these
-  routes is in `skill://cloudflare-ai-gateway`.
+- Provider-side errors (`DataPolicyError`, `MonthlyLimitError`, region and
+  billing gates) are fixed on the provider side, not in this chain's config;
+  while they persist they block every live-side command (`Provider errors
+  block the chain`). Provider configuration for these routes is in
+  `skill://cloudflare-ai-gateway`.
 - Keys live in `~/.paseo/litellm/env`; never print them.
