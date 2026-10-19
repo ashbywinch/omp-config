@@ -20,12 +20,13 @@ serving old rules until replaced AND its running clients are killed.
 ```sh
 VER=$(gh release view --repo ashbywinch/lucidlint --json tagName -q .tagName)
              # ^ latest release; pin one instead (VER=v0.5.0) to repeat an install
-gh release download $VER --repo ashbywinch/lucidlint \
+gh release download "$VER" --repo ashbywinch/lucidlint \
   -p "lucidlint-$VER-x86_64-unknown-linux-musl.tar.gz"
 tar xzf "lucidlint-$VER-x86_64-unknown-linux-musl.tar.gz"
 install -m 755 "lucidlint-$VER-x86_64-unknown-linux-musl/bin/lucidlint" \
   ~/.local/share/lucidlint/bin/lucidlint
-pkill -f 'lucidlint --lsp'   # clients keep serving the old rules until
+pkill -f '^/[^ ]*/lucidlint/bin/lucidlint --lsp$'
+                             # clients keep serving the old rules until
                              # killed; the editor/omp respawns on demand
 ```
 
@@ -35,7 +36,8 @@ A stdio `initialize` handshake answers with the server's own version:
 
 ```sh
 INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
-printf 'Content-Length: %d\r\n\r\n%s' "${#INIT}" "$INIT" \
+printf 'Content-Length: %d\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n%s' \
+  "$(printf '%s' "$INIT" | wc -c | tr -d ' ')" "$INIT" \
   | timeout 3 ~/.local/share/lucidlint/bin/lucidlint --lsp \
   | grep -o '"version":"[^"]*"'
 # expect the installed release, e.g. "version":"v0.5.0"
@@ -48,9 +50,9 @@ printf 'Content-Length: %d\r\n\r\n%s' "${#INIT}" "$INIT" \
   replace, or measure it. A `grep -ri lucid` sweep hits it; read its
   `--help` before treating anything as lucidlint.
 - **Running clients survive a binary swap** — kill them after replacing
-  (`pkill -f 'lucidlint --lsp'`); omp respawns on the next request. Check
-  for strays: `pgrep -fa 'lucidlint --lsp'` (a day-old client was found
-  serving 0.4.0 at ~40% memory).
+  (`pkill -f '^/[^ ]*/lucidlint/bin/lucidlint --lsp$'`); omp respawns on the
+  next request. Check for strays: `pgrep -af '^/[^ ]*/lucidlint/bin/lucidlint --lsp$'`
+  (a day-old client was found serving 0.4.0 at ~40% memory).
 - **Gate staleness is a separate guard**: the orchestrator refuses a
   local build older than the scanner sources (`make scanner-check`) —
   that guard protects pytest/the gate; this skill protects the installed

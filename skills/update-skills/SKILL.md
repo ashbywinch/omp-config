@@ -77,5 +77,7 @@ reference machine-specific paths).
 ✗ embedding per-release facts in a skill (a version, a tag pin, a
 "latest" claim) — they rot silently and nothing detects it; teach the
 lookup that resolves the current value at run time instead, and put the
-version only in the verification step's expectation.
+version only in the verification step's expectation. The lookup, concretely:
+`VER=$(gh release view --repo <owner>/<repo> --json tagName -q .tagName)` —
+the version literal then appears once, as the expected output of the check.
 ✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.
