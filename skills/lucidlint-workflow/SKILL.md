@@ -79,9 +79,9 @@ outcome, so there is nothing to check sideband:
   rewrite against the call site.
 - **silence** — nothing of that kind remains to fix; move on.
 
-A moved anchor re-attaches: the tool announces `anchor moved — <kind> now
-at <file>:<line>` and applies at the finding's current line (the tool owns
-its own coordinates).
+`applied` can carry a prefix: when the finding's anchor moved, the tool prints
+`anchor moved — <kind> now at <file>:<line>` on the line above the `applied`
+line and writes at the finding's current coordinates (the tool owns them).
 
 ## Per-file LSP mode
 

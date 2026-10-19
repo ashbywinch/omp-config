@@ -20,7 +20,9 @@ tool names below are shorthand: `<name>` expands to
 
 ## Structural questions start with the graph, not grep
 
-Structural questions start with `query_graph` — one pattern per question:
+Structural questions start with `query_graph` — one `pattern` argument per
+question. Pattern names are parameters, not tools; only the `<name>` forms
+above expand to `mcp__code_review_graph_<name>_tool`:
 
 - who calls this — `callers_of`
 - who imports this — `importers_of`
