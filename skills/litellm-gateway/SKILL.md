@@ -26,11 +26,12 @@ touches omp/Paseo config.
   config.current.yaml  # symlink -> green|blue ; what :4000 serves
   test.sh              # validate a config on :4001 (3 probes, no live traffic)
   swap.sh              # status / activate / rollback
-  env                  # keys: ZAI_API_KEY, OPENCODE_API_KEY, DEEPSEEK_API_KEY
+  switch-execstart.sh  # install/verify the unit's ExecStart; rolls back on failure
 ```
 
-Service: `litellm.service` (systemd --user), `ExecStart` uses
-`config.current.yaml`, `EnvironmentFile=~/.paseo/litellm/env`.
+Service: `litellm.service` (systemd --user); `ExecStart` sources `~/.secrets`
+(the single secret store — no `EnvironmentFile=`) and serves
+`config.current.yaml`.
 
 ## ROLLBACK FIRST — non-negotiable
 
@@ -123,4 +124,4 @@ dropdown sets.
   key), `DataPolicyError` (OpenCode workspace opt-in), `MonthlyLimitError`
   (OpenCode spend cap) — meanings and fixes are canonical in
   `skill://cloudflare-ai-gateway/references/adding-providers.md`.
-- Keys live in `~/.paseo/litellm/env` (600); never print them.
+- Keys live in `~/.secrets` (600), sourced by `litellm.service`; never print them.
