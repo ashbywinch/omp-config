@@ -48,6 +48,13 @@ a generic principle first — no codebase-specific file names or project
 jargon in the rule itself (a Notion-relational quirk belongs in
 `notion-database-management`, not in a repo's standards).
 
+Then pass the **placement test**: who needs this information, and where will
+they stand when they need it? Shared operations — updating an installed tool,
+harness behaviour, cross-repo conventions — belong in a harness skill HERE.
+A tool repo's own docs are invisible to client-repo agents, which load their
+own repo's context and never another repo's `AGENTS.md`. Project internals
+stay in the project.
+
 ## Anti-patterns
 
 ✗ editing `~/.omp/agent/skills/...` directly without `make install` — the
@@ -58,8 +65,21 @@ every domain skill — update the one mechanics skill and reference it.
 materialise it via `make install` (see the Companion tools row above) and
 reference the installed command (docs/writing-documentation.md: distribute
 runnable code through the deployment mechanism).
+✗ shell inside a skill for the agent to execute (`cp a b && cmd`, `cmp -s a b`,
+a pipeline) — put the mechanics in the script the skill names; the skill says
+which command to run and what to do with its output.
+✗ a skill that restates a tool's decision as prose (a table of "if live = X
+run Y") — make the tool decide and print the next step, then tell the agent to
+run it and follow that output; a hand-kept table drifts from the tool and makes
+the agent re-derive what the tool already knows.
 ✗ machine-specific source paths (`~/Documents/...`, `/home/<user>/...`)
 in skills or the Where-things-live table — they resolve only on one
 machine; use repo-relative paths (docs/writing-documentation.md: never
 reference machine-specific paths).
+✗ embedding per-release facts in a skill (a version, a tag pin, a
+"latest" claim) — they rot silently and nothing detects it; teach the
+lookup that resolves the current value at run time instead, and put the
+version only in the verification step's expectation. The lookup, concretely:
+`VER=$(gh release view --repo <owner>/<repo> --json tagName -q .tagName)` —
+the version literal then appears once, as the expected output of the check.
 ✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.
