@@ -96,6 +96,20 @@ The density rules (explicit negatives, commands over prose, canonical
 instruction-form consequences are covered above: polarity in "Guardrails
 before guidance", target naming in "A prompt is a spec".
 
+## The prompt states the rule, never the incident
+
+A prompt is not a changelog. An anecdote about the failure that motivated a
+rule — a date, a quoted wrong output, "this used to break because…" — spends
+the model's attention on the past and teaches it to imitate the example's
+shape rather than follow the rule. Write the rule and its constraint; delete
+the story. The same rule, with its canonical ✗/✓ pair, is
+`docs/writing-documentation.md` § "No history lessons".
+
+- ✗ "The model must flag the wrong person (2026-10-27: a draw answered
+  'which Walter?' and left found=false)."
+- ✓ "Flag the wrong person for an attested event, even when the archive says
+  nothing about that person."
+
 ## When the instruction is for a skill or a rule
 
 - A skill body's procedure, size ceiling, and discoverability rules live in
@@ -115,3 +129,6 @@ before guidance", target naming in "A prompt is a spec".
 - [ ] No rule set ships larger than ~half a dozen rules
 - [ ] No two rules overlap
 - [ ] No target named ambiguously — nothing is "the old one"
+- [ ] No dated anecdote or quoted past failure anywhere in the prompt text
+      ("2026-08-15: the model used to…"), in a comment beside it, or in the
+      doc that describes it
