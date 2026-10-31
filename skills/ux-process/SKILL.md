@@ -16,15 +16,78 @@ The loop that keeps the UI honest: **test → record → agree → re-test**.
 Standards and decisions live in documents, never in the loop's memory — that
 is what stops the loop from going round in circles.
 
+## This file is for you, the main agent
+
+The walker subtask never reads this skill. Nothing here reaches it unless you
+copy it into the walker's prompt. The walker also gets no implementation
+context from you. **Craft the prompt from the template below; do not
+paraphrase the hard rules.**
+
+### Before spawning the walker
+
+1. **Pick a model that can see images.** If the walker model cannot accept
+   image attachments, do not spawn it. A blind walker is not a usability
+   test; it will cheat by reading code and waste the run.
+2. Fill in the template. Do not add feature names, screen names,
+   architecture, intended flow, or hints.
+3. After it starts, check its first message: it must describe the first
+   screenshot. If it says it cannot see, cancel the run and fix the model.
+   Never let a blind walker continue.
+4. You may read the implementation freely while building and fixing. Never
+   put that knowledge into the walker prompt or use it to justify the
+   walker's claims.
+
+### Walker prompt template (copy verbatim, fill the brackets)
+
+```text
+You are [persona name, age, situation]. You are a human user of a website,
+not a developer.
+
+You have: [URL]
+Your task: [task in user language]. [Write policy: "You may save and
+complete the task" or "You are read-only — never save or submit".]
+
+You see only what a person sees: rendered screenshots and visible controls.
+
+Hard rules:
+- NEVER read or inspect page source, HTML, DOM, JavaScript, CSS, the
+  accessibility tree, network requests, console output, storage, cookies,
+  application state, or devtools.
+- NEVER use browser helpers that read markup or evaluate page code (html,
+  text, attr, count, evaluate, run, --dump-dom).
+- You may locate a visible control by its visible label and interact with
+  it. You may not enumerate or read the page.
+- Screenshots are your only evidence. Every observation and every claim
+  about state must trace to a screenshot (or text visibly rendered in one).
+- Before doing anything else, take a screenshot and describe what you see.
+  If you cannot actually see the image, reply exactly "I cannot see the
+  screen" with the reason and stop. Do not substitute code or DOM reading.
+
+Work as this user would, on a phone if the persona uses one. Think aloud,
+verbosely, in the first person: what you are trying to do, what you expect
+before each action, what happened, and exactly what confuses you. Say when
+something is missing, ambiguous, or unreadable. Do not propose fixes.
+
+Take a screenshot of every distinct screen and before/after each action;
+save under [screenshot dir] in visit order with descriptive names and a
+manifest: path | what it shows | what you were trying to do.
+
+If you give up, say exactly where and why.
+
+Output: (1) the full first-person transcript; (2) the screenshot manifest;
+(3) final state — what you achieved, what you gave up on, where you
+stopped, and whether anything was saved.
+```
+
 ## The loop
 
 1. **Adopt a persona.** Pick one persona from the PRD — specific enough to
    drive decisions (docs/ux-standards.md). The persona's world, language,
    and goal are the test's frame.
 
-2. **Subtask 1 — the fake user walks the app.** Launch a subtask with
-   browser access that plays the persona attempting a real task from the
-   PRD. Two rules about information:
+2. **Subtask 1 — the fake user walks the app.** Launch a subtask with browser
+   access that plays the persona attempting a real task from the PRD. Two
+   rules about information:
    - Give the fake user **only what a real user of that persona would
      have**: the task, the persona's situation and goal, the app URL. No
      internal knowledge — no architecture, no intended design, no hint of
@@ -75,12 +138,48 @@ is what stops the loop from going round in circles.
    the fake user no longer hits the problems it targeted. Unit tests prove
    mechanics; the walkthrough proves the experience.
 
+## The walker has human senses only
+
+**Scope:** this constrains the **participant subtask** (and the evaluator
+when judging the participant's experience). The main agent may read code,
+DOM, logs, network, storage, and application state freely to build, debug,
+and fix the app — it simply must not put that knowledge into the walker's
+briefing, nor use it to excuse the walker's evidence. The walker's world is
+the rendered screen; the builder's world is the implementation.
+
+A real user perceives **rendered pixels** and interacts with **visible
+controls**. The walker must behave the same way. These are hard rules for the
+walker, not style preferences:
+
+- **Never read the implementation.** Do not open or inspect page source,
+  HTML, DOM, JavaScript, CSS, the accessibility tree, network requests,
+  console output, local/session storage, cookies, or application state.
+  Do not use browser helpers that read markup or evaluate page code
+  (`html`, `text`, `attr`, `count`, `evaluate`, `run`, devtools). Finding a
+  control by its **visible label** is allowed; enumerating or reading the
+  page is not.
+- **No vision, no walk.** The walker model must actually receive and see the
+  screenshots. If it cannot (no image input, screenshots omitted, images
+  unreadable), it must **stop immediately** and report "I cannot see the
+  screen" with the reason. Continuing by reading code or DOM is cheating
+  and invalidates the run.
+- **Screenshots are the only evidence.** Every observation, every confusion,
+  and every claim about state must trace to a screenshot (or to text
+  visibly rendered in one). "I could not find X" is a finding; "I read in
+  the source that X exists" is not.
+- **If a screen is unreadable, say so.** P16 applies: unreadable means the
+  task is impossible for that user, and that is the finding.
+
+Phase 1 must fail loudly rather than produce a fabricated walk. A blind
+walker's transcript is worthless; do not spend tokens producing one.
+
+
 ## How reviewers interact (one rule)
 
 The reviewer interacts with a site exactly as the persona could — see the
-walker rules above.
-
-
+walker rules above. A reviewer must NEVER correct, inspect, or reason from
+the implementation. If the persona cannot see it, it does not exist for the
+test.
 
 ## The anti-loop guard
 
