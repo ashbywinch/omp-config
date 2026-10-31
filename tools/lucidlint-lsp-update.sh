@@ -12,6 +12,12 @@ set -euo pipefail
 REPO=ashbywinch/lucidlint
 BIN_DIR="$HOME/.local/share/lucidlint/bin"
 BIN="$BIN_DIR/lucidlint"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "error: gh (GitHub CLI) is required to fetch a lucidlint release" >&2
+  exit 1
+fi
+
 VER="${1:-$(gh release view --repo "$REPO" --json tagName -q .tagName)}"
 
 ARCH="$(uname -m)"
@@ -26,7 +32,15 @@ trap 'rm -rf "$TMP"' EXIT
 gh release download "$VER" --repo "$REPO" -p "$ASSET" -D "$TMP"
 tar xzf "$TMP/$ASSET" -C "$TMP"
 mkdir -p "$BIN_DIR"
-install -m 755 "$TMP/${ASSET%.tar.gz}/bin/lucidlint" "$BIN"
+
+# Locate the binary instead of deriving the top-level directory from the asset
+# name: the archive owns its own layout.
+BIN_SRC="$(find "$TMP" -type f -path '*/bin/lucidlint' -print -quit)"
+if [ -z "$BIN_SRC" ]; then
+  echo "error: no bin/lucidlint inside $ASSET" >&2
+  exit 1
+fi
+install -m 755 "$BIN_SRC" "$BIN"
 
 # Running clients keep serving the old rules until they exit; the next request
 # respawns them from the replaced binary. Match the exact command line so the
