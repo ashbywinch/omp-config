@@ -43,14 +43,18 @@ Service: `litellm.service` (systemd --user), serving `config.current.yaml` with
 
 ## Sides and the live side
 
-`BLUE` is `config.blue.yaml`, the side to edit. `GREEN` is `config.green.yaml`,
-the rollback target. `config.current.yaml` symlinks the file `:4000` serves.
-`swap.sh status` reports whether the sides are identical — both files hold the
-same bytes.
+`BLUE` (`config.blue.yaml`) is the side to edit. `GREEN` (`config.green.yaml`) is
+the chain that keeps serving. `config.current.yaml` symlinks whichever one `:4000`
+reads, so "live" means the side that symlink points at.
 
-Never edit the live side. Steady state is `live = GREEN` with identical sides,
-which leaves BLUE free to stage the next change. Nothing on the filesystem
-enforces this — the check is the guard.
+At rest both sides hold the same chain: nothing is staged, and the next change is
+an edit to BLUE. An edit makes the sides differ, and that difference *is* the
+staged change — invisible to `:4000` until a live-side command points
+`config.current.yaml` at BLUE. When the sides hold the same chain again the staged
+change is gone: it either went live or was reverted.
+
+Never edit the live side. Nothing on the filesystem enforces this — the check is
+the guard.
 
 ## The gate
 
