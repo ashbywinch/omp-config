@@ -65,6 +65,13 @@ every domain skill — update the one mechanics skill and reference it.
 materialise it via `make install` (see the Companion tools row above) and
 reference the installed command (docs/writing-documentation.md: distribute
 runnable code through the deployment mechanism).
+✗ shell inside a skill for the agent to execute (`cp a b && cmd`, `cmp -s a b`,
+a pipeline) — put the mechanics in the script the skill names; the skill says
+which command to run and what to do with its output.
+✗ a skill that restates a tool's decision as prose (a table of "if live = X
+run Y") — make the tool decide and print the next step, then tell the agent to
+run it and follow that output; a hand-kept table drifts from the tool and makes
+the agent re-derive what the tool already knows.
 ✗ machine-specific source paths (`~/Documents/...`, `/home/<user>/...`)
 in skills or the Where-things-live table — they resolve only on one
 machine; use repo-relative paths (docs/writing-documentation.md: never
