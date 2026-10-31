@@ -18,6 +18,7 @@ GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
+LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
 
 help:
 	@echo "omp-config — available commands:"
@@ -51,7 +52,8 @@ install:
 		fi; \
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
-	chmod +x $(FETCH_FINDINGS_DST)
+	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST)
 	@echo "Installed omp-config. Restart omp to pick up changes."
 
 install-gh-shim:

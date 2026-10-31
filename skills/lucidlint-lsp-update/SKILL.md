@@ -17,31 +17,24 @@ serving old rules until replaced AND its running clients are killed.
 
 ## Update in one pass
 
+Run `lucidlint-lsp-update.sh`, installed on PATH from this repo's `tools/` by
+`make install`:
+
 ```sh
-VER=$(gh release view --repo ashbywinch/lucidlint --json tagName -q .tagName)
-             # ^ latest release; pin one instead (VER=v0.5.0) to repeat an install
-gh release download "$VER" --repo ashbywinch/lucidlint \
-  -p "lucidlint-$VER-x86_64-unknown-linux-musl.tar.gz"
-tar xzf "lucidlint-$VER-x86_64-unknown-linux-musl.tar.gz"
-install -m 755 "lucidlint-$VER-x86_64-unknown-linux-musl/bin/lucidlint" \
-  ~/.local/share/lucidlint/bin/lucidlint
-pkill -f '^/[^ ]*/lucidlint/bin/lucidlint --lsp$'
-                             # clients keep serving the old rules until
-                             # killed; the editor/omp respawns on demand
+lucidlint-lsp-update.sh            # latest release
+lucidlint-lsp-update.sh v0.6.9     # pin a release
 ```
+
+It downloads the asset for the machine's architecture, replaces
+`~/.local/share/lucidlint/bin/lucidlint`, kills the clients still serving the
+old rules, and prints what a stdio `initialize` handshake answers.
 
 ## Verify what is SERVED, not just that a file moved
 
-A stdio `initialize` handshake answers with the server's own version:
-
-```sh
-INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
-printf 'Content-Length: %d\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n%s' \
-  "$(printf '%s' "$INIT" | wc -c | tr -d ' ')" "$INIT" \
-  | timeout 3 ~/.local/share/lucidlint/bin/lucidlint --lsp \
-  | grep -o '"version":"[^"]*"'
-# expect the installed release, e.g. "version":"v0.5.0"
-```
+State the script's served version as the proof that clients load the new rules.
+A replaced file proves nothing: a running client keeps answering with the
+version it started with, and the handshake is the only output that names the
+binary actually serving.
 
 ## Gotchas (each cost a real session)
 
@@ -49,10 +42,9 @@ printf 'Content-Length: %d\r\nContent-Type: application/vscode-jsonrpc; charset=
   prose-accessibility linter. It is not lucidlint; do not update,
   replace, or measure it. A `grep -ri lucid` sweep hits it; read its
   `--help` before treating anything as lucidlint.
-- **Running clients survive a binary swap** — kill them after replacing
-  (`pkill -f '^/[^ ]*/lucidlint/bin/lucidlint --lsp$'`); omp respawns on the
-  next request. Check for strays: `pgrep -af '^/[^ ]*/lucidlint/bin/lucidlint --lsp$'`
-  (a day-old client was found serving 0.4.0 at ~40% memory).
+- **Running clients survive a binary swap** — `lucidlint-lsp-update.sh` kills
+  them after replacing the binary; omp respawns on the next request. A client
+  left running keeps serving the old rules indefinitely.
 - **Gate staleness is a separate guard**: the orchestrator refuses a
   local build older than the scanner sources (`make scanner-check`) —
   that guard protects pytest/the gate; this skill protects the installed
