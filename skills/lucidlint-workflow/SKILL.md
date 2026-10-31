@@ -16,14 +16,13 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@2518f2bc45347f38d76333e744bdcdf7e79ae5d2"` — the
-working pip install from the GitHub repo page, pinned to a commit (the
-package is not yet on PyPI; once published, `pip install lucidlint` is the
-plain form). Re-pin when the package is published or a newer commit is
-needed. The pip install gives the `lucidlint` command. If the pip install
-does not install everything required, that is a bug in the package — fix
-the package, don't document a workaround. `python3 lucidlint.py` in a repo
-checkout works without install (its `libcst` need is above).
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@bcfe0d42df17c4d0ff0b40f494e4318918f4b6cf"` — the
+pip install from the GitHub repo page, pinned to the v0.6.9 commit (the
+package is not on PyPI). Re-pin when a newer release lands. The pip install
+gives the `lucidlint` command. If it does not install everything required,
+that is a bug in the package — fix the package, don't document a workaround.
+`python3 lucidlint.py` in a repo checkout works without install (its `libcst`
+need is above).
 
 ## The gate
 
