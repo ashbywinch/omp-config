@@ -16,23 +16,18 @@ venv (the engine refuses without it).
 
 ## Install
 
-The package is not on PyPI. Every release publishes per-platform wheels
-as GitHub release assets — resolve the latest one and install it; never
-embed a version or tag here, they rot (the old pin was a pre-PyPI
-commit for months):
+The package is not on PyPI. Every release publishes per-platform wheels as
+GitHub release assets: take the latest release's wheel for this platform from
+the Releases page, then install that one file.
 
 ```sh
-# pick this platform's wheel from the LATEST release — `gh release
-# download` with a pattern already resolves the newest one
-gh release download --repo ashbywinch/lucidlint \
-  --pattern 'lucidlint-*-py3-none-linux_x86_64.whl'
-pip install ./lucidlint-*-py3-none-linux_x86_64.whl
+pip install ./lucidlint-<version>-py3-none-linux_x86_64.whl
 ```
 
-The pip install gives the `lucidlint` command. If the pip install does
-not install everything required, that is a bug in the package — fix the
-package, don't document a workaround. `python3 lucidlint.py` in a repo
-checkout works without install (its `libcst` need is above).
+The wheel name carries its version, so the install states what it installs;
+never embed a version or tag in this skill. It provides the `lucidlint`
+command. An incomplete install is a package bug to fix there, not something to
+work around here.
 
 Updating the installed LSP server (the binary omp LSP clients run):
 `skill://lucidlint-lsp-update` — the release bundle, client restart, and
