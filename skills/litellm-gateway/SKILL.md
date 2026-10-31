@@ -44,7 +44,8 @@ Service: `litellm.service` (systemd --user), serving `config.current.yaml` with
 
 `BLUE` is `config.blue.yaml`, the side to edit. `GREEN` is `config.green.yaml`,
 the rollback target. `config.current.yaml` symlinks the file `:4000` serves.
-"Sides identical" means `cmp -s config.blue.yaml config.green.yaml` succeeds.
+`swap.sh status` reports whether the sides are identical — both files hold the
+same bytes.
 
 Never edit the live side. Steady state is `live = GREEN` with identical sides,
 which leaves BLUE free to stage the next change. Nothing on the filesystem
@@ -82,8 +83,8 @@ names.
   (`live = BLUE`); in every other state it restarts onto the chain already
   live, so it changes nothing.
 - `promote --yes` makes GREEN the live chain and saves the outgoing chain to
-  `config.green.yaml.prev`. Undo one promotion with
-  `cp config.green.yaml.prev config.green.yaml && swap.sh rollback`.
+  `config.green.yaml.prev`. `swap.sh promote` prints the one-step undo, so run
+  it without `--yes` and state that output before promoting.
 - With `live = BLUE`, run `skill://litellm-gateway/examples/snapshot-live.sh`
   before anything else: it prints the timestamped backup and the exact restore
   lines. State that output plus the Cloudflare fallback
