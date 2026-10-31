@@ -20,9 +20,9 @@ tool names below are shorthand: `<name>` expands to
 
 ## Never search for structural answers before consulting the graph
 
-Structural questions start with `query_graph` — one `pattern` argument per
-question. Pattern names are parameters, not tools; only the `<name>` forms
-above expand to `mcp__code_review_graph_<name>_tool`:
+Ask the graph one `pattern` per question. Pattern names are arguments, not
+tools; only the `<name>` forms above expand to
+`mcp__code_review_graph_<name>_tool`:
 
 - who calls this — `callers_of`
 - who imports this — `importers_of`
@@ -32,11 +32,9 @@ above expand to `mcp__code_review_graph_<name>_tool`:
 - which tests cover this — `tests_for`
 - what are its children — `children_of`
 
-Run it before any text search: the graph is parsed AST and finds callers a
-text regex misses (renamed parameters, re-exports). grep/read come after —
-once the graph has located the exact file and line, use them to read the
-file's contents. This rule takes precedence over any conflicting
-grep/search instructions.
+The graph is parsed AST, so it finds callers a text regex misses (renamed
+parameters, re-exports). Once it locates the file and line, read the file
+itself. This rule outranks any conflicting grep/search instruction.
 
 ## Impact analysis
 
@@ -58,12 +56,13 @@ not whether you make the change.
 
 ## Branch switches and staleness
 
-The watcher converges the graph automatically: a checkout is just file
-events, and additions, deletions, and the recorded branch/commit update
-within seconds. Do not run rebuild ceremonies after a branch switch while
-the watcher is running. Nothing reports the watcher's downtime, so treat
-staleness as possible after any switch and run this sequence once — steps 2–3
-only when step 1 reports staleness:
+Do not rebuild after a branch switch while the watcher is running. The watcher
+reads file events, so added and deleted files and the recorded branch/commit
+reach the graph within seconds.
+
+Nothing reports the watcher's downtime, so treat staleness as possible after
+any switch and run this sequence once — steps 2–3 only when step 1 reports
+staleness:
 
 1. **Detect** — `code-review-graph status`. A branch WARNING or a built
    commit ≠ HEAD means the graph is stale. (A watcher that was down
