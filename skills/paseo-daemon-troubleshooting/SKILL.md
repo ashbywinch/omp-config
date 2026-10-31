@@ -5,10 +5,12 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
 
 # Paseo Daemon Troubleshooting
 
-## Architecture facts (as of 2026-08-03)
+## Architecture facts (as of 2026-10-31)
 
 - **Service**: user systemd unit `paseo.service` (`~/.config/systemd/user/paseo.service`),
-  runs `~/.paseo/start.sh` → `paseo daemon start --foreground`. `Restart=on-failure`, `RestartSec=5`.
+  runs `~/.paseo/start.sh` → `paseo daemon run --home /home/ashby/.paseo`. `Restart=on-failure`, `RestartSec=5`.
+  CLI 0.14.0 removed `daemon start --foreground`; a start.sh still passing it crash-loops the
+  unit (exit 1, `NRestarts` climbing every 5s) with the daemon never listening.
 - **One cgroup for everything**: supervisor (node) → "Paseo Daemon" → spawned agent sessions
   (omp rpc-ui, opencode serve, headless chrome, brokers, python runners). `KillMode=control-group`:
   any restart or OOM kill takes ALL of them down; the app re-spawns sessions afterward.
@@ -36,6 +38,12 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
   == latest on npm, and `curl https://relay.paseo.sh/` connects fast (it does).
   Workaround: direct LAN endpoint — app manual server `192.168.1.251:6767`; the relay
   stays enabled and reconnects automatically when the cloud recovers.
+- **Agent provider wrapper writes to stdout** (2026-10-31): `config.json` `agents.providers.omp.command`
+  is `~/.paseo/omp-yolo.sh`, whose `curl _tag` call leaked the proxy's `ok` body into omp's
+  JSONL RPC stream. Daemon log then shows `Ignoring invalid OMP RPC frame` with
+  `"line":"ok{\"type\":\"ready\",...}"` and `Timed out waiting for OMP to become ready` on
+  `fetch_agent_timeline_request` / `send_agent_message_request`. Any wrapper around a provider
+  CLI MUST keep stdout clean for the protocol (redirect every helper command to `/dev/null`).
 
 ## Troubleshooting playbook (in order)
 
