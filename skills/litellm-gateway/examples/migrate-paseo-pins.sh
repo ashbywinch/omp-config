@@ -11,57 +11,53 @@
 # The match is exact, so historical `lastError` strings — which name the old
 # model as `model=...` — are spared.
 set -euo pipefail
-
 OLD_MODEL=${OLD_MODEL:-cloudflare-gateway/dynamic/fallback2}
 NEW_MODEL=${NEW_MODEL:-litellm/primary}
 AGENTS=${AGENTS_DIR:-$HOME/.paseo/agents}
-# The match is literal at both ends: `grep -F` finds the pin, and the rewrite
-# substitutes the exact string. A model id is data, not a pattern — ids like
-# `openai/gpt-4o` contain regex metacharacters, so a regex rewrite would carry
-# an escape set that is one edit away from being wrong.
 
 if [ ! -d "$AGENTS" ]; then
   printf 'error: agents directory not found: %s\n' "$AGENTS" >&2
   exit 1
 fi
 
-if ! files=$(grep -Frl "\"model\": \"$OLD_MODEL\"" "$AGENTS" --include='*.json'); then
-  printf 'nothing to do: no file under %s carries the old pin\n' "$AGENTS"
-  exit 0
-fi
+python3 - "$AGENTS" "$OLD_MODEL" "$NEW_MODEL" <<'PY'
+import json, pathlib, re, sys
 
-printf '%s\n' "$files" | while IFS= read -r f; do
-  python3 - "$f" "$OLD_MODEL" "$NEW_MODEL" <<'PY'
-import json, pathlib, sys
+agents, old, new = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 
-path, old, new = sys.argv[1], sys.argv[2], sys.argv[3]
-file = pathlib.Path(path)
-text = file.read_text()
+# The pin is the JSON field `model`, so match the key with optional whitespace
+# and the value literally: a model id is data, not a pattern. Last-resort
+# history strings hold the old id as `model=...`, which this cannot match.
+pin = re.compile(r'("model"\s*:\s*)"' + re.escape(old) + '"')
 
-# The JSON parse proves the file is intact and the top-level pin is the field
-# being rewritten; the literal substitute then leaves every other byte alone.
-def skip(reason):
-    print(f"skip {path}: {reason}", file=sys.stderr)
-    raise SystemExit(0)
+rewritten = 0
+for file in sorted(agents.rglob("*.json")):
+    text = file.read_text()
+    if old not in text:
+        continue
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as err:
+        print(f"skip {file}: invalid JSON ({err})", file=sys.stderr)
+        continue
+    if data.get("model") != old:
+        print(f"skip {file}: top-level model is not {old}", file=sys.stderr)
+        continue
+    if len(pin.findall(text)) != 1:
+        print(f"skip {file}: {len(pin.findall(text))} pins match, expected 1",
+              file=sys.stderr)
+        continue
+    file.write_text(pin.sub(lambda m: m.group(1) + f'"{new}"', text))
+    rewritten += 1
+    print(f"rewritten {file}")
 
-try:
-    data = json.loads(text)
-except json.JSONDecodeError as err:
-    skip(f"invalid JSON ({err})")
-if data.get("model") != old:
-    skip(f"top-level model is not {old}")
-
-needle = f'"model": "{old}"'
-if text.count(needle) != 1:
-    skip(f"{text.count(needle)} literal matches, expected 1")
-
-file.write_text(text.replace(needle, f'"model": "{new}"'))
-print(f"rewritten {path}")
+# Verify by the same pattern that matched, so a spare `model=` mention in
+# unrelated text does not read as a failed migration.
+remaining = [str(f) for f in sorted(agents.rglob("*.json")) if pin.search(f.read_text())]
+if remaining:
+    print(f"FAIL: {len(remaining)} file(s) still pin {old}:", file=sys.stderr)
+    for path in remaining:
+        print(f"  {path}", file=sys.stderr)
+    raise SystemExit(1)
+print(f"OK: {rewritten} rewritten; every pin reads {new}")
 PY
-done
-
-if remaining=$(grep -Frl "\"model\": \"$OLD_MODEL\"" "$AGENTS" --include='*.json'); then
-  printf 'FAIL: %s file(s) still carry the old pin\n' "$(printf '%s\n' "$remaining" | wc -l)"
-  exit 1
-fi
-printf 'OK: every pin now reads %s\n' "$NEW_MODEL"
