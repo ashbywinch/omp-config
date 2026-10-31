@@ -34,7 +34,9 @@ install -m 755 "$TMP/${ASSET%.tar.gz}/bin/lucidlint" "$BIN"
 # No match is success: nothing is serving the old rules.
 pgrep -af '/lucidlint/bin/lucidlint --lsp$' | awk '{print $1}' | xargs -r kill || true
 
-INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+# A minimal but spec-shaped initialize: processId, rootUri and capabilities are
+# required members, and a server may reject or hang on an empty params object.
+INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}'
 SERVED="$(printf 'Content-Length: %d\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n%s' \
   "$(printf '%s' "$INIT" | wc -c | tr -d ' ')" "$INIT" \
   | timeout 3 "$BIN" --lsp | grep -o '"version":"[^"]*"' || true)"
