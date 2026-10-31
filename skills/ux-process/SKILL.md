@@ -148,30 +148,17 @@ briefing, nor use it to excuse the walker's evidence. The walker's world is
 the rendered screen; the builder's world is the implementation.
 
 A real user perceives **rendered pixels** and interacts with **visible
-controls**. The walker must behave the same way. These are hard rules for the
-walker, not style preferences:
+controls**. The template states that as hard rules; two consequences stay here
+because the template cannot enforce them:
 
-- **Never read the implementation.** Do not open or inspect page source,
-  HTML, DOM, JavaScript, CSS, the accessibility tree, network requests,
-  console output, local/session storage, cookies, or application state.
-  Do not use browser helpers that read markup or evaluate page code
-  (`html`, `text`, `attr`, `count`, `evaluate`, `run`, devtools). Finding a
-  control by its **visible label** is allowed; enumerating or reading the
-  page is not.
-- **No vision, no walk.** The walker model must actually receive and see the
-  screenshots. If it cannot (no image input, screenshots omitted, images
-  unreadable), it must **stop immediately** and report "I cannot see the
-  screen" with the reason. Continuing by reading code or DOM is cheating
-  and invalidates the run.
-- **Screenshots are the only evidence.** Every observation, every confusion,
-  and every claim about state must trace to a screenshot (or to text
-  visibly rendered in one). "I could not find X" is a finding; "I read in
-  the source that X exists" is not.
-- **If a screen is unreadable, say so.** P16 applies: unreadable means the
-  task is impossible for that user, and that is the finding.
+- **No vision, no walk.** If the walker model does not receive screenshots,
+  stop the run and report it. Continuing by reading code or DOM invalidates
+  the test.
+- **"I could not find X" is a finding.** It is the point of the walk, not a
+  failure to explain away. P16 applies: an unreadable screen makes the task
+  impossible for that user, and that is the result.
 
-Phase 1 must fail loudly rather than produce a fabricated walk. A blind
-walker's transcript is worthless; do not spend tokens producing one.
+A blind walker's transcript is worthless; do not spend tokens producing one.
 
 
 ## How reviewers interact (one rule)

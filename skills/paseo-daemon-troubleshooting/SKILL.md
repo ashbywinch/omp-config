@@ -8,7 +8,7 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
 ## Architecture facts (as of 2026-10-31)
 
 - **Service**: user systemd unit `paseo.service` (`~/.config/systemd/user/paseo.service`),
-  runs `~/.paseo/start.sh` → `paseo daemon run --home /home/ashby/.paseo`. `Restart=on-failure`, `RestartSec=5`.
+  runs `~/.paseo/start.sh` → `paseo daemon run --home ~/.paseo`. `Restart=on-failure`, `RestartSec=5`.
   CLI 0.14.0 removed `daemon start --foreground`; a start.sh still passing it crash-loops the
   unit (exit 1, `NRestarts` climbing every 5s) with the daemon never listening.
 - **One cgroup for everything**: supervisor (node) → "Paseo Daemon" → spawned agent sessions
