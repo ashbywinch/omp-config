@@ -18,7 +18,7 @@ tool names below are shorthand: `<name>` expands to
 `mcp__code_review_graph_<name>_tool` (e.g. `query_graph` →
 `mcp__code_review_graph_query_graph_tool`).
 
-## Structural questions start with the graph, not grep
+## Never search for structural answers before consulting the graph
 
 Structural questions start with `query_graph` — one `pattern` argument per
 question. Pattern names are parameters, not tools; only the `<name>` forms
@@ -62,7 +62,8 @@ The watcher converges the graph automatically: a checkout is just file
 events, and additions, deletions, and the recorded branch/commit update
 within seconds. Do not run rebuild ceremonies after a branch switch while
 the watcher is running. Nothing reports the watcher's downtime, so treat
-staleness as possible after any switch and run this sequence once:
+staleness as possible after any switch and run this sequence once — steps 2–3
+only when step 1 reports staleness:
 
 1. **Detect** — `code-review-graph status`. A branch WARNING or a built
    commit ≠ HEAD means the graph is stale. (A watcher that was down
