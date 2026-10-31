@@ -62,8 +62,8 @@ that answers with empty messages is not working.
 
 A chain member is one model in `model_list` that the alias can fall through to:
 the head first, then `fallbacks` in order. `test.sh` probes each member alone
-with fallbacks disabled and prints the failing member's provider error (status,
-type, message, remediation URL) plus which members ride instead.
+with fallbacks disabled and prints the failing member's HTTP status, error type
+and message, plus which members ride instead.
 
 Report that error as printed. A member failing on exhausted credit, a billing
 gate, or "model disabled" is not classified here: whether it needs a fix or is
