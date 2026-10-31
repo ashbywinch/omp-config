@@ -16,22 +16,11 @@ venv (the engine refuses without it).
 
 ## Install
 
-The package is not on PyPI. Every release publishes per-platform wheels as
-GitHub release assets: take the latest release's wheel for this platform from
-the Releases page, then install that one file.
-
-```sh
-pip install ./lucidlint-<version>-py3-none-linux_x86_64.whl
-```
-
-The wheel name carries its version, so the install states what it installs;
-never embed a version or tag in this skill. It provides the `lucidlint`
-command. An incomplete install is a package bug to fix there, not something to
-work around here.
-
-Updating the installed LSP server (the binary omp LSP clients run):
-`skill://lucidlint-lsp-update` — the release bundle, client restart, and
-served-version check in one pass.
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@bcfe0d42df17c4d0ff0b40f494e4318918f4b6cf"`
+— the install from the GitHub repo page, pinned to the v0.6.9 commit (the
+package is not on PyPI). It provides the `lucidlint` command. Re-pin when a
+newer release lands; an incomplete install is a package bug to fix there, not
+something to work around here.
 
 ## The gate
 
@@ -66,13 +55,30 @@ dispatch-registry, ...):
    `noop-statement`).
 5. Re-run the gate.
 
-The extracted seam is bounded to <=13 decisions (lands under the CC-15
-gate) and made private by construction. The exact output is
-name-dependent — that is why the preview comes first; never hand-extract
-a finding when the engine can show you the seam.
+The extracted seam stays under the CC-15 gate (<=13 decisions) and is private
+by construction. Its exact output depends on the name you choose, which is why
+the preview comes first: never hand-extract a finding the engine can show you.
 
-For a mechanical finding (magic-number, stale-suppression,
-positional-literals): the fix command applies deterministically; run it.
+### What `fix` prints
+
+The build announces one of three outcomes; there is no sideband to check.
+
+- **applied** — `fix: applied <kind> at <file>:<line> — <description>`. The
+  edit landed. `duplicate-block` has no engine undo, so judge it before
+  running: an intentional parallel structure must never be fixed.
+- **needs input** — the fix is real but needs a parameter: `--name` for
+  semantic names, `--params entries` for callees it cannot resolve. Retrying
+  with the parameter is still an auto-fix. For `positional-literals`, check
+  the rewrite against the call site: nested same-line calls can mis-bind.
+- **silence** — no finding of that kind remains. Move on.
+
+An `applied` line can carry a prefix: when the finding's anchor moved, the tool
+prints `anchor moved — <kind> now at <file>:<line>` above it and writes at the
+finding's current coordinates.
+
+To undo an applied write, `git restore <file>` works only before that file is
+committed — run `git status` first, and never discard unrelated uncommitted
+work.
 
 ## Per-file LSP mode
 
