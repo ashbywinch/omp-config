@@ -13,7 +13,8 @@ Cloudflare AI Gateway stays configured as the manual rollback.
 ## Where the originals live
 
 The chain, the commands and the gate are defined in these files. Read them
-there — never restate their contents in a doc or a skill.
+there — never restate their contents in a doc or a skill. The skill names the
+script and what to do with its output; the mechanics stay in the scripts.
 
 ```
 ~/.paseo/litellm/
