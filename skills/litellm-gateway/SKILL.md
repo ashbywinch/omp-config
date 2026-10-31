@@ -7,8 +7,8 @@ description: LiteLLM proxy for Paseo/OMP — the local failover chain, the blue-
 
 One local endpoint (`http://localhost:4000/v1`) owns the model failover chain:
 clients (omp, Paseo agents) ask for model `primary`, LiteLLM routes through the
-chain and fails over per request. Replaces Cloudflare AI Gateway for the text
-default; Cloudflare stays configured as the manual rollback.
+chain and fails over per request. The text default runs through this proxy;
+Cloudflare AI Gateway stays configured as the manual rollback.
 
 ## Where the originals live
 

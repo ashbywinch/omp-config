@@ -23,12 +23,12 @@ precedent.
 
 ## Mechanical enforcement, not just documentation
 
-A rule that only says "don't" gets broken under pressure. The durable
-guard is permissions: on the production host, the deploy user's elevated
-access is restricted to exactly the release scripts (a sudoers rule, or
-equivalent); no interactive login can restart the app units or mutate the
-deployment directly. Then a direct deployment is not merely discouraged —
-it is impossible. Read-only diagnostics (logs, status) stay available.
+Restrict the deploy user's elevated access on the production host to exactly
+the release scripts (a sudoers rule or equivalent). No interactive login can
+restart the app units or mutate the deployment directly. Keep read-only
+diagnostics (logs, status) available. A rule that only says "don't" breaks
+under pressure; permissions make a direct deployment impossible instead of
+merely discouraged.
 
 Acceptance check: `sudo -l` as the deploy user lists ONLY the release
 scripts; any other command is a finding. Run it when the host is built and
