@@ -20,81 +20,89 @@ there — never restate their contents in a doc or a skill.
   config.blue.yaml        the chain to edit: `model_list` order (head first) and
                           `fallbacks:` (the order after it), plus the header
                           comments carrying the provider constraints
-  config.green.yaml       the rollback target: last-known-good chain
-                          (live only when live = GREEN)
+  config.green.yaml       the rollback target: the chain the last promote left
+                          in place
   config.green.yaml.prev  the chain the last promote replaced (one step back)
-  config.current.yaml     symlink -> green|blue ; what :4000 serves
+  config.current.yaml     symlink -> config.green.yaml or config.blue.yaml ;
+                          what :4000 serves
   swap.sh                 the state machine — run it with no arguments for the
                           subcommand list; `swap.sh status` prints the live side,
                           whether the sides differ, health, the last gate outcome
-                          (.gate-state), and the next command — activate/promote
-                          are only offered while blue's last gate passed
+                          (.gate-state), and the next command
   test.sh                 the gate — its header documents the probes, the
                           chain-shape contract it parses, and the per-member
                           error/consequence output on FAIL
   env                     the API keys (600; never print them)
   .gate-state             the last gate outcome keyed to blue's content hash —
-                          status stops offering activate/promote while it is FAIL
+                          status withholds activate/promote while it is FAIL
 ```
 
 Service: `litellm.service` (systemd --user), serving `config.current.yaml` with
 `EnvironmentFile` = `env`.
 
-## The invariant
+## Sides and the live side
 
-The live side is never the side you edit. `swap.sh status` names the live side;
-steady state is `live = GREEN` with `blue == green`, which leaves blue free to
-stage the next change. Nothing on the filesystem enforces this — the check is
-the guard.
+`BLUE` is `config.blue.yaml`, the side to edit. `GREEN` is `config.green.yaml`,
+the rollback target. `config.current.yaml` symlinks the file `:4000` serves.
+"Sides identical" means `cmp -s config.blue.yaml config.green.yaml` succeeds.
+
+Never edit the live side. Steady state is `live = GREEN` with identical sides,
+which leaves BLUE free to stage the next change. Nothing on the filesystem
+enforces this — the check is the guard.
 
 ## The gate
 
-Never activate a config that fails `test.sh`; the live-side commands run it
-themselves and refuse on failure. The gate proves every chain member serves on
-its own, so a broken member cannot hide behind a working fallback, and it
-asserts real content — a chain that answers with empty messages is not working.
+`test.sh` proves every chain member serves on its own, so a failing member
+cannot hide behind a working fallback, and it asserts real content — a chain
+that answers with empty messages is not working.
 
-## Provider errors block the chain
+## Chain members that fail report their provider error
 
-A member failing its probe with a provider-side error (401/403/429, billing,
-region gate, "model disabled") is BROKEN: requests that would have used it ride
-a later fallback instead, and a dead head is invisible to "the alias answers"
-— the member probe is the only proof a chain is whole (Traps). The machinery
-reports and enforces: test.sh prints each failing member's exact error (status,
-type, message, remediation) plus the consequence; the gate refuses
-activate/promote and writes the outcome to `.gate-state`; `swap.sh status` reads
-it and stops offering activate/promote until the staged chain passes again.
+A chain member is one model in `model_list` that the alias can fall through to:
+the head first, then `fallbacks` in order. `test.sh` probes each member alone
+with fallbacks disabled and prints the failing member's provider error (status,
+type, message, remediation URL) plus which members ride instead.
 
-Protocol: pass the gate's printed errors to the user verbatim and wait for
-their acknowledgment before any live-side command. `--yes` is the tool-level
-acknowledgment — it never bypasses the probe. The only ways to a passing gate
-are the provider-side fix or reshaping the chain (drop/swap the broken member).
+Report that error as printed. A member failing on exhausted credit, a billing
+gate, or "model disabled" is not classified here: whether it needs a fix or is
+an acceptable fallback is the operator's decision. Pass the printed errors to
+the user verbatim and wait for their call before any live-side command.
 
-## Rollback first — the rollback is on screen before any live-side command runs
+`--yes` is the tool-level acknowledgment — it never bypasses the probe. The
+routes to a passing gate are a provider-side fix or reshaping the chain
+(drop/swap the failing member).
 
-- GREEN is a rollback target only when live = GREEN, or when blue == green.
-  When live = BLUE with sides differed, GREEN is a stale chain: state its
-  head, label it stale, never present `swap.sh rollback` as covering live.
-- When live = BLUE with sides differed, snapshot before anything else with
-  `skill://litellm-gateway/examples/snapshot-live.sh` — it prints the
-  timestamped backup and the exact restore lines; state that output plus
-  the Cloudflare fallback (`~/.omp/agent/config.yml` →
-  `modelRoles.default: cloudflare-gateway/dynamic/fallback2`) before
-  `test`, `activate --yes`, or `promote --yes`. State every path as the
-  full filesystem path the tool printed — never `swap.sh`, `skill://...`,
-  or `~` shorthand. Never state a recovery that leaves the live head unrestored.
+## Rollback first
+
+Run `swap.sh status`: it prints the live side, whether the sides differ, health,
+the last gate outcome, and the next command. Run the command its `next:` line
+names.
+
+- `swap.sh rollback` re-links GREEN and restarts. It reverts a soak
+  (`live = BLUE`); in every other state it restarts onto the chain already
+  live, so it changes nothing.
+- `promote --yes` makes GREEN the live chain and saves the outgoing chain to
+  `config.green.yaml.prev`. Undo one promotion with
+  `cp config.green.yaml.prev config.green.yaml && swap.sh rollback`.
+- With `live = BLUE`, run `skill://litellm-gateway/examples/snapshot-live.sh`
+  before anything else: it prints the timestamped backup and the exact restore
+  lines. State that output plus the Cloudflare fallback
+  (`~/.omp/agent/config.yml` → `modelRoles.default:
+  cloudflare-gateway/dynamic/fallback2`) before `test`, `activate --yes`, or
+  `promote --yes`. State every path as the full filesystem path the tool
+  printed — never `swap.sh`, `skill://...`, or `~` shorthand. Never state a
+  recovery that leaves the live head unrestored.
 - Never run `promote --yes` before stating that recovery and receiving the
-  user's acknowledgment. Promote is the way out of soak — afterwards
-  `swap.sh rollback` covers the live chain again.
-- At steady state the dry run (`swap.sh activate` without `--yes`) prints
-  the rollback lines (full paths): copy them exactly, never retype or
-  shorten, then wait for acknowledgment before `test` or `activate --yes`.
+  user's acknowledgment.
+- At steady state the dry run (`swap.sh activate` without `--yes`) prints the
+  rollback lines (full paths): copy them exactly, never retype or shorten, then
+  wait for acknowledgment before `test` or `activate --yes`.
 - Never stage and activate in one turn: edit, gate, report, wait.
 
 ## Traps
 
-- Never treat "the alias answers" as proof the chain works — only the gate's
-  member probe is that proof.
+- Prove the chain with `swap.sh test`, which probes every member alone. A 200
+  from the alias proves that one member answered, nothing more.
 - Never edit the live side: a restart mid-edit serves the half-staged config.
 - Never promote to escape a failure: promotion copies the live chain over the
   rollback target, so the bad chain becomes the rollback target too. `.prev`
@@ -112,16 +120,22 @@ are the provider-side fix or reshaping the chain (drop/swap the broken member).
 ### Paseo sessions pin their model — restarts never migrate them
 
 A session's model lives in `~/.paseo/agents/<worktree>/<agent>.json` and
-overrides the default in `~/.paseo/config.json`. Migrate the pins with
-`skill://litellm-gateway/examples/migrate-paseo-pins.sh`, with the daemon
-stopped: in-memory session state flushes back on shutdown and reverts an edit
-made against a live daemon.
+overrides the default in `~/.paseo/config.json`.
+
+Change a model in the LiteLLM chain (`config.blue.yaml`). Override it in
+`~/.paseo/config.json` only when the user explicitly asks for that session to
+bypass the chain.
+
+Migrate existing pins with
+`skill://litellm-gateway/examples/migrate-paseo-pins.sh`, daemon stopped:
+in-memory session state flushes back on shutdown and reverts an edit made
+against a live daemon.
 
 ## Diagnostics
 
 - Provider-side errors (`DataPolicyError`, `MonthlyLimitError`, region and
   billing gates) are fixed on the provider side, not in this chain's config;
-  while they persist they block every live-side command (`Provider errors
-  block the chain`). Provider configuration for these routes is in
-  `skill://cloudflare-ai-gateway`.
+  while they persist they block every live-side command (`Chain members that
+  fail report their provider error`). Provider configuration for these routes
+  is in `skill://cloudflare-ai-gateway`.
 - Keys live in `~/.paseo/litellm/env`; never print them.
