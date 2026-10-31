@@ -12,8 +12,13 @@ Cloudflare AI Gateway stays configured as the manual rollback.
 
 ## Where the originals live
 
-The chain, the commands and the gate are defined in these files. Read them
-there — never restate their contents in a doc or a skill.
+The chain and the gate are defined in these files. Read them there — never
+restate their contents in a doc or a skill.
+
+The tooling is sourced from `ashbywinch/bluegreen-config` and installed into the
+state directory by `make install` (copies, not symlinks); `make check-installed`
+fails when the installed copy drifts from the repo. Change a script in the repo,
+install, then operate.
 
 ```
 ~/.paseo/litellm/
@@ -32,6 +37,8 @@ there — never restate their contents in a doc or a skill.
   test.sh                 the gate — its header documents the probes, the
                           chain-shape contract it parses, and the per-member
                           error/consequence output on FAIL
+  snapshot-live.sh        the pre-switch snapshot — prints a timestamped backup
+                          of the live side and the exact restore lines
   env                     the API keys (600; never print them)
   .gate-state             the last gate outcome keyed to blue's content hash —
                           status withholds activate/promote while it is FAIL
@@ -89,14 +96,13 @@ names.
 - `promote --yes` makes GREEN the live chain and saves the outgoing chain to
   `config.green.yaml.prev`. `swap.sh promote` prints the one-step undo, so run
   it without `--yes` and state that output before promoting.
-- With `live = BLUE`, run `skill://litellm-gateway/examples/snapshot-live.sh`
-  before anything else: it prints the timestamped backup and the exact restore
-  lines. State that output plus the Cloudflare fallback
-  (`~/.omp/agent/config.yml` → `modelRoles.default:
-  cloudflare-gateway/dynamic/fallback2`) before `test`, `activate --yes`, or
-  `promote --yes`. State every path as the full filesystem path the tool
-  printed — never `swap.sh`, `skill://...`, or `~` shorthand. Never state a
-  recovery that leaves the live head unrestored.
+- With `live = BLUE`, run `snapshot-live.sh` before anything else: it prints the
+  timestamped backup and the exact restore lines. State that output plus the
+  Cloudflare fallback (`~/.omp/agent/config.yml` →
+  `modelRoles.default: cloudflare-gateway/dynamic/fallback2`) before `test`,
+  `activate --yes`, or `promote --yes`. State every path as the full filesystem
+  path the tool printed — never `swap.sh`, `skill://...`, or `~` shorthand.
+  Never state a recovery that leaves the live head unrestored.
 - Never run `promote --yes` before stating that recovery and receiving the
   user's acknowledgment.
 - At steady state the dry run (`swap.sh activate` without `--yes`) prints the
