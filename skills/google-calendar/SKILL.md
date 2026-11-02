@@ -1,52 +1,44 @@
 ---
 name: google-calendar
-description: Put one event on a Google Calendar — read the day, check the slot, decide who reads that calendar, then write, move or delete it. Composing a whole day is skill://day-planning; repairing gcalcli is skill://gcalcli-auth.
+description: Decide whether and when an event may be written — gather the day's context, ask for a time with that context in front of the user, check the slot is free, and only then write it.
 ---
 
 # Google Calendar
 
-One event at a time. Planning a day's schedule is `skill://day-planning`;
-a broken `gcalcli` token is `skill://gcalcli-auth`.
+The rules for putting something on a calendar. None of them are specific to a
+tool.
 
-## Rules
+## Choosing the time
 
-- **Never** schedule in the past. `date '+%Y-%m-%d %H:%M'` first.
-- **Never** write without checking the slot: `gcalcli agenda <from> <to>` or
-  free/busy. A collision you created is yours, and the calendar cannot later
-  tell you which of the two was wanted.
+1. **Look at the day before asking anything.** Read the events and the
+   free/busy for the range. Asking "what time?" without the day in front of you
+   wastes the user's only turn.
+2. **Offer the day's shape with the question.** "You're busy 3–4, then free from
+   5 — put it in the gap or at 5?" is answerable; "what time?" is not.
+3. **Never invent a time.** A time comes from the user, or from an event it is
+   deliberately attached to (the notes after the visit they follow). Anything
+   else is a guess wearing a timetable.
+4. **Check the slot is free before writing**, not after.
+
+## Writing
+
+- **Never** schedule in the past — `date '+%Y-%m-%d %H:%M'` first.
 - **Never** write without approval of that specific event: title, day, time,
-  calendar. Approval of something else is not approval of this.
-- **Never** derive a time from an unrelated event. Related work runs
-  back-to-back deliberately — a visit and the notes from that visit belong in
-  sequence. "Both are evening things" is not a relationship.
-- **Never** put an event on a calendar without knowing who reads it. Which
-  account and calendar an event belongs on is the workspace's own fact, recorded
-  in its calendar skill.
+  calendar. A plan being approved is not this event being approved.
+- **Never** put an event on a calendar without knowing who reads it — the
+  account is part of the decision, and a workspace with more than one records
+  which is which.
 - **Never** create an event that stands for work without its Notion task ID when
-  a task exists — detail longer than a few lines lives in Notion and the event
-  references it (`skill://day-planning`).
+  a task exists. Detail longer than a few lines belongs in Notion, with the
+  event pointing at it; detail that fits in a few lines goes in the description.
+- Moving or deleting an event is a write like any other.
 
-## Commands
+## Tools
 
-`gcalcli` needs `--calendar` on writes; without it, it prompts and fails.
+The rules above hold whatever writes the event.
 
-```bash
-date '+%Y-%m-%d %H:%M'                        # before anything scheduled
-gcalcli list                                  # calendars available
-gcalcli agenda 2026-11-07 2026-11-08          # what is already there
-gcalcli search "keyword"                      # find an event
-gcalcli add --calendar "Home" --title "Session" \
-  --when "2026-11-07 10:00" --duration 45 --noprompt
-```
-
-`--duration` is **minutes** (`--duration 90`, never `"1:30"`).
-
-`gcalcli delete` by search text deletes **every** match in the date range: use
-unique text, a narrow range, and never a generic word like "Break".
-
-## Via the MCP tools
-
-Where a workspace grants calendar scope, the Google Workspace MCP servers expose
-`list_calendars`, `get_events`, `query_freebusy` and `manage_event`
-(create/update/delete/rsvp). Same rules; `manage_event` can also delete, which
-is a write like any other.
+- **`gcalcli`** — commands, flags and their traps: `skill://gcalcli`.
+- **MCP** — where a workspace grants calendar scope, its Google Workspace server
+  exposes `list_calendars`, `get_events`, `query_freebusy` and `manage_event`
+  (create/update/delete/rsvp). Use the one the workspace provides; `manage_event`
+  can also delete, which is a write like any other.
