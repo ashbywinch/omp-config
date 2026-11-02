@@ -1,63 +1,52 @@
 ---
 name: google-calendar
-description: Read and schedule Google Calendar events — the rules that decide whether an event may be written, where it goes and what it must carry, plus the gcalcli commands and their traps.
+description: Put one event on a Google Calendar — read the day, check the slot, decide who reads that calendar, then write, move or delete it. Composing a whole day is skill://day-planning; repairing gcalcli is skill://gcalcli-auth.
 ---
 
 # Google Calendar
 
-Scheduling is a write with a time and an audience. The rules below are the
-whole job; the commands at the end are mechanics. `gcalcli` is the primary
-interface here; the workspace MCP servers can also read and write calendar, and
-every rule applies equally to both. Repairing a broken `gcalcli` token is
-`skill://gcalcli-auth`.
+One event at a time. Planning a day's schedule is `skill://day-planning`;
+a broken `gcalcli` token is `skill://gcalcli-auth`.
 
 ## Rules
 
-- **Never** write an event without checking the target day first
-  (`gcalcli agenda <from> <to>`, or free/busy). Two events in one slot is a
-  defect you created, and the calendar cannot tell you afterwards which one was
-  wanted.
-- **Never** schedule in the past. Run `date '+%Y-%m-%d %H:%M'` first.
-- **Never** write without approval of the specific event: title, day, time,
-  calendar. Approval of the plan is not approval of the event.
+- **Never** schedule in the past. `date '+%Y-%m-%d %H:%M'` first.
+- **Never** write without checking the slot: `gcalcli agenda <from> <to>` or
+  free/busy. A collision you created is yours, and the calendar cannot later
+  tell you which of the two was wanted.
+- **Never** write without approval of that specific event: title, day, time,
+  calendar. Approval of something else is not approval of this.
 - **Never** derive a time from an unrelated event. Related work runs
   back-to-back deliberately — a visit and the notes from that visit belong in
   sequence. "Both are evening things" is not a relationship.
-- **Never** put a work block in the calendar without its Notion task ID when one
-  exists. If the full detail is longer than a few lines it belongs in Notion and
-  the event references it; detail that fits in a few lines goes in the
-  description.
 - **Never** put an event on a calendar without knowing who reads it. Which
-  account and calendar an event belongs on is a decision, not a default — a
-  workspace with more than one account records it in its own calendar skill.
+  account and calendar an event belongs on is the workspace's own fact, recorded
+  in its calendar skill.
+- **Never** create an event that stands for work without its Notion task ID when
+  a task exists — detail longer than a few lines lives in Notion and the event
+  references it (`skill://day-planning`).
 
-## Common operations
+## Commands
 
 `gcalcli` needs `--calendar` on writes; without it, it prompts and fails.
 
 ```bash
-date '+%Y-%m-%d %H:%M'                       # before anything scheduled
-gcalcli list                                 # calendars available
-gcalcli agenda 2026-11-07 2026-11-08         # what is already there
-gcalcli search "keyword"                     # find an event
+date '+%Y-%m-%d %H:%M'                        # before anything scheduled
+gcalcli list                                  # calendars available
+gcalcli agenda 2026-11-07 2026-11-08          # what is already there
+gcalcli search "keyword"                      # find an event
 gcalcli add --calendar "Home" --title "Session" \
-  --when "2026-11-07 10:00" --duration 120 --noprompt
+  --when "2026-11-07 10:00" --duration 45 --noprompt
 ```
 
 `--duration` is **minutes** (`--duration 90`, never `"1:30"`).
 
-## Deleting and moving
-
-`gcalcli delete` by search text deletes **every** match in the date range. Use
-unique text, never a generic word like "Break", and pass a narrow range.
-
-To reschedule: check the current time, propose the revised slot, get approval,
-delete the old events by unique text, then add the new ones. Do not edit in
-place when the move is large enough that a stale event would confuse the day.
+`gcalcli delete` by search text deletes **every** match in the date range: use
+unique text, a narrow range, and never a generic word like "Break".
 
 ## Via the MCP tools
 
 Where a workspace grants calendar scope, the Google Workspace MCP servers expose
 `list_calendars`, `get_events`, `query_freebusy` and `manage_event`
-(create/update/delete/rsvp). Same rules: check the day, propose, then write.
-`manage_event` can also delete — that is a write like any other.
+(create/update/delete/rsvp). Same rules; `manage_event` can also delete, which
+is a write like any other.

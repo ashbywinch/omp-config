@@ -26,7 +26,7 @@ Before any routing, check if a User Profile exists at `~/.config/omp/profiles/Us
 | "start scheduled session" | Type from day plan |
 | "inbox processing" | `"Inbox Processing"` (which runs `skill://notion-insights-processing`) |
 | "backlog grooming" / work organization | `"Backlog Grooming"` (which runs `skill://notion-work-backlog`) |
-| "update the day plan" / "replan the day" | `"Day Planning"` (which runs `skill://google-calendar`) |
+| "update the day plan" / "replan the day" | `"Day Planning"` (which runs `skill://day-planning`) |
 | "create a PR" | `"PR Workflow"` |
 | "create [artifact]" | `"Artifact Creation"` |
 
@@ -77,7 +77,7 @@ User has strategy but needs next steps:
 ## Subcomponents
 
 - **Work Preferences**: Check for work style preferences
-- **Daily Schedule**: Calendar management via `skill://google-calendar`
+- **Daily Schedule**: Calendar management via `skill://day-planning`
 - **Session**: Session tracking and state management
 - **Inbox**: Processing via `skill://notion-insights-processing`
 
