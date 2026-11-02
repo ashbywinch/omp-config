@@ -2,6 +2,8 @@
 
 Never write to an external system (Notion, calendars, GitHub, any side-effecting API) without explicit user approval of the exact write. Enumerate the specific pages/properties/values, wait for an explicit yes to that list, never create records by inference, and never bundle writes into the same turn as an answer to a question. Discussion and design talk are NOT approval. This is a standing rule for every session, not just Notion workflows.
 
+Never treat a reply as approval unless it approves the enumerated write: a "yes" about content, a preference, or another question is not approval. One approval covers one write, and never write a value the user has already rejected this session.
+
 ## Edit Protocol
 
 ### Before every edit:

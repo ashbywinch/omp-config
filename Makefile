@@ -19,6 +19,7 @@ GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
 LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
+NOTION_WRITE_DST := $(H)/.local/bin/notion-write.sh
 
 help:
 	@echo "omp-config — available commands:"
@@ -53,7 +54,8 @@ install:
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
-	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST)
+	ln -sf $(CURDIR)/tools/notion-write.sh $(NOTION_WRITE_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(NOTION_WRITE_DST)
 	@echo "Installed omp-config. Restart omp to pick up changes."
 
 install-gh-shim:
@@ -94,6 +96,7 @@ uninstall:
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
 	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
+	rm -f $(NOTION_WRITE_DST)
 	@echo "Removed omp-config symlinks."
 
 # lucidlint consumption per the bundle's own README: unpack to .tools/lucidlint
