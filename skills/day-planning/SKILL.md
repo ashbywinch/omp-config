@@ -9,6 +9,21 @@ Laying out a day from the work that belongs in it, and repairing one that has
 slipped. How a single event gets its time, and whether it may be written, is
 `skill://google-calendar`; the commands are `skill://gcalcli`.
 
+## Choosing what to work on
+
+Before laying out a day, decide which work belongs in it.
+
+- **Importance comes from the value stream** the work sits under and the goal
+  it advances — not from how loudly it was asked for.
+- **Urgency comes from deadlines**, internal or external.
+- **Inside one value stream, prefer the item with no blockers or
+  dependencies.**
+- **Priority is dynamic.** An item that nobody has to chase can become urgent
+  simply by being left long enough; recompute rather than trust a stored
+  order.
+- **One substantive item is a day's capacity** when the person's budget is
+  that small: present the one, not the backlog.
+
 ## Compose
 
 1. **Check the time**: `date '+%Y-%m-%d %H:%M'`. A plan that starts in the past
