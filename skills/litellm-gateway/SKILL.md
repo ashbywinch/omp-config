@@ -123,21 +123,33 @@ names.
 - `swap.sh rollback` re-links GREEN and restarts. It reverts a soak
   (`live = BLUE`); in every other state it restarts onto the chain already
   live, so it changes nothing.
-- `promote --yes` makes GREEN the live chain and saves the outgoing chain to
-  `config.green.yaml.prev`. `swap.sh promote` prints the one-step undo, so run
-  it without `--yes` and state that output before promoting.
-- With `live = BLUE`, run `snapshot-live.sh` before anything else: it prints the
-  timestamped backup and the exact restore lines. State that output plus the
-  Cloudflare fallback (`~/.omp/agent/config.yml` →
-  `modelRoles.default: cloudflare-gateway/dynamic/fallback2`) before `test`,
-  `activate --yes`, or `promote --yes`. State every path as the full filesystem
-  path the tool printed — never `swap.sh`, `skill://...`, or `~` shorthand.
-  Never state a recovery that leaves the live head unrestored.
-- Never run `promote --yes` before stating that recovery and receiving the
-  user's acknowledgment.
-- At steady state the dry run (`swap.sh activate` without `--yes`) prints the
-  rollback lines (full paths): copy them exactly, never retype or shorten, then
-  wait for acknowledgment before `test` or `activate --yes`.
+- `swap.sh rollback-script` prints the pasteable recovery block for whatever
+  state the system is in — before or after any operation. It takes no
+  arguments, switches nothing, and works when this agent is not running.
+
+### The recovery block, and the pin that proves it was shown
+
+`activate` and `promote` do nothing on their own: they print the recovery block
+and a pin, and refuse `--yes` until it is re-run with that pin. The pin is a
+hash of the exact block printed for the current state, so it cannot be guessed,
+carried over from a different state, or produced without the block first being
+printed.
+
+- Run the command bare, then hand the user **the whole block verbatim** — the
+  `# ====` lines included, every absolute path as printed, nothing retyped,
+  shortened, or paraphrased into prose. It must be a script they can paste when
+  this session is gone, so it is never a description of what a command would do.
+- Wait for their sign-off, then re-run with the pin it printed.
+- A refused pin means the state moved: print the new block, do not force it.
+
+The block restores the bytes that were serving before the operation, so it is
+correct in every state without reasoning about which side is live. Pair it with
+the Cloudflare fallback (`~/.omp/agent/config.yml` →
+`modelRoles.default: cloudflare-gateway/dynamic/fallback2`) for the case where
+LiteLLM itself is unreachable. State every path as the full filesystem path the
+tool printed — never `swap.sh`, `skill://...`, or `~` shorthand. Never state a
+recovery that leaves the live head unrestored.
+
 - Never stage and activate in one turn: edit, gate, report, wait.
 
 ## Traps
