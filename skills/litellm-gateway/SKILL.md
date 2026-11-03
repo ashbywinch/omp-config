@@ -68,6 +68,26 @@ the guard.
 cannot hide behind a working fallback, and it asserts real content — a chain
 that answers with empty messages is not working.
 
+## The chain exists to spend two allowances in turn
+
+The chain's shape is a requirement, not a preference: every subscription the
+user pays for sits in `model_list`, always. `config.current.yaml`'s header
+states the intent and the current allowance state — read it before editing.
+
+A subscription that has spent its monthly allowance answers 429 with a
+Retry-After measured in days. `test.sh` reports that member **EXHAUSTED** and
+does not fail the gate on it — it is the designed state for half of every
+month, and the chain rides the next member automatically, in either direction,
+for as long as it lasts. There is no reordering step and no order to maintain:
+a fixed order self-corrects through cooldown.
+
+**Never delete or drop an exhausted member to get a green gate.** That is how
+the Go-to-Go fallback was lost on 2026-10-27: a maxed account was removed as a
+provider-side error, leaving one subscription wearing a chain's shape, and a
+half-month of traffic silently moved to per-token billing. An exhausted
+subscription is the half of the allowance that carries the traffic when the
+other one runs out.
+
 ## Chain members that fail report their provider error
 
 A chain member is one model in `model_list` that the alias can fall through to:
@@ -75,14 +95,24 @@ the head first, then `fallbacks` in order. `test.sh` probes each member alone
 with fallbacks disabled and prints the failing member's HTTP status, error type
 and message, plus which members ride instead.
 
-Report that error as printed. A member failing on exhausted credit, a billing
-gate, or "model disabled" is not classified here: whether it needs a fix or is
-an acceptable fallback is the operator's decision. Pass the printed errors to
-the user verbatim and wait for their call before any live-side command.
+Report that error as printed. A member failing on a provider-side error — a
+4xx/5xx, an auth or billing rejection, a data-policy or region gate, "model
+disabled", empty content — **is not classified here: whether it needs a fix, a
+different member, or a paid route is the operator's decision.** Pass the printed
+errors to the user verbatim and wait for their call before any live-side
+command. Never reach for a fix just to get the gate green: swapping in a member
+that bills per token, or any change that moves traffic onto a paid endpoint, can
+cost the user real money without their knowledge. A chain that quietly papered
+over a failure looks exactly like one that works — until the bill.
+
+The one pre-classified case is `EXHAUSTED`: spent allowance changes nothing
+about the chain and is never the operator's problem to solve. Everything else
+the gate calls `FAIL` is theirs to decide.
 
 `--yes` is the tool-level acknowledgment — it never bypasses the probe. The
-routes to a passing gate are a provider-side fix or reshaping the chain
-(drop/swap the failing member).
+routes to a passing gate are a provider-side fix, or a reshape the operator has
+approved. Reshaping is never something to do unasked: never delete an exhausted
+member, and never swap in a paid route to turn red green.
 
 ## Rollback first
 
@@ -144,9 +174,10 @@ against a live daemon.
 
 ## Diagnostics
 
-- Provider-side errors (`DataPolicyError`, `MonthlyLimitError`, region and
-  billing gates) are fixed on the provider side, not in this chain's config;
-  while they persist they block every live-side command (`Chain members that
-  fail report their provider error`). Provider configuration for these routes
-  is in `skill://cloudflare-ai-gateway`.
+- Provider-side errors (`DataPolicyError`, region and billing gates) are fixed
+  on the provider side, not in this chain's config; while they persist they
+  block every live-side command (`Chain members that fail report their provider
+  error`). A spent monthly allowance (`MonthlyLimitError`, `GoUsageLimitError`)
+  is the exception: it is EXHAUSTED, not a failure, and blocks nothing. Provider
+  configuration for these routes is in `skill://cloudflare-ai-gateway`.
 - Keys live in `~/.paseo/litellm/env`; never print them.
