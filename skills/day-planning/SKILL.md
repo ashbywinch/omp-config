@@ -16,13 +16,11 @@ Before laying out a day, decide which work belongs in it.
 - **Importance comes from the value stream** the work sits under and the goal
   it advances — not from how loudly it was asked for.
 - **Urgency comes from deadlines**, internal or external.
-- **Inside one value stream, prefer the item with no blockers or
-  dependencies.**
+- **Blocked work is not a candidate.** Inside one value stream, prefer the
+  item that unblocks other work, other factors being equal.
 - **Priority is dynamic.** An item that nobody has to chase can become urgent
   simply by being left long enough; recompute rather than trust a stored
   order.
-- **One substantive item is a day's capacity** when the person's budget is
-  that small: present the one, not the backlog.
 
 ## Compose
 
