@@ -3,7 +3,7 @@ name: update-skills
 description: |
   Where skills, rules and APPEND_SYSTEM.md live, and how to update them
   correctly — edit the source in the omp-config repo, `make install` the
-  symlinks, restart omp.
+  symlinks.
 ---
 
 # Update Skills
@@ -35,7 +35,7 @@ links, so an edit is only visible after install + restart.
    rather than inlining its content — a second copy of the same mechanics is
    the anti-pattern.
 3. **`make install` in the omp-config repo** to refresh the symlinks, then
-   tell the user to **restart omp** — the harness loads skills at startup.
+   no restart is needed: OpenCode V2 watches skill sources and reloads them, and a new skill appears in the list within the session. Tell the user to restart only if a skill fails to appear.
 4. **Commit and push** on a branch with a PR, like any repo — never commit to
    main.
 
@@ -82,4 +82,4 @@ lookup that resolves the current value at run time instead, and put the
 version only in the verification step's expectation. The lookup, concretely:
 `VER=$(gh release view --repo <owner>/<repo> --json tagName -q .tagName)` —
 the version literal then appears once, as the expected output of the check.
-✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.
+✓ edit `SKILL.md` in omp-config → `make install` → branch + PR.
