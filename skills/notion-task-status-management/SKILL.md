@@ -16,13 +16,13 @@ Manage Task status transitions in Notion.
 
 ## Status Definitions
 
-| Status | Meaning |
+| Status | What it means |
 |---|---|
-| **Draft** | Created, not ready for execution |
-| **Ready** | All prerequisites satisfied |
-| **In Progress** | Active work |
-| **Completed** | Deliverable created, validated against the task's quality standard |
-| **Superseded** | Replaced by alternative approach |
+| **Draft** | The task's scope, desired outcome or success criteria are still being worked out. It is not described well enough for anyone to pick up and do. |
+| **Ready** | The task is fully described: what "done" looks like is settled, and someone could start. If it is waiting on something else, that waiting is a dependency; it does not change the status. |
+| **In Progress** | Someone is working on it now. |
+| **Completed** | The deliverable exists and meets the task's success criteria. |
+| **Superseded** | It was replaced, and the replacement exists. |
 
 ## Transition Logic
 
@@ -32,7 +32,7 @@ Use PATCH to update the Status property on the task page (see `skill://notion-da
 
 | From | To | Validate |
 |---|---|---|
-| Draft | Ready | Dependencies completed, resources confirmed, scope clear |
+| Draft | Ready | Scope, desired outcome and success criteria are settled |
 | Ready | In Progress | Owner actively working, environment set up |
 | In Progress | Completed | All success criteria met, handoff done |
 | In Progress | Ready (pause) | Work state saved, resumption plan clear |
