@@ -31,7 +31,7 @@ Before any routing, check if a User Profile exists at `~/.config/omp/profiles/Us
 | "inbox processing" | `skill://session`, Session Type `"Inbox Processing"` |
 | "backlog grooming" / work organization | `skill://session`, Session Type `"Backlog Grooming"` |
 | "plan the day" / "lay out today" | `skill://day-planning` directly — not a session |
-| "update the day plan" / "replan the rest of the day" | `skill://day-planning` directly — its replanning procedure |
+| "update the day plan" / "replan the rest of the day" | `skill://day-updating` directly — not a session |
 | "create a PR" | `skill://pr-workflow` directly — not a session |
 | "create [artifact]" | Direct artifact creation — not a session |
 

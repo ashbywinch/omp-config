@@ -1,12 +1,13 @@
 ---
 name: day-planning
-description: Compose or revise a whole day's schedule from the work in it — gather the tasks, fit them honestly around fixed events and breaks, propose the set for a single approval, then replan when the day slips.
+description: Compose a whole day's schedule from the work in it — gather the tasks, fit them honestly around fixed events and breaks, propose the set for a single approval. To repair a day that has slipped, use `skill://day-updating`.
 ---
 
 # Day planning
 
-Laying out a day from the work that belongs in it, and repairing one that has
-slipped. How a single event gets its time, and whether it may be written, is
+Laying out a day from the work that belongs in it. Repairing a day that has
+already slipped is a different job and lives in `skill://day-updating`. How a
+single event gets its time, and whether it may be written, is
 `skill://google-calendar`; the commands are `skill://gcalcli`.
 
 ## Choosing what to work on
@@ -40,22 +41,6 @@ Before laying out a day, decide which work belongs in it.
    that runs past a few lines stays in Notion, with the event pointing at it.
 7. **Read it back**: list the day, confirm no two blocks collide, and confirm
    every task either has a block or was explicitly set aside.
-
-## Replanning a day that has slipped
-
-This is the second procedure, and it only applies when a plan already exists and
-reality has diverged from it — a meeting overran, a task took longer, the start
-was late.
-
-1. Check the time again.
-2. Propose the revised plan and get approval **for the revision**; the original
-   approval does not carry over.
-3. Delete the superseded blocks: unique search text or event id, narrow date
-   range — `gcalcli delete` removes every match.
-4. Add the replacement blocks.
-5. Never leave the old and new versions of a block side by side.
-6. Never silently drop a task while replanning: a task with no time left is a
-   decision to state, not a deletion to perform.
 
 ## Rules
 
