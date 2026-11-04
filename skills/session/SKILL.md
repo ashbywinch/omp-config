@@ -19,7 +19,7 @@ Standardised wrapper for all session execution. Must be used by `skill://pa-coor
 | Process Improvement | `skill://process-improvement` |
 
 Only what can be scheduled as a session belongs here — a block of time with a
-subject, a start and an end. Composing a day, replanning one, opening a PR and
+subject, a start and an end. Planning or replanning a day, opening a PR and
 creating an artefact are procedures, not sessions: `skill://pa-coordination`
 invokes those directly.
 
