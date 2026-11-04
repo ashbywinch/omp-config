@@ -24,13 +24,10 @@ Based on user's response, assess energy level:
 - Low: ≤1 hour
 
 ### 4. Day Plan Creation
-Check the current time with `date` — never assume. Propose a schedule:
-- First session starts 15-30 min after check-in
-- 15-min breaks every 45-75 minutes
-- 60-min lunch break
-- Match session count and length to energy level
-
-Include Notion task IDs in calendar event descriptions.
+Hand the day to `skill://day-planning` once the energy is known. The routine does
+not compose the schedule itself: the layout rules, the break structure and the
+day plan file all live there, so that a day planned outside a check-in and a day
+planned inside one come out the same.
 
 ### 5. Presentation & Approval
 Present in this format:
