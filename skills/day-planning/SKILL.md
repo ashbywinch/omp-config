@@ -31,12 +31,17 @@ Before laying out a day, decide which work belongs in it.
    is not a plan.
 2. **Gather the work**: the Notion tasks for the day (ID, size, priority) and
    the fixed events already in the calendar.
+   - **The admin item comes from the picker, not from here.** Where the workspace
+     has one — `skill://choose-the-days-item` in the inbox desk — ask it for the
+     day's one substantive admin item, and schedule what it gives you. This skill
+     lays out the day; it does not decide what the day is for.
 3. **Size it honestly**. If the work does not fit, say so and propose what to
    cut. Never fit a day by eating breaks or by overlapping blocks.
 4. **Place it**: fixed events are immovable, related work runs back-to-back
    deliberately, and breaks are real entries rather than gaps left over.
 5. **Propose the whole plan in one message** — every block with title, start,
-   duration, calendar and task ID. One approval covers the set.
+   duration, calendar and task ID, including the admin item. One approval covers
+   the set.
 6. **Write it**: one event per block, description carrying the task ID. Detail
    that runs past a few lines stays in Notion, with the event pointing at it.
 7. **Read it back**: list the day, confirm no two blocks collide, and confirm

@@ -14,22 +14,31 @@ Sets up a productive, energy-aligned workday.
 ### 1. Conversational Opening
 Ask "Good morning! How are you feeling today?" — wait for their response.
 
-### 2. Notion Inbox Triage
+### 2. Deal with what has arrived
+Before anything is planned, bring the record up to date. If this workspace has an
+admin sweep — `skill://check-what-arrived` in the inbox desk — run it now: mail,
+calendar, phone files, call log and WhatsApp, for both accounts, since the last
+sweep. Each thing is proposed, agreed and recorded before moving on.
+
+Do not proceed to planning with unread inbox. An item nobody has looked at is not
+outstanding work, it is a gap in the record.
+
+### 3. Notion Inbox Triage
 Query the Insights DB for urgent items (see `skill://notion-database-management`). Identify urgent items for day planning.
 
-### 3. Energy Assessment
+### 4. Energy Assessment
 Based on user's response, assess energy level:
 - High: 4-5 hours focused work
 - Medium: 2-3 hours
 - Low: ≤1 hour
 
-### 4. Day Plan Creation
+### 5. Day Plan Creation
 Hand the day to `skill://day-planning` once the energy is known. The routine does
 not compose the schedule itself: the layout rules, the break structure and the
 day plan file all live there, so that a day planned outside a check-in and a day
 planned inside one come out the same.
 
-### 5. Presentation & Approval
+### 6. Presentation & Approval
 Present in this format:
 ```
 # Day Plan: [Date]
@@ -41,8 +50,8 @@ Present in this format:
 
 **Wait for explicit user approval** before writing anything to the calendar or day plan file.
 
-### 6. Process Improvement
+### 7. Process Improvement
 Check for any TODOs or improvements noted during the session. Apply them.
 
-### 7. Complete
+### 8. Complete
 Write the approved day plan. Morning check-in does NOT include running work sessions — that's next.
