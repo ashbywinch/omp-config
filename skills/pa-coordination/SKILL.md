@@ -12,7 +12,11 @@ Entry point for all coordination activities. Routes user triggers to the appropr
 
 ## Critical Rule
 
-ALL operations MUST go through `skill://session`. Never execute domain skills directly. Route like this: `skill://session` with Session Type="Backlog Grooming" → session executes `skill://notion-work-backlog`.
+Sessions go through `skill://session`: a scheduled block of time with a subject
+routes there, and the wrapper adopts the role and runs the domain skill. Procedures
+that are not sessions — composing a day, replanning one, opening a PR, creating an
+artefact — are invoked directly, because wrapping them buys nothing and makes the
+routing table lie about what can be scheduled.
 
 ## User Profile Check
 
@@ -20,15 +24,16 @@ Before any routing, check if a User Profile exists at `~/.config/omp/profiles/Us
 
 ## Operational Triggers
 
-| When user says... | Route to `skill://session` with Session Type... |
+| When user says... | Then |
 |---|---|
-| "good morning" / greeting | `"Morning Check-in"` |
-| "start scheduled session" | Type from day plan |
-| "inbox processing" | `"Inbox Processing"` (which runs `skill://notion-insights-processing`) |
-| "backlog grooming" / work organization | `"Backlog Grooming"` (which runs `skill://notion-work-backlog`) |
-| "update the day plan" / "replan the day" | `"Day Planning"` (which runs `skill://google-calendar`) |
-| "create a PR" | `"PR Workflow"` |
-| "create [artifact]" | `"Artifact Creation"` |
+| "good morning" / greeting | `skill://session`, Session Type `"Morning Check-in"` |
+| "start scheduled session" | Type from the day plan |
+| "inbox processing" | `skill://session`, Session Type `"Inbox Processing"` |
+| "backlog grooming" / work organization | `skill://session`, Session Type `"Backlog Grooming"` |
+| "plan the day" / "lay out today" | `skill://day-planning` directly — not a session |
+| "update the day plan" / "replan the rest of the day" | `skill://day-updating` directly — not a session |
+| "create a PR" | `skill://pr-workflow` directly — not a session |
+| "create [artifact]" | Direct artifact creation — not a session |
 
 ## Strategic Request Routing
 
