@@ -7,6 +7,10 @@ description: Required fields and validation rules for a Task.
 
 A Task is a single execution unit with a clear deliverable and success criteria, linked to a parent Epic.
 
+**One task is one action.** If a task's outcome needs two things done — and especially if they happen on
+different days — it is two tasks. A task that can only be closed by doing something on Monday and
+something else on Wednesday cannot be completed, scheduled, or chased as one thing.
+
 ## Required Fields
 
 | Field | Type | Notes |
