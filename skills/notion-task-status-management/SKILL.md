@@ -1,13 +1,12 @@
 ---
 name: notion-task-status-management
 description: |
-  Manage Notion task status transitions — Draft→Ready→In Progress→
-  Completed→Superseded with validation gates and Epic progress tracking.
+  A task's status is a claim about it: that it is described enough to start,
+  that the work is done, or that events have made it moot. Move it only when
+  the claim is true.
 ---
 
 # Task Status Management
-
-Manage Task status transitions in Notion.
 
 ## Prerequisites
 
@@ -16,13 +15,8 @@ Manage Task status transitions in Notion.
 
 ## Status Definitions
 
-| Status | What it means |
-|---|---|
-| **Draft** | The task's scope, desired outcome or success criteria are still being worked out. It is not described well enough for anyone to pick up and do. |
-| **Ready** | The task is fully described: what "done" looks like is settled, and someone could start. If it is waiting on something else, that waiting is a dependency; it does not change the status. |
-| **In Progress** | Someone is working on it now. |
-| **Completed** | The deliverable exists and meets the task's success criteria. |
-| **Superseded** | It was replaced, and the replacement exists. |
+What each status means is defined in `skill://task-quality-standard`. This skill covers the moves
+between them.
 
 ## Transition Logic
 
@@ -36,7 +30,7 @@ Use PATCH to update the Status property on the task page (see `skill://notion-da
 | Ready | In Progress | Owner actively working, environment set up |
 | In Progress | Completed | All success criteria met, handoff done |
 | In Progress | Ready (pause) | Work state saved, resumption plan clear |
-| Any | Superseded | Business justification, replacement task created if needed |
+| Any | Superseded | Say what made it moot; link the replacement only if one exists |
 
 ## Epic Progress Calculation
 

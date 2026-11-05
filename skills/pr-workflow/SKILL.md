@@ -174,8 +174,13 @@ fetch-pr-findings.sh <n>
 `fetch-pr-findings.sh` is on PATH (installed with this skill by `make
 install`). If it is not found, run `make install` in the omp-config repo
 first. It fetches all three sources: inline file comments, issue/PR
-comments, and review thread comments, never truncated. Run it before fixing
-anything.
+comments, and review thread comments, never truncated, each with the numeric
+id a reply needs. Run it before fixing anything — do not hand-roll the
+queries: a `reviewThreads` page or the rendered PR view misses findings, and
+a missed finding reads to the user as ignored. If you must query directly,
+inline comments are `repos/<owner>/<repo>/pulls/<n>/comments` (numeric `id`
+per comment) and unresolved threads are GraphQL `reviewThreads` filtered on
+`isResolved == false`.
 
 **CRITICAL: Human reviewers (including the user who opened the PR) may leave
 inline comments on specific lines of the changed files. The `pulls/<n>/comments`
@@ -207,7 +212,9 @@ gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
   -f body="Fixed in <commit-sha> — <file>:<line> now <what changed>; <the one check that confirms it>." 
 ```
 
-The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
+The comment-id is the numeric `id` from `fetch-pr-findings.sh`'s inline
+output (`[id:<n>]`) or `pulls/<n>/comments`. A GraphQL node id (`PRRC_…`)
+fails there with `404 Parent comment not found`.
 For issue comments (not inline), reply with `gh api
 repos/<owner>/<repo>/issues/<n>/comments -f body=...`.
 
@@ -310,6 +317,25 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ---
 
+## Part 5: Handing the merge to the user
+
+### 13. The PR carries the version bump; merging it is the release
+
+If the repo releases by version (a semver in a version file, a release branch,
+a tag), the bump goes in the PR under review, before it merges: one PR with the
+change, its tests, its docs and the version. Merging that PR *is* the release.
+
+- Derive the number from the diff with semver: breaking change → major, new
+  capability → minor, fixes only → patch.
+- Check the bump is **committed** before you ask for approval: `git diff --stat
+  origin/main...HEAD -- <version files>` must show it in the PR's commits —
+  a working-tree diff would count an uncommitted bump that never reaches the
+  PR. `<version files>` is wherever that stack keeps the version, plus its
+  lockfile if it has one — `package.json` and `package-lock.json`, `Cargo.toml`,
+  `pyproject.toml`.
+
+---
+
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
@@ -350,6 +376,8 @@ The sections above are the how-to; these are the one-line reminders.
   suggestions accumulate; check the latest PR Reviewer Guide (§7).
 - **Fixing AI config suggestions** — `.pr_agent.toml`/workflow
   self-reviews are almost never actionable (§9).
+- **Leaving the version out of the PR** — derive it with semver and have it
+  staged before asking for approval, so the merge is the release (§13).
 - **Deleting a branch a workflow references** — never. Before deleting any
   branch, grep `.github/workflows/` for its name. `pr-agent-config`'s role
   and its two false-stale signals are stated in the workflow that pins
