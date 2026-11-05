@@ -2,8 +2,8 @@
 name: update-skills
 description: |
   Where skills, rules and APPEND_SYSTEM.md live, and how to update them
-  correctly — edit the source in the omp-config repo, `make install` the
-  symlinks, restart omp.
+  correctly — write them to the documentation standards, edit the source in the
+  omp-config repo, `make install` the symlinks, restart omp.
 ---
 
 # Update Skills
@@ -25,12 +25,9 @@ links, so an edit is only visible after install + restart.
 
 ## How to update correctly
 
-1. **A skill is documentation.** It answers one question for one audience, and it
-   is held to `docs/writing-documentation.md` and `docs/documentation-structure.md`
-   exactly like any other doc — read both before rewriting one. The tells that a
-   skill has stopped being documentation: a second topic (that is a second
-   skill), a restated rule from a canonical doc (link it instead), or a growing
-   tail of "do not" caveats where a table of rules belongs.
+1. **Write it to the documentation standards.** A skill follows the same rules as
+   any doc: `docs/writing-documentation.md` and `docs/documentation-structure.md`.
+   Read both before rewriting one.
 2. **Edit the source in the repo** — never a file under `~/.omp/agent/` or
    `~/.agent/`. The installed files are symlinks to the repo, so editing
    through them happens to work, but the repo is the canonical, reviewed
