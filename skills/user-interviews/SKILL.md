@@ -46,12 +46,29 @@ you get there).
   words from your paraphrase, and names who said what when.
 - **Quotes are raw material, not decisions.** A quote becomes a requirement
   only when the user says so (see below).
+- **Never rewrite an answer into a substitute.** If the narrator said the
+  tree view is for spotting gaps, the record says gap-spotting; it does not
+  become "keeping the structure of their commitments visible" because that
+  reads better in a requirements list. A paraphrase is legitimate only while
+  it preserves the claim; where it changes the claim it is a fabrication,
+  however plausible it sounds — and worse than a gap, because the narrator
+  cannot tell their own view from yours.
+- **Never supply a why the narrator did not give.** An absent reason stays
+  absent, or you ask for one. Marking an invented reason as yours does not
+  make it acceptable — it reads as background fact and gets built on.
 
 ## After — fold in only with the user's agreement
 
 - **Propose, don't decree.** Draft the findings as proposed changes to the
   PRD (JTBD, personas, constraints) and get the user's agreement before
   they land — the same propose/confirm seam as the rest of the house rules.
+- **Audit every claim against the transcript first.** For each requirement,
+  each reason and each "they want X", point at the words that support it.
+  Anything unbacked is deleted, or the question is asked again — no label
+  makes an unsupported claim acceptable.
+- **A correction is a deletion, not a softening.** When the narrator
+  corrects a claim, the claim goes. Restating it in milder form keeps the
+  fabrication and adds an argument about it.
 - **Decide what NOT to store.** Not everything a user says belongs in the
   requirements: product commentary, descriptions of artifacts, and opinions
   may stay out. Record that decision too, so it is deliberate.
