@@ -2,8 +2,7 @@
 name: update-skills
 description: |
   Where skills, rules and APPEND_SYSTEM.md live, and how to update them
-  correctly — write them to the documentation standards, edit the source in the
-  omp-config repo, `make install` the symlinks, restart omp.
+  correctly. Use when creating or changing a skill, a rule, or the system append.
 ---
 
 # Update Skills
