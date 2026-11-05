@@ -53,12 +53,18 @@ jobs:
             echo "auto-merge already armed"
             exit 0
           fi
-          # A branch behind main blocks the strict status check. Updating it
-          # pushes a merge commit, which re-fires this job; the next run arms.
+          # A branch behind main blocks the strict status check, so nothing
+          # merges until it is updated. BEHIND means mergeable-but-stale; a
+          # real conflict reports DIRTY/CONFLICTING instead, so a failure here
+          # is an API or permission error — fail the job rather than arm an
+          # auto-merge that can never land.
           state=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)
           echo "merge state: $state"
           if [ "$state" = "BEHIND" ]; then
-            gh api -X PUT "repos/$REPO/pulls/$PR/update-branch" >/dev/null 2>&1 \
-              && echo "branch updated" || echo "update refused (nothing to do)"
+            if ! out=$(gh api -X PUT "repos/$REPO/pulls/$PR/update-branch" 2>&1); then
+              echo "update-branch failed: $out" >&2
+              exit 1
+            fi
+            echo "branch updated"
           fi
           gh pr merge "$PR" --repo "$REPO" --auto --merge
