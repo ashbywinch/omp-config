@@ -10,6 +10,12 @@ ai_timeout = 1800
 fallback_models = []
 persistent_inline_comments = true  # fingerprint inline comments; identical ones never re-post across pushes
 repo_context_from_default_branch = false
+# The defaults cap the rendered context at 500 lines, and the renderer stops at
+# the first file that overruns - everything after it is dropped, silently. The
+# six files below are ~1180 lines together; a budget below that truncates mid
+# file and loses the rest (coding/testing/UX standards went missing for months).
+# Raise this whenever the list grows. See pr_agent/algo/repo_context.py.
+repo_context_max_lines = 1400
 repo_context_files = [
     "docs/PRD.md",
     "docs/writing-documentation.md",
@@ -25,7 +31,13 @@ persistent_comment = true  # update the same review comment instead of posting a
 require_tests_review = true
 require_security_review = true
 num_max_findings = 50
-extra_instructions = "Check the PR against each file in repo_context_files. Before checking compliance, derive the domain glossary from docs/PRD.md (entities, actions, personas, states), then read the diff against it two ways. Vocabulary: a domain-level name (class, module, public entry point, domain-typed field) using technical or vague words instead of the PRD's term is a finding. Latent concepts: domain behaviour smeared across several functions or buried inside one, owned by no identifier, is equally a finding — draw it out under a glossary name, proposing a new PRD term where none fits. Generic helper, plumbing, and config-key names are not glossary checks.  Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (docs failing the documentation-quality checklist — context efficiency, density, no-duplication, one topic per file — including that every doc is discoverable from AGENTS.md; skills are exempt from reachability — the harness discovers them (see docs/documentation-structure.md)), and folder-structure deviations from docs/documentation-structure.md (missing or malformed required docs, or a doc that AGENTS.md cannot lead to). The canonical code-repo standards (coding, testing, UX) live in standards/ and are scaffolded into code repos. They govern this repo's own code and tests; only the required-doc-set rules do not apply to its exempt docs/ folder, and a PR editing a canonical file keeps it consistent with the rest of the canonical set. A change to a skill or standard must keep the repo self-check (make test) green and mention that the change needs make install + omp restart to take effect."
+extra_instructions = """
+Check the PR against each file in repo_context_files. Before checking compliance, derive the domain glossary from docs/PRD.md (entities, actions, personas, states), then read the diff against it two ways. Vocabulary: a domain-level name (class, module, public entry point, domain-typed field) using technical or vague words instead of the PRD's term is a finding. Latent concepts: domain behaviour smeared across several functions or buried inside one, owned by no identifier, is equally a finding — draw it out under a glossary name, proposing a new PRD term where none fits. Generic helper, plumbing, and config-key names are not glossary checks.
+
+Every markdown file this PR changes — docs/, skills/, standards/, AGENTS.md, rules/, APPEND_SYSTEM.md — is a doc under review. Check each one against docs/writing-documentation.md and docs/documentation-structure.md as those files state them; the rules are theirs, not yours to recall. Report each violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Never report a doc as compliant unless you checked it against both.
+
+Flag requirement deviations from docs/PRD.md as findings: a change that violates a stated requirement, constraint, persona, or JTBD. The canonical code-repo standards in standards/ govern this repo's own code and tests; a PR editing one keeps it consistent with the rest of the canonical set. A change to a skill or standard must keep the repo self-check (make test) green.
+"""
 
 [github_action_config]
 handle_push_trigger = true
