@@ -12,11 +12,13 @@ Entry point for all coordination activities. Routes user triggers to the appropr
 
 ## Critical Rule
 
-Sessions go through `skill://session`: a scheduled block of time with a subject
-routes there, and the wrapper adopts the role and runs the domain skill. Procedures
-that are not sessions — composing a day, replanning one, opening a PR, creating an
-artefact — are invoked directly, because wrapping them buys nothing and makes the
-routing table lie about what can be scheduled.
+A scheduled block of time — a subject, a start and an end — goes through
+`skill://session`, which adopts the role and runs the domain skill.
+
+Procedures that are not sessions are invoked directly: composing a day,
+replanning one, opening a PR, creating an artefact. Wrapping one in a session
+gains nothing and makes the routing table claim as schedulable something that
+is not.
 
 ## User Profile Check
 

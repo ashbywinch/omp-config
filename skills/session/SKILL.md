@@ -7,7 +7,8 @@ description: |
 
 # Session Playbook
 
-Standardised wrapper for all session execution. Must be used by `skill://pa-coordination` for every operation — never execute domain skills directly.
+Standardised wrapper for session execution. `skill://pa-coordination` routes every
+scheduled session through it.
 
 ## Session Type Routing
 
@@ -17,11 +18,6 @@ Standardised wrapper for all session execution. Must be used by `skill://pa-coor
 | Inbox Processing | `skill://notion-insights-processing` |
 | Backlog Grooming | `skill://backlog-grooming` |
 | Process Improvement | `skill://process-improvement` |
-
-Only what can be scheduled as a session belongs here — a block of time with a
-subject, a start and an end. Planning or replanning a day, opening a PR and
-creating an artefact are procedures, not sessions: `skill://pa-coordination`
-invokes those directly.
 
 ## Parameters
 

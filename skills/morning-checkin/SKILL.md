@@ -15,13 +15,13 @@ Sets up a productive, energy-aligned workday.
 Ask "Good morning! How are you feeling today?" — wait for their response.
 
 ### 2. Deal with what has arrived
-Before anything is planned, bring the record up to date. If this workspace has an
-admin sweep — `skill://check-what-arrived` in the inbox desk — run it now: mail,
-calendar, phone files, call log and WhatsApp, for both accounts, since the last
-sweep. Each thing is proposed, agreed and recorded before moving on.
+Before anything is planned, bring the record up to date. Run the admin sweep —
+`skill://check-what-arrived` in the inbox desk — now: mail, calendar, phone
+files, call log and WhatsApp, for both accounts, since the last sweep. Each
+thing is proposed, agreed and recorded before moving on.
 
-Do not proceed to planning with unread inbox. An item nobody has looked at is not
-outstanding work, it is a gap in the record.
+Do not proceed to planning with an unread inbox. An item nobody has looked at is
+probably outstanding work, which is why it belongs in the record.
 
 ### 3. Notion Inbox Triage
 Query the Insights DB for urgent items (see `skill://notion-database-management`). Identify urgent items for day planning.
@@ -33,10 +33,8 @@ Based on user's response, assess energy level:
 - Low: ≤1 hour
 
 ### 5. Day Plan Creation
-Hand the day to `skill://day-planning` once the energy is known. The routine does
-not compose the schedule itself: the layout rules, the break structure and the
-day plan file all live there, so that a day planned outside a check-in and a day
-planned inside one come out the same.
+Hand the day to `skill://day-planning` once the energy is known: it owns the
+layout, the breaks and the day plan file.
 
 ### 6. Presentation & Approval
 Present in this format:
