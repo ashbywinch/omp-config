@@ -17,6 +17,12 @@ name: Arm auto-merge
 on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
+  # Arming once at open is not enough: GitHub can drop auto-merge (it did on the
+  # first PR this ran for) and a dropped flag leaves the approval doing nothing.
+  # Re-arming on the review itself means the approval always lands, whichever
+  # way the flag got lost.
+  pull_request_review:
+    types: [submitted]
 
 concurrency:
   group: auto-merge-${{ github.event.pull_request.number }}
