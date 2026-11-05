@@ -1,10 +1,9 @@
 ---
 name: notion-task-status-management
 description: |
-  A task's status is a claim — that it is described enough to start, that the
-  work is done, or that events have made it moot. Make the move only when the
-  claim is true; this skill holds what that takes, and what each status counts
-  for in its Epic's progress.
+  A task's status is a claim about it: that it is described enough to start,
+  that the work is done, or that events have made it moot. Move it only when
+  the claim is true.
 ---
 
 # Task Status Management
