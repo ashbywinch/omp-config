@@ -32,9 +32,7 @@ require_tests_review = true
 require_security_review = true
 num_max_findings = 50
 extra_instructions = """
-Check the PR against each file in repo_context_files. Before checking compliance, derive the domain glossary from docs/PRD.md (entities, actions, personas, states), then read the diff against it two ways. Vocabulary: a domain-level name (class, module, public entry point, domain-typed field) using technical or vague words instead of the PRD's term is a finding. Latent concepts: domain behaviour smeared across several functions or buried inside one, owned by no identifier, is equally a finding — draw it out under a glossary name, proposing a new PRD term where none fits. Generic helper, plumbing, and config-key names are not glossary checks.
-
-Every markdown file this PR changes — docs/, skills/, standards/, AGENTS.md, rules/, APPEND_SYSTEM.md — is a doc under review. Check each one against docs/writing-documentation.md and docs/documentation-structure.md as those files state them; the rules are theirs, not yours to recall. Report each violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Never report a doc as compliant unless you checked it against both.
+Every markdown file this PR changes — docs/, skills/, standards/, AGENTS.md, rules/, APPEND_SYSTEM.md — is a doc under review. Check each one against docs/writing-documentation.md and docs/documentation-structure.md, applying each rule as that file states it rather than from memory. Report every violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Never report a doc as compliant unless you checked it against both.
 
 Flag requirement deviations from docs/PRD.md as findings: a change that violates a stated requirement, constraint, persona, or JTBD. The canonical code-repo standards in standards/ govern this repo's own code and tests; a PR editing one keeps it consistent with the rest of the canonical set. A change to a skill or standard must keep the repo self-check (make test) green.
 """
