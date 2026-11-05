@@ -1,9 +1,9 @@
 ---
 name: notion-task-status-management
 description: |
-  Manage Notion task status transitions — Draft→Ready→In Progress→
-  Completed, with Superseded reachable from any status — validation gates
-  and Epic progress tracking.
+  Move a Notion task between Draft, Ready, In Progress, Completed and
+  Superseded — the check to run before each move, and what each status counts
+  for when measuring an Epic's progress.
 ---
 
 # Task Status Management
