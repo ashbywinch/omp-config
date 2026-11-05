@@ -28,7 +28,7 @@ help:
 	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
 	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
-	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + lucidlint gate + skills well-formed"
+	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links + skill refs resolve, skills well-formed, lucidlint gate"
 
 setup: install-lucidlint
 	@$(MAKE) install

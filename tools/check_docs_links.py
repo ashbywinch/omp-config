@@ -1,6 +1,6 @@
 """Repo self-checks for omp-config (stdlib only — no deps in a config repo).
 
-Four checks, wired into `make test`:
+Five checks, wired into `make test`:
 
 1. **Every relative markdown link resolves** — in README, AGENTS, APPEND_SYSTEM,
    docs/, standards/, skills/*/SKILL.md, rules/, profiles/. Skips http(s),
@@ -19,6 +19,10 @@ Four checks, wired into `make test`:
    and skill bodies: hard fail above 32 KiB (the stated ceiling), warn above
    200 lines (the target). Skills are documentation; the ceilings apply to
    them like any always-loaded file.
+5. **Every skill:// reference resolves to a skill in this repo** — a reference
+   to a skill that ships elsewhere resolves only while that project happens to
+   be the workspace, and silently to nothing everywhere else. See
+   docs/writing-documentation.md, "Skills are documentation".
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ REPO = Path(__file__).resolve().parent.parent
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 FENCE_RE = re.compile(r"^```", re.MULTILINE)
 BACKTICK_PATH_RE = re.compile(r"`([A-Za-z0-9_./*-]+\.md)`")
+SKILL_REF_RE = re.compile(r"skill://([a-z0-9][a-z0-9-]*)")
 SKIP_PREFIXES = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")
 HARD_BYTES = 32 * 1024
 SOFT_LINES = 200
@@ -116,6 +121,29 @@ def _check_skills() -> list[str]:
             failures.append(f"skills/{name}: frontmatter name '{m.group(1)}' != folder '{name}'")
         if "description:" not in text.split("---", 2)[1]:
             failures.append(f"skills/{name}: missing description frontmatter")
+    return failures
+
+
+def _check_skill_refs() -> list[str]:
+    """Every `skill://name` resolves to skills/<name>/SKILL.md in this repo.
+
+    A skill that ships with a project is not part of this repo: naming it works
+    only while that project is the open workspace, and silently resolves to
+    nothing anywhere else. The fix is to describe the work and let the project
+    supply its own skills.
+    """
+    known = {p.parent.name for p in (REPO / "skills").glob("*/SKILL.md")}
+    failures: list[str] = []
+    seen: set[tuple[Path, str]] = set()
+    for md in _doc_files():
+        text = md.read_text(encoding="utf-8")
+        for fence in _outside_fences(text):
+            for match in SKILL_REF_RE.finditer(text, fence.start, fence.end):
+                name = match.group(1)
+                if name in known or (md, name) in seen:
+                    continue
+                seen.add((md, name))
+                failures.append(f"{md.relative_to(REPO)}: skill://{name} does not exist in this repo")
     return failures
 
 
@@ -215,7 +243,7 @@ def _check_sizes() -> DocSizeReport:
 
 
 def main() -> int:
-    failures = _check_links() + _check_skills() + _check_discoverability()
+    failures = _check_links() + _check_skills() + _check_discoverability() + _check_skill_refs()
     sizes = _check_sizes()
     failures += sizes.hard
     if failures:
@@ -225,7 +253,7 @@ def main() -> int:
         return 1
     docs = len(_doc_files())
     skills = len(list((REPO / "skills").iterdir()))
-    print(f"ok — {docs} docs scanned, {skills} skills well-formed, links resolve, all docs reachable from AGENTS.md")
+    print(f"ok — {docs} docs scanned, {skills} skills well-formed, skill refs resolve, links resolve, all docs reachable from AGENTS.md")
     for w in sizes.soft:
         print(f"  warn: {w}")
     return 0
