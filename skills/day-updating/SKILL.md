@@ -11,7 +11,7 @@ description: |
 
 This only applies when a plan already exists and reality has diverged from it.
 Laying out a day from scratch is `skill://day-planning`; how an event is written
-or moved is `skill://google-calendar`, and the commands are `skill://gcalcli`.
+or moved is `skill://google-calendar`.
 
 The rule that makes this a separate job: **what has already happened can only be
 recorded, not replanned.** The rules for writing or moving an event — the current

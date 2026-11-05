@@ -6,8 +6,7 @@ description: Compose a whole day's schedule from the work in it — gather the t
 # Day planning
 
 Lay out a day from the work that belongs in it. How a single event gets its
-time, and whether it may be written, is `skill://google-calendar`; the commands
-are `skill://gcalcli`.
+time, and whether it may be written, is `skill://google-calendar`.
 
 ## Choosing what to work on
 
@@ -31,10 +30,9 @@ Before laying out a day, decide which work belongs in it.
 2. **Gather the work**: the Notion tasks that could belong in the day (ID, size,
    priority) — including ones nobody has given a date — and the fixed events
    already in the calendar.
-   - **Admin work comes from the picker.** Ask `skill://choose-the-days-item` —
-     the inbox project's pick of the day's one substantive admin item — and
-     schedule what it returns. Day planning decides the layout, not what the day
-     is for.
+   - **Admin work is chosen, not derived.** Ask which admin item — calls, email,
+     meetings — the day is for, and schedule that one. Day planning decides the
+     layout, not what the day is for.
 3. **Size it honestly** against the hours the day actually has — the budget it
    was handed, or the real remaining hours if it was not. If the work does not
    fit, say so and propose what to cut. Never fit a day by eating breaks or by
