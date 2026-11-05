@@ -12,8 +12,9 @@ Entry point for all coordination activities. Routes user triggers to the appropr
 
 ## Critical Rule
 
-A scheduled block of time — a subject, a start and an end — goes through
-`skill://session`, which adopts the role and runs the domain skill.
+A session is a block of time scheduled on the calendar to do something — which we
+are now going to do. It goes through `skill://session`, which adopts the role and
+runs the domain skill.
 
 Procedures that are not sessions are invoked directly: composing a day,
 replanning one, opening a PR, creating an artefact. Wrapping one in a session

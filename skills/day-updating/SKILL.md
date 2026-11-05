@@ -11,7 +11,7 @@ description: |
 
 This only applies when a plan already exists and reality has diverged from it.
 Laying out a day from scratch is `skill://day-planning`; how an event is written
-or moved is `skill://google-calendar`, and the commands are `skill://gcalcli`.
+or moved is `skill://google-calendar`.
 
 The rule that makes this a separate job: **what has already happened can only be
 recorded, not replanned.** The rules for writing or moving an event — the current
@@ -38,8 +38,9 @@ and the layout rules are `skill://day-planning`'s. Neither is repeated here.
 3. Recount the remaining budget from the energy actually left, not the morning's
    estimate.
 4. Propose the revised remainder and get approval **for the revision**.
-5. Delete the superseded blocks: unique search text or event id, and a narrow
-   date range — `gcalcli delete` removes every match.
+5. Delete the superseded blocks: by event id when you have one, otherwise an
+   exact title plus a narrow date range — `gcalcli delete` removes every match,
+   including ones you did not mean.
 6. Add the replacement blocks.
 7. Say out loud what was lost, what it costs and what is now not happening today,
    then let the user choose between a shorter day and a later one.
