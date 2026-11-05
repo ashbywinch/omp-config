@@ -15,7 +15,8 @@ Sets up a productive, energy-aligned workday.
 Ask "Good morning! How are you feeling today?" — wait for their response.
 
 ### 2. Deal with what has arrived
-Before anything is planned, bring the record up to date: mail, calendar, phone
+Before anything is planned, bring the record up to date. Run
+`skill://check-what-arrived` — the inbox project's sweep of mail, calendar, phone
 files, call log and WhatsApp, for both accounts, since the last sweep. Each thing
 is proposed, agreed and recorded before moving on.
 
