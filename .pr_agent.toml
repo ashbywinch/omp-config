@@ -32,7 +32,7 @@ require_tests_review = true
 require_security_review = true
 num_max_findings = 50
 extra_instructions = """
-Every markdown file this PR changes — docs/, skills/, standards/, AGENTS.md, rules/, APPEND_SYSTEM.md — is a doc under review. Check each one against docs/writing-documentation.md and docs/documentation-structure.md, applying each rule as that file states it rather than from memory. Report every violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Never report a doc as compliant unless you checked it against both.
+Every markdown file this PR changes — docs/, skills/, standards/, AGENTS.md, rules/, APPEND_SYSTEM.md — is a doc under review. Check each one against docs/writing-documentation.md and docs/documentation-structure.md. Report every violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Never report a doc as compliant unless you checked it against both.
 
 Flag requirement deviations from docs/PRD.md as findings: a change that violates a stated requirement, constraint, persona, or JTBD. The canonical code-repo standards in standards/ govern this repo's own code and tests; a PR editing one keeps it consistent with the rest of the canonical set. A change to a skill or standard must keep the repo self-check (make test) green.
 """
