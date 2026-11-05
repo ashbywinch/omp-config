@@ -1,14 +1,13 @@
 ---
 name: notion-task-status-management
 description: |
-  Move a Notion task between Draft, Ready, In Progress, Completed and
-  Superseded — the check to run before each move, and what each status counts
-  for when measuring an Epic's progress.
+  A task's status is a claim — that it is described enough to start, that the
+  work is done, or that events have made it moot. Make the move only when the
+  claim is true; this skill holds what that takes, and what each status counts
+  for in its Epic's progress.
 ---
 
 # Task Status Management
-
-Manage Task status transitions in Notion.
 
 ## Prerequisites
 
