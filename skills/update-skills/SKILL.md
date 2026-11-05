@@ -25,18 +25,24 @@ links, so an edit is only visible after install + restart.
 
 ## How to update correctly
 
-1. **Edit the source in the repo** — never a file under `~/.omp/agent/` or
+1. **A skill is documentation.** It answers one question for one audience, and it
+   is held to `docs/writing-documentation.md` and `docs/documentation-structure.md`
+   exactly like any other doc — read both before rewriting one. The tells that a
+   skill has stopped being documentation: a second topic (that is a second
+   skill), a restated rule from a canonical doc (link it instead), or a growing
+   tail of "do not" caveats where a table of rules belongs.
+2. **Edit the source in the repo** — never a file under `~/.omp/agent/` or
    `~/.agent/`. The installed files are symlinks to the repo, so editing
    through them happens to work, but the repo is the canonical, reviewed
    location.
-2. **Follow the format**: YAML frontmatter (`name` — kebab-case, matching the
+3. **Follow the format**: YAML frontmatter (`name` — kebab-case, matching the
    folder — and `description`) then markdown. One skill per concern. Domain
    skills reference a mechanics skill (e.g. `skill://notion-database-management`)
    rather than inlining its content — a second copy of the same mechanics is
    the anti-pattern.
-3. **`make install` in the omp-config repo** to refresh the symlinks, then
+4. **`make install` in the omp-config repo** to refresh the symlinks, then
    tell the user to **restart omp** — the harness loads skills at startup.
-4. **Commit and push** on a branch with a PR, like any repo — never commit to
+5. **Commit and push** on a branch with a PR, like any repo — never commit to
    main.
 
 ## When a lesson becomes a skill
