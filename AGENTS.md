@@ -63,10 +63,11 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 ## Git workflow
 
 - NEVER commit to main. Branch off main, PR required, protected main.
-- PRs here are armed for auto-merge by `.github/workflows/automerge.yml`: once
-  the ruleset's approving review lands and every thread is resolved, the PR
-  merges itself. This is this repo's policy only — the workflow is not part of
-  the scaffold and is not copied into other repos.
+- **Auto-merge is armed on every PR in this repo.** `.github/workflows/automerge.yml`
+  sets the flag at open and again when a review is submitted; the approving review
+  the ruleset demands, the checks and resolved threads are the only remaining gates.
+  Never copy that workflow into `skills/new-repo-scaffold/` or into another repo —
+  it serves this repo's policy, not a house procedure.
 - Agent commits are authored `omp-harness[bot]` (the git shim enforces it) —
   never the user's identity. Mechanics: the `Agent git auth` row above.
 - A skills/standards change is not live until `make install` + omp restart
