@@ -20,9 +20,8 @@ Five checks, wired into `make test`:
    200 lines (the target). Skills are documentation; the ceilings apply to
    them like any always-loaded file.
 5. **Every skill:// reference resolves to a skill in this repo** — a reference
-   to a skill that ships elsewhere resolves only while that project happens to
-   be the workspace, and silently to nothing everywhere else. See
-   docs/writing-documentation.md, "Skills are documentation".
+   to a skill that ships with one project resolves only while that project is
+   the open workspace, and to nothing everywhere else.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ REPO = Path(__file__).resolve().parent.parent
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 FENCE_RE = re.compile(r"^```", re.MULTILINE)
 BACKTICK_PATH_RE = re.compile(r"`([A-Za-z0-9_./*-]+\.md)`")
-SKILL_REF_RE = re.compile(r"skill://([a-z0-9][a-z0-9-]*)")
+SKILL_REF_RE = re.compile(r"skill://([a-z0-9][a-z0-9_-]*)")
 SKIP_PREFIXES = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")
 HARD_BYTES = 32 * 1024
 SOFT_LINES = 200
@@ -124,6 +123,23 @@ def _check_skills() -> list[str]:
     return failures
 
 
+def _skill_ref_names(text: str) -> list[str]:
+    """Every `skill://name` referenced in *text*, outside fenced blocks."""
+    names: list[str] = []
+    for fence in _outside_fences(text):
+        names.extend(m.group(1) for m in SKILL_REF_RE.finditer(text, fence.start, fence.end))
+    return names
+
+
+def _missing_refs(names: list[str], known: set[str]) -> list[str]:
+    """Referenced names that are not skills in this repo, deduped, in order."""
+    missing: list[str] = []
+    for name in names:
+        if name not in known and name not in missing:
+            missing.append(name)
+    return missing
+
+
 def _check_skill_refs() -> list[str]:
     """Every `skill://name` resolves to skills/<name>/SKILL.md in this repo.
 
@@ -134,16 +150,9 @@ def _check_skill_refs() -> list[str]:
     """
     known = {p.parent.name for p in (REPO / "skills").glob("*/SKILL.md")}
     failures: list[str] = []
-    seen: set[tuple[Path, str]] = set()
     for md in _doc_files():
-        text = md.read_text(encoding="utf-8")
-        for fence in _outside_fences(text):
-            for match in SKILL_REF_RE.finditer(text, fence.start, fence.end):
-                name = match.group(1)
-                if name in known or (md, name) in seen:
-                    continue
-                seen.add((md, name))
-                failures.append(f"{md.relative_to(REPO)}: skill://{name} does not exist in this repo")
+        missing = _missing_refs(_skill_ref_names(md.read_text(encoding="utf-8")), known)
+        failures += [f"{md.relative_to(REPO)}: skill://{name} does not exist in this repo" for name in missing]
     return failures
 
 

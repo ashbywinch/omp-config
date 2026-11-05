@@ -10,7 +10,7 @@ links to.
 - `make setup` — provisions everything: symlinks skills/rules/APPEND_SYSTEM into `~/.omp/agent/`, the lucidlint bundle into `.tools/`, git hooks (pre-commit + pre-push), gh/git shims.
 - `make install` — re-symlink after an edit. **Restart omp to pick up changes** (skills load at startup).
 - `make install-gh-shim` — symlink `tools/gh-app-shim` → `~/.local/bin/gh`; create `~/.secrets` from `tools/secrets.template` if missing.
-- `make test` — repo self-check: every relative doc link resolves, every `skill://` reference resolves to a skill here, every skill is well-formed, plus the lucidlint gate. Provisions lucidlint on first run; pre-push runs it.
+- `make test` — the repo self-check (provisions lucidlint on first run); pre-push runs it.
 - NEVER run ad-hoc commands for these — everything goes through `make`.
 
 ## Where things live — decision tree
@@ -48,11 +48,9 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 ## Testing rules
 
 - ALWAYS use `make` targets; NEVER construct ad-hoc test commands.
-- `make test` is the gate: doc links resolve, `skill://` references resolve
-  to skills in this repo, skill frontmatter matches folder names. A skill whose
-  frontmatter name drifts from its folder, or a reference to a skill that lives
-  in another project, silently breaks `skill://` resolution — the check exists
-  so that never ships.
+- `make test` is the gate. A skill whose frontmatter name drifts from its
+  folder, or a reference to a skill that lives in another project, silently
+  breaks `skill://` resolution — the check exists so that never ships.
 
 ## Secrets
 

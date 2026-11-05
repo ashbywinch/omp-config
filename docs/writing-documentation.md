@@ -16,13 +16,6 @@ loaded in full when used, so the 150–200 line / 32 KiB targets apply to it
 directly). The review bot checks skill changes against this standard like
 any other doc.
 
-**A `skill://` reference resolves inside this repo.** A skill may name any
-other skill in `skills/`, and nothing else: a reference to a skill that ships
-with one project works only while that project is the open workspace, and
-resolves to nothing everywhere else. A skill that needs behaviour from another
-project describes the work and lets that project supply its own skill. `make
-test` fails on a reference that does not resolve here.
-
 ## Standards pair with their enforcement
 
 A standard states the rule; something must operationalize it — a skill that
