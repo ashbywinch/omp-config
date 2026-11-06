@@ -1,8 +1,8 @@
 ---
 name: session
 description: |
-  Standardised wrapper for all engagement execution. Handles session lifecycle,
-  role adoption, completion protocols, and integration with coordination systems.
+  Runs one named skill inside the session lifecycle — role adoption, start,
+  completion. Use for every operation, naming the skill to run.
 ---
 
 # Session Playbook
