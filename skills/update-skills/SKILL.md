@@ -2,8 +2,7 @@
 name: update-skills
 description: |
   Where skills, rules and APPEND_SYSTEM.md live, and how to update them
-  correctly — edit the source in the omp-config repo, `make install` the
-  symlinks.
+  correctly. Use when creating or changing a skill, a rule, or the system append.
 ---
 
 # Update Skills
@@ -25,18 +24,21 @@ links, so an edit to the source is live as soon as it is saved.
 
 ## How to update correctly
 
-1. **Edit the source in the repo** — never a file under `~/.omp/agent/` or
+1. **Write it to the documentation standards.** A skill follows the same rules as
+   any doc: `docs/writing-documentation.md` and `docs/documentation-structure.md`.
+   Read both before rewriting one.
+2. **Edit the source in the repo** — never a file under `~/.omp/agent/` or
    `~/.agent/`. The installed files are symlinks to the repo, so editing
    through them happens to work, but the repo is the canonical, reviewed
    location.
-2. **Follow the format**: YAML frontmatter (`name` — kebab-case, matching the
+3. **Follow the format**: YAML frontmatter (`name` — kebab-case, matching the
    folder — and `description`) then markdown. One skill per concern. Domain
    skills reference a mechanics skill (e.g. `skill://notion-database-management`)
    rather than inlining its content — a second copy of the same mechanics is
    the anti-pattern.
-3. **`make install` in the omp-config repo** after adding or renaming a skill, to
+4. **`make install` in the omp-config repo** after adding or renaming a skill, to
    refresh the symlinks. Editing an existing one needs nothing.
-4. **Commit and push** on a branch with a PR, like any repo — never commit to
+5. **Commit and push** on a branch with a PR, like any repo — never commit to
    main.
 
 ## When a lesson becomes a skill
