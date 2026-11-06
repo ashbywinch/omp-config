@@ -29,13 +29,9 @@ message is `skill://interaction-quality-standard`.
 
 ## The name
 
-Record the name the file has. Do not rename a document to fit a pattern — the
-name it arrived with is how someone else finds it again.
-
-When saving a new file into a folder that already has a pattern, follow the
-pattern of its siblings **in that folder**. A similarly-named document in another
-epic is not a precedent: borrowing its shape suggests a connection that does not
-exist.
+Record the name the file has. Naming belongs to the skill that files a document,
+not to this standard: the rule that a document needs depends on the work it came
+from.
 
 ## The readable copy
 
