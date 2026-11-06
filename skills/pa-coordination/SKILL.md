@@ -27,16 +27,16 @@ Before any routing, check if a User Profile exists at `~/.config/omp/profiles/Us
 
 ## Operational Triggers
 
-| When user says... | Then |
-|---|---|
-| "good morning" / greeting | `skill://session`, Session Type `"Morning Check-in"` |
-| "start scheduled session" / "start the [X] session" | `skill://session`, Session Type = the subject of the next calendar block (`skill://google-calendar`) |
-| "inbox processing" | `skill://session`, Session Type `"Inbox Processing"` |
-| "backlog grooming" / work organization | `skill://session`, Session Type `"Backlog Grooming"` |
-| "plan the day" / "lay out today" | `skill://day-planning` directly — not a session |
-| "update the day plan" / "replan the rest of the day" | `skill://day-updating` directly — not a session |
-| "create a PR" | `skill://pr-workflow` directly — not a session |
-| "create [artifact]" | Direct artifact creation — not a session |
+| When user says... | Session Type | Runs |
+|---|---|---|
+| "good morning" / greeting | Morning Check-in | `skill://session` → `skill://morning-checkin` |
+| "start scheduled session" / "start the [X] session" | the next calendar block's subject (`skill://google-calendar`) | `skill://session` → the skill that type names |
+| "inbox processing" | Inbox Processing | `skill://session` → `skill://notion-insights-processing` |
+| "backlog grooming" / work organization | Backlog Grooming | `skill://session` → `skill://backlog-grooming` |
+| "plan the day" / "lay out today" | — | `skill://day-planning` directly — not a session |
+| "update the day plan" / "replan the rest of the day" | — | `skill://day-updating` directly — not a session |
+| "create a PR" | — | `skill://pr-workflow` directly — not a session |
+| "create [artifact]" | — | Direct artifact creation — not a session |
 
 ## Strategic Request Routing
 

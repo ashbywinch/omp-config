@@ -16,16 +16,13 @@ A session is identified by the calendar block it was scheduled as: the block's
 subject is the session type, its start and end are the time. Read the block from
 the calendar (`skill://google-calendar`); the day plan lists the same blocks.
 
-| Session Type | Routes to |
-|---|---|
-| Morning Check-in | `skill://morning-checkin` |
-| Inbox Processing | `skill://notion-insights-processing` |
-| Backlog Grooming | `skill://backlog-grooming` |
-| Process Improvement | `skill://process-improvement` |
+`skill://pa-coordination` holds the routing table: each session type and the
+skill that runs it.
 
 ## Parameters
 
-- **Session Type** (required): the calendar block's subject, mapped by the table above
+- **Session Type** (required): the calendar block's subject, a name from
+  `skill://pa-coordination`'s routing table
 - **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
 
 ## Process

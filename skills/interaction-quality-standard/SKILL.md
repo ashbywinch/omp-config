@@ -32,18 +32,18 @@ are `followup_ref` and the document link.
 | Transcript | the text of a recording, once approved | a summary of it |
 | Reference | `account:message_id` / `account:file_id` for this event | a path, a URL, a bare id |
 | Follow-up | `chase` when they owe, `implement` when we owe | a restatement of the obligation — that is the `Action:` |
-| Follow-up done / by | when it was discharged and by what | the date it was created |
+| Follow-up done / by | when it was closed, and by what | the date it was created |
 
 ## The overview
 
-The overview is the product. A row that repeats its fields and names its
-attachments is a receipt; a row that says what happened, what was promised and
-who owes what is the reason the record exists.
+The overview is the only place the row says what happened, what was promised
+and who owes what next. Every other column holds a value; without the overview
+the row records that contact happened, not what came of it.
 
 ```
-• Reserve £220,000 recommended; advertised price within 10% (basis unconfirmed).
-• Auction runs one month from listing; Archers handle the viewings.
-Action: Ashby — ring back once the structural engineer's report is in.
+• Quote accepted at the agreed figure; delivery in four weeks from order.
+• Two components back-ordered; the supplier confirms dates weekly.
+Action: owner — chase the supplier once the revised dates arrive.
 ```
 
 - **Describe the event, never the neighbours.** A chase that came in another
@@ -55,16 +55,17 @@ Action: Ashby — ring back once the structural engineer's report is in.
   thread.
 - **No pronoun should need resolving.** Not "it", not "the form" where two forms
   are in play, not "them" where the counterparty is the point.
-- **No field repeated.** No sender, no date, no "filed in Drive", no reference
-  number the columns already carry.
+- **Never repeat a column.** The sender, the date, the reference number and the
+  file location are columns; the overview does not restate them.
 
 ## Follow-ups
 
 - Every `Action:` creates a follow-up: `chase` when they owe what they promised,
   `implement` when we owe it.
-- One interaction carries one follow-up. Two obligations on different days are
-  two pieces of work — and an action we owe is also a task with a deadline,
-  because a follow-up nothing surfaces never comes round again.
+- One interaction can carry any number of follow-ups; each obligation is its
+  own.
+- An action we owe is also a task with a deadline — a follow-up nothing surfaces
+  never comes round again.
 - A follow-up closes when the user says what arrived is right, and the record
   says what closed it.
 
@@ -72,16 +73,16 @@ Action: Ashby — ring back once the structural engineer's report is in.
 
 - A bare acknowledgement: "thanks", "got it", "oh fantastic". It earns a row
   only when it closes an action someone asked for.
-- A view confirmation or a template promising feedback. Nobody chases it.
+- A view confirmation, or a template that promises feedback and nothing else.
 - A notification with nothing decided in it. It is a fact about a system, not
   an event between people.
 
 ## Validation Checklist
 
-- [ ] It is one event, and every sentence in the overview is about that event
-- [ ] The epic is the matter it belongs to
+- [ ] The row records one event; every sentence in the overview describes that event
+- [ ] The epic is the one this event belongs to
 - [ ] `From`/`To` come from the record, not from what the thread implies
 - [ ] The `Action:` names who owes it, and the follow-up matches the direction
 - [ ] An action we owe has a task with a deadline, and this row points at it
-- [ ] `Follow-up done`/`by` are set if it is discharged, empty if it is not
+- [ ] `Follow-up done`/`by` are set once the obligation is closed, empty until then
 - [ ] Nothing in the overview duplicates a column
