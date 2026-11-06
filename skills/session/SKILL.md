@@ -1,35 +1,28 @@
 ---
 name: session
 description: |
-  Standardised wrapper for all engagement execution. Handles session lifecycle,
-  role adoption, completion protocols, and integration with coordination systems.
+  Standardised wrapper for session execution — lifecycle, role adoption and
+  completion. The caller names the skill; this wraps it.
 ---
 
 # Session Playbook
 
-Standardised wrapper for session execution. `skill://pa-coordination` routes every
-scheduled session through it.
-
-## Session Type Routing
-
-A session is identified by the calendar block it was scheduled as: the block's
-subject is the session type, its start and end are the time. Read the block from
-the calendar (`skill://google-calendar`); the day plan lists the same blocks.
-
-`skill://pa-coordination` holds the routing table: each session type and the
-skill that runs it.
+Standardised wrapper for session execution. The caller names the skill; this
+wrapper runs the lifecycle around it and never chooses one.
 
 ## Parameters
 
-- **Session Type** (required): the calendar block's subject, a name from
-  `skill://pa-coordination`'s routing table
-- **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
+- **Session Type** (required): the label the caller gives the block — the subject
+  of the calendar block where one was scheduled (`skill://google-calendar`)
+- **Skill** (required): the skill to run. The caller decides it; this wrapper does
+  not keep a routing table of its own
+- **Session Definition** (optional): Timing, objectives, constraints from the caller
 
 ## Process
 
 ### 1. Session Setup
 
-- **Validate Session Type**: Confirm the target skill/plan exists
+- **Validate the Skill**: Confirm the named skill exists
 - **User Profile Check**: Verify profile exists at `~/.config/omp/profiles/User Profile.md`. If missing, create one first.
 - **Pre-Session Prep**: Gather any required context for the session
 
