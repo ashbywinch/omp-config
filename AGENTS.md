@@ -48,9 +48,7 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 ## Testing rules
 
 - ALWAYS use `make` targets; NEVER construct ad-hoc test commands.
-- `make test` is the gate. A skill whose frontmatter name drifts from its
-  folder, or a reference to a skill that lives in another project, silently
-  breaks `skill://` resolution — the check exists so that never ships.
+- `make test` is the gate.
 
 ## Secrets
 
