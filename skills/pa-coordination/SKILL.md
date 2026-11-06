@@ -30,7 +30,7 @@ Before any routing, check if a User Profile exists at `~/.config/omp/profiles/Us
 | When user says... | Then |
 |---|---|
 | "good morning" / greeting | `skill://session`, Session Type `"Morning Check-in"` |
-| "start scheduled session" | Type from the day plan |
+| "start scheduled session" / "start the [X] session" | `skill://session`, Session Type = the subject of the next calendar block (`skill://google-calendar`) |
 | "inbox processing" | `skill://session`, Session Type `"Inbox Processing"` |
 | "backlog grooming" / work organization | `skill://session`, Session Type `"Backlog Grooming"` |
 | "plan the day" / "lay out today" | `skill://day-planning` directly — not a session |

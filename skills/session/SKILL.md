@@ -12,6 +12,10 @@ scheduled session through it.
 
 ## Session Type Routing
 
+A session is identified by the calendar block it was scheduled as: the block's
+subject is the session type, its start and end are the time. Read the block from
+the calendar (`skill://google-calendar`); the day plan lists the same blocks.
+
 | Session Type | Routes to |
 |---|---|
 | Morning Check-in | `skill://morning-checkin` |
@@ -21,7 +25,7 @@ scheduled session through it.
 
 ## Parameters
 
-- **Session Type** (required): Maps to a skill from the table above
+- **Session Type** (required): the calendar block's subject, mapped by the table above
 - **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
 
 ## Process
