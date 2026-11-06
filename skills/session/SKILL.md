@@ -7,36 +7,26 @@ description: |
 
 # Session Playbook
 
-Standardised wrapper for all session execution. Must be used by `skill://pa-coordination` for every operation — never execute domain skills directly.
-
-## Session Type Routing
-
-| Session Type | Routes to |
-|---|---|
-| Morning Check-in | `skill://morning-checkin` |
-| Inbox Processing | `skill://notion-insights-processing` |
-| Backlog Grooming | `skill://backlog-grooming` |
-| Day Planning | `skill://google-calendar` |
-| Create Artifact | Direct artifact creation |
-| PR Workflow | `skill://pr-workflow` |
-| Process Improvement | `skill://process-improvement` |
+Standardised wrapper for all session execution. The caller names the skill; this
+wraps running it in the session lifecycle — role adoption, start, completion
+protocols. It never chooses the skill, and holds no table of what exists.
 
 ## Parameters
 
-- **Session Type** (required): Maps to a skill from the table above
-- **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
+- **Skill** (required): the skill to run, named by the caller
+- **Session Definition** (optional): timing, objectives, constraints
 
 ## Process
 
 ### 1. Session Setup
 
-- **Validate Session Type**: Confirm the target skill/plan exists
+- **Validate the target**: Confirm the skill or plan the caller named exists
 - **User Profile Check**: Verify profile exists at `~/.config/omp/profiles/User Profile.md`. If missing, create one first.
 - **Pre-Session Prep**: Gather any required context for the session
 
 ### 2. Role Adoption
 
-Read the target skill/plan and adopt its expert role. For example, if the session type is backlog grooming, adopt a Scrum Master perspective.
+Read the skill the caller named and adopt its expert role — the role follows from the skill, not from a list held here.
 
 ### 3. Execute Session
 
