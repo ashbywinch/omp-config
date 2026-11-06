@@ -47,12 +47,17 @@ jobs:
         run: |
           set -euo pipefail
           # Idempotent: a re-run (every push fires this) must not fail on an
-          # already-armed PR.
+          # already-armed PR. `--jq` prints an EMPTY line for a null field, not
+          # the word null - comparing to "null" alone marked every PR as already
+          # armed, so this never armed anything.
           armed=$(gh pr view "$PR" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest')
-          if [ "$armed" != "null" ]; then
-            echo "auto-merge already armed"
-            exit 0
-          fi
+          case "$armed" in
+            "" | null) : ;;
+            *)
+              echo "auto-merge already armed"
+              exit 0
+              ;;
+          esac
           # A branch behind main blocks the strict status check, so nothing
           # merges until it is updated. BEHIND means mergeable-but-stale; a
           # real conflict reports DIRTY/CONFLICTING instead, so a failure here
