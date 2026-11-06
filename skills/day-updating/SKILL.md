@@ -41,6 +41,7 @@ and the layout rules are `skill://day-planning`'s. Neither is repeated here.
 5. Delete the superseded blocks: by event id when you have one, otherwise an
    exact title plus a narrow date range — `gcalcli delete` removes every match,
    including ones you did not mean.
-6. Add the replacement blocks.
+6. Add the replacement blocks to the day plan file, leaving the rows for
+   what already happened as they are — this file is patched, never rewritten.
 7. Say out loud what was lost, what it costs and what is now not happening today,
    then let the user choose between a shorter day and a later one.

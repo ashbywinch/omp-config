@@ -42,7 +42,8 @@ Before laying out a day, decide which work belongs in it.
    minutes after every 45–75 minutes of work, and an hour for lunch.
 5. **Propose the whole plan in one message** — every block with title, start,
    duration, calendar and task ID, including the admin item. One approval covers
-   the set.
+   the set. If it is rejected, ask what has to change and propose the revised
+   set; nothing is written until a set is approved.
 6. **Check it against the day**: no two blocks overlap, and every task either has
    a block or was explicitly set aside.
 7. **Write it**: one event per block, description carrying the task ID. Detail
