@@ -1,6 +1,9 @@
-"""Repo self-checks for omp-config (stdlib only — no deps in a config repo).
+"""The repo contracts omp-config asserts about itself (stdlib only — no deps).
 
-Four checks, wired into `make test`:
+Each returns the failures it found; `tools/tests/test_repo_contracts.py` asserts
+they are empty, so the gate is the unittest suite like every other test here.
+
+Four contracts:
 
 1. **Every relative markdown link resolves** — in README, AGENTS, APPEND_SYSTEM,
    docs/, standards/, skills/*/SKILL.md, rules/, profiles/. Skips http(s),
@@ -212,24 +215,3 @@ def _check_sizes() -> DocSizeReport:
         elif text.count("\n") > SOFT_LINES:
             soft.append(f"{f.relative_to(REPO)}: {text.count(chr(10))} lines > {SOFT_LINES} target (slim it)")
     return DocSizeReport(hard, soft)
-
-
-def main() -> int:
-    failures = _check_links() + _check_skills() + _check_discoverability()
-    sizes = _check_sizes()
-    failures += sizes.hard
-    if failures:
-        print("omp-config self-checks failed:")
-        for f in failures:
-            print(f"  {f}")
-        return 1
-    docs = len(_doc_files())
-    skills = len(list((REPO / "skills").iterdir()))
-    print(f"ok — {docs} docs scanned, {skills} skills well-formed, links resolve, all docs reachable from AGENTS.md")
-    for w in sizes.soft:
-        print(f"  warn: {w}")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
