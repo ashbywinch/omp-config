@@ -1,36 +1,28 @@
 ---
 name: session
 description: |
-  Standardised wrapper for all engagement execution. Handles session lifecycle,
-  role adoption, completion protocols, and integration with coordination systems.
+  Standardised wrapper for session execution — lifecycle, role adoption and
+  completion. The caller names the skill; this wraps it.
 ---
 
 # Session Playbook
 
-Standardised wrapper for all session execution. Must be used by `skill://pa-coordination` for every operation — never execute domain skills directly.
-
-## Session Type Routing
-
-| Session Type | Routes to |
-|---|---|
-| Morning Check-in | `skill://morning-checkin` |
-| Inbox Processing | `skill://notion-insights-processing` |
-| Backlog Grooming | `skill://backlog-grooming` |
-| Day Planning | `skill://google-calendar` |
-| Create Artifact | Direct artifact creation |
-| PR Workflow | `skill://pr-workflow` |
-| Process Improvement | `skill://process-improvement` |
+Standardised wrapper for session execution. The caller names the skill; this
+wrapper runs the lifecycle around it and never chooses one.
 
 ## Parameters
 
-- **Session Type** (required): Maps to a skill from the table above
-- **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
+- **Session Type** (required): the label the caller gives the block — the subject
+  of the calendar block where one was scheduled (`skill://google-calendar`)
+- **Skill** (required): the skill to run. The caller decides it; this wrapper does
+  not keep a routing table of its own
+- **Session Definition** (optional): Timing, objectives, constraints from the caller
 
 ## Process
 
 ### 1. Session Setup
 
-- **Validate Session Type**: Confirm the target skill/plan exists
+- **Validate the Skill**: Confirm the named skill exists
 - **User Profile Check**: Verify profile exists at `~/.config/omp/profiles/User Profile.md`. If missing, create one first.
 - **Pre-Session Prep**: Gather any required context for the session
 
