@@ -29,9 +29,7 @@ message is `skill://interaction-quality-standard`.
 
 ## The name
 
-Record the name the file has. Naming belongs to the skill that files a document,
-not to this standard: the rule that a document needs depends on the work it came
-from.
+Record the name the file has.
 
 ## The readable copy
 
