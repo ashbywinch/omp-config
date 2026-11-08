@@ -409,6 +409,9 @@ The sections above are the how-to; these are the one-line reminders.
   rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
+- **Calling a push done without re-reading the threads** — a green check says
+  nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
+  adds findings a round at a time, and the unread one is the one that mattered.
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
 - **Resolving review threads yourself** — never; resolution is the reviewer's
