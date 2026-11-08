@@ -86,6 +86,8 @@ def exchange(raw):
         query = urllib.parse.parse_qs(urllib.parse.urlparse(raw).query)
         if "error" in query:
             sys.exit("consent refused: " + query["error"][0])
+        if "code" not in query:
+            sys.exit("that URL carries no code: paste the redirect Google showed you, or the code itself")
         code = query["code"][0]
     else:
         code = raw
@@ -100,7 +102,10 @@ def exchange(raw):
 
     flow = InstalledAppFlow.from_client_config(client, scopes=SCOPES)
     flow.redirect_uri = REDIRECT
-    flow.fetch_token(code=code, code_verifier=verifier)
+    try:
+        flow.fetch_token(code=code, code_verifier=verifier)
+    except Exception as exc:  # noqa: BLE001 the library raises several types; the message is what tells them apart
+        sys.exit("exchange failed (%s): codes are single-use, so run `mint` again" % exc)
 
     PICKLE.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(PICKLE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FILE_MODE)
