@@ -119,8 +119,10 @@ def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadP
 
     threads: list[Thread] = []
     for node in nodes:
-        if not node or "id" not in node:  # a partial answer is not a thread
-            continue
+        if not node or "id" not in node:
+            # GraphQL returns null for a node the viewer cannot see. Reporting the
+            # threads we can see would understate what is open, so stop instead.
+            sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
         thread = Thread.from_json(node)
         comments_page = node.get("comments", {}).get("pageInfo", {})
         if comments_page.get("hasNextPage"):
