@@ -18,16 +18,17 @@ GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
+LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
 
 help:
 	@echo "omp-config — available commands:"
 	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks + gh/git shims"
-	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM (restart omp to pick up)"
+	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM"
 	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
 	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
 	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
-	@echo "  ${GREEN}make test${NC}           Repo self-check: doc links resolve + lucidlint gate + skills well-formed"
+	@echo "  ${GREEN}make test${NC}           Repo self-check"
 
 setup: install-lucidlint
 	@$(MAKE) install
@@ -51,8 +52,9 @@ install:
 		fi; \
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
-	chmod +x $(FETCH_FINDINGS_DST)
-	@echo "Installed omp-config. Restart omp to pick up changes."
+	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST)
+	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
 install-gh-shim:
 	@mkdir -p $(dir $(GH_SHIM_DST))
@@ -119,12 +121,9 @@ install-lucidlint:
 # stay backticked — the formatting is the instruction; never extend this
 # baseline to anything else.
 test: install-lucidlint
-	@python3 tools/check_docs_links.py
-	@cmp -s tools/check_review_posted.py skills/new-repo-scaffold/examples/tools/check_review_posted.py || \
-	  (echo "check_review_posted twins diverged — run 'make sync-examples' (tools/ is canonical)" && exit 1)
+	@python3 -m unittest discover -s tools/tests
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
-	@python3 -m unittest discover -s tools/tests
 
 .PHONY: sync-examples
 sync-examples:

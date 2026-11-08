@@ -19,6 +19,27 @@ with or without automated AI code review.
 
 ---
 
+## Always give the link
+
+Every PR, issue, commit, run or file you mention is a **link**, with its number
+as the text:
+
+- `[#9](https://github.com/ashbywinch/inbox/pull/9)` — not `#9`, and not the bare
+  URL either. The number is what a reader recognises; the link is what makes it
+  one click.
+- A commit: `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)`.
+- A run: `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)`.
+- A file outside the repo: its Drive or Notion URL, with the file's name as the
+  text.
+
+An unlinked `#9` is unfindable to whoever reads the message next — on a phone, in
+a transcript, hours later. A pasted raw URL is findable but ugly, and it pushes
+the sentence it belongs to off the screen. Link the number; don't spell the URL
+out in prose.
+
+Range links are the exception only when the reader already has the context and
+the thing is genuinely unbounded (a search, a filter).
+
 ## Part 1: Create the PR
 
 ### 1. Change Validation
@@ -31,6 +52,17 @@ git log --oneline <base-branch>..HEAD         # every commit
 ```
 
 Never rely on memory — check the actual diff.
+
+### 1b. Stage only your own files
+
+Use `git add <path>` for each path you edited. In a working tree you share with
+other sessions, the catch-all forms are hazards:
+
+- **`git add -A` and `git add .`** stage untracked files too, including another
+  agent's work in progress, and put it in your PR under your name.
+- **`git commit -a`** stages every *tracked* modification — so it sweeps up
+  another session's edits to files you never opened, which is harder to notice
+  than a new file appearing in the diff.
 
 ### 2. Push Feature Branch
 
@@ -116,6 +148,19 @@ If the AI review is still running after 10+ minutes with no step-level progress 
 gh run view <run-id> --log 2>&1 | head -30
 ```
 
+### 5a. Never resolve someone else's thread
+
+A review thread belongs to the person who opened it. Resolving it is their
+statement that the point is settled — not the author's, and not an agent's.
+
+- **Reply, fix, push.** Then leave it open.
+- Resolving hides the reply that came after it and removes the judgement from the
+  person who made the point. A thread shows as `outstanding` precisely because
+  somebody has not yet agreed it is done.
+- Clearing a merge gate is not a reason. If a gate wants resolution, that is the
+  reviewer's click to make; an agent that "unblocks" a PR this way has removed
+  the only human check in the loop.
+
 ### 5b. Never Push While a Review Is in Flight
 
 A push re-triggers the AI review (`synchronize`). Pushing mid-run discards the
@@ -174,8 +219,13 @@ fetch-pr-findings.sh <n>
 `fetch-pr-findings.sh` is on PATH (installed with this skill by `make
 install`). If it is not found, run `make install` in the omp-config repo
 first. It fetches all three sources: inline file comments, issue/PR
-comments, and review thread comments, never truncated. Run it before fixing
-anything.
+comments, and review thread comments, never truncated, each with the numeric
+id a reply needs. Run it before fixing anything — do not hand-roll the
+queries: a `reviewThreads` page or the rendered PR view misses findings, and
+a missed finding reads to the user as ignored. If you must query directly,
+inline comments are `repos/<owner>/<repo>/pulls/<n>/comments` (numeric `id`
+per comment) and unresolved threads are GraphQL `reviewThreads` filtered on
+`isResolved == false`.
 
 **CRITICAL: Human reviewers (including the user who opened the PR) may leave
 inline comments on specific lines of the changed files. The `pulls/<n>/comments`
@@ -207,7 +257,9 @@ gh api repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies \
   -f body="Fixed in <commit-sha> — <file>:<line> now <what changed>; <the one check that confirms it>." 
 ```
 
-The comment-id is in `fetch-pr-findings.sh`'s inline output (`[id:<n>]`).
+The comment-id is the numeric `id` from `fetch-pr-findings.sh`'s inline
+output (`[id:<n>]`) or `pulls/<n>/comments`. A GraphQL node id (`PRRC_…`)
+fails there with `404 Parent comment not found`.
 For issue comments (not inline), reply with `gh api
 repos/<owner>/<repo>/issues/<n>/comments -f body=...`.
 
@@ -310,6 +362,25 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ---
 
+## Part 5: Handing the merge to the user
+
+### 13. The PR carries the version bump; merging it is the release
+
+If the repo releases by version (a semver in a version file, a release branch,
+a tag), the bump goes in the PR under review, before it merges: one PR with the
+change, its tests, its docs and the version. Merging that PR *is* the release.
+
+- Derive the number from the diff with semver: breaking change → major, new
+  capability → minor, fixes only → patch.
+- Check the bump is **committed** before you ask for approval: `git diff --stat
+  origin/main...HEAD -- <version files>` must show it in the PR's commits —
+  a working-tree diff would count an uncommitted bump that never reaches the
+  PR. `<version files>` is wherever that stack keeps the version, plus its
+  lockfile if it has one — `package.json` and `package-lock.json`, `Cargo.toml`,
+  `pyproject.toml`.
+
+---
+
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
@@ -350,6 +421,8 @@ The sections above are the how-to; these are the one-line reminders.
   suggestions accumulate; check the latest PR Reviewer Guide (§7).
 - **Fixing AI config suggestions** — `.pr_agent.toml`/workflow
   self-reviews are almost never actionable (§9).
+- **Leaving the version out of the PR** — derive it with semver and have it
+  staged before asking for approval, so the merge is the release (§13).
 - **Deleting a branch a workflow references** — never. Before deleting any
   branch, grep `.github/workflows/` for its name. `pr-agent-config`'s role
   and its two false-stale signals are stated in the workflow that pins
