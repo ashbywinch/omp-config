@@ -12,6 +12,8 @@ findings one round at a time, a green check says nothing about a thread, and the
 one comment you did not read is the one that mattered.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import subprocess
