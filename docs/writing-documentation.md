@@ -220,12 +220,11 @@ Write each section by these rules:
   not "`data.db` is written by `backup.py`".
 - **Make every noun knowable.** Write each noun so the reader can tell,
   with the context they already have, which thing it refers to. Name the
-  thing when the reader knows it. Define or describe it when they do not.
-  Link to the document that defines it when such a document exists. A name
-  alone is not enough when the reader cannot know what the name refers to.
+  thing when the reader knows it. When they cannot know it, define or
+  describe it, or link to where it is defined.
 - **Define terms at first use.** Explain each term in plain words where it
-  first appears — house jargon such as finding, seam, stamp, directive,
-  baseline and action included. Use one name for one thing throughout.
+  first appears, house jargon included. A reader who has not met the word
+  must be able to act on it. Use one name for one thing throughout.
 - **Use concrete words.** Write "the `data.db` lock blocks the write",
   not "write protection is enabled".
 - **Use the simplest word.** Write "start" not "initiate"; write "end" not
