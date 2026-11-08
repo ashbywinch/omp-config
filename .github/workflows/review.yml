@@ -68,6 +68,10 @@ jobs:
     # failure reason from here — inside the bot's own job the log endpoint
     # returns 409 and the reason is the generic fallback.
     needs: pr-review
+    # always(): when the reviewer fails, this is the only thing that can say
+    # why. Skipping it on failure leaves the reason buried in a job log nobody
+    # reads, and the PR simply shows a red check.
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: read
