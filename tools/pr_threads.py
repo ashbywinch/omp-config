@@ -91,8 +91,8 @@ def _gh(*args: str) -> subprocess.CompletedProcess:
     """Run gh, and say so plainly when there is no gh to run."""
     try:
         return subprocess.run(["gh", *args], capture_output=True, text=True)
-    except FileNotFoundError:
-        sys.exit("gh is not installed, or not on PATH: this needs the GitHub CLI")
+    except OSError as exc:  # missing, not executable, or blocked
+        sys.exit("cannot run gh (%s): this needs the GitHub CLI installed and on PATH" % exc)
 
 
 def _graphql(query: str, variables: list[str]) -> dict:  # lucidlint: ignore record-shape the response is the wire format; callers convert it straight away
@@ -162,6 +162,9 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
         try:
             checks = json.loads(out.stdout or "[]")
         except json.JSONDecodeError:
+            checks = []
+        if not checks:
+            print("warning: could not read the checks; listing what has posted", file=sys.stderr)
             return
         reviewing = [c for c in checks if "review" in c["name"].lower()]
         if reviewing and all(c["state"] != "PENDING" for c in reviewing):
