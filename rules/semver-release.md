@@ -30,8 +30,10 @@ the bundles/wheels from the tag.
    test; the CLI and the LSP derive their reported version from those, never
    a hardcoded literal). Bump ALL of them to the same number.
 4. Run the repo's full battery (its `make test` + self-check), commit the
-   bump, tag `git tag -a vX.Y.Z -m "..."`, push the tag — the release
-   workflow publishes.
+   bump, tag `git tag -a vX.Y.Z -m "..."`, then push the branch **and** the
+   tag: `git push origin <branch> && git push origin vX.Y.Z`. A tag pushed on
+   its own leaves the bump commit local, so the next release computes its range
+   from a branch that never saw it.
 5. Verify the published release's assets exist (bundles, wheels,
    SHA256SUMS) before reporting done.
 
