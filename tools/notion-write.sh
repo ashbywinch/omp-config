@@ -43,7 +43,8 @@ read_state() {
 apply_state() { # $1 = {"type","value"} JSON, sent as {"<property>": {"<type>": <value>}}
   local body
   body=$(jq -cn --arg p "$prop" --argjson s "$1" '{($p): {($s.type): $s.value}}')
-  printf '%s' "$body" | ntn api "v1/pages/$page" -X PATCH >/dev/null
+  printf '%s' "$body" | ntn api "v1/pages/$page" -X PATCH >/dev/null \
+    || die "the patch to page $page property $prop failed — the stored value is unchanged"
 }
 
 show_state() { # $1 = label, $2 = {"type","value"} JSON

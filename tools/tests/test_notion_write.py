@@ -84,6 +84,13 @@ class NotionWriteTest(unittest.TestCase):
             capture_output=True, text=True, env=self.env,
         )
 
+    def write_ok(self, *args):
+        """Run a write and require it to succeed — a silent failure would make the
+        assertions below pass on a state the tool never wrote."""
+        result = self.run_tool(*args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result
+
     def value(self, prop="Description", state_file=None):
         data = json.loads((state_file or self.state_file).read_text())
         return data["P1"]["properties"][prop]["rich_text" if prop == "Description" else "select"]
@@ -112,15 +119,15 @@ class NotionWriteTest(unittest.TestCase):
         self.assertEqual(snapshot["value"], ORIGINAL)
 
     def test_revert_restores_the_original_value_exactly(self):
-        self.run_tool("P1", "Description", "--text", "Replaced")
-        result = self.run_tool("P1", "Description", "--revert")
+        self.write_ok("P1", "Description", "--text", "Replaced")
+        result = self.write_ok("P1", "Description", "--revert")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.value(), ORIGINAL)
 
     def test_second_write_does_not_replace_the_first_snapshot(self):
-        self.run_tool("P1", "Description", "--text", "First")
-        self.run_tool("P1", "Description", "--text", "Second")
-        self.run_tool("P1", "Description", "--revert")
+        self.write_ok("P1", "Description", "--text", "First")
+        self.write_ok("P1", "Description", "--text", "Second")
+        self.write_ok("P1", "Description", "--revert")
         self.assertEqual(self.value(), ORIGINAL)
 
     def test_revert_without_snapshot_refuses_and_leaves_the_page_alone(self):
