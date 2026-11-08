@@ -16,15 +16,14 @@ loaded in full when used, so the 150–200 line / 32 KiB targets apply to it
 directly). The review bot checks skill changes against this standard like
 any other doc.
 
-## Standards pair with their enforcement
+## Skills and standards come in pairs
 
-A standard states the rule; something must operationalize it — a skill that
-walks the procedure, an architecture test, a lint gate, or the review bot
-reading these files. Writing a standard commits you to naming its enforcement
-mechanism in the same change: a standard nothing enforces is a wish. A skill
-that restates rules from a canonical document is a duplication finding — link
-the canonical section instead; a standard with no skill or check behind it is
-a finding at review.
+A skill that produces an artefact — a document, a task, an epic — has a standards
+document saying what that artefact must be. The skill walks the procedure; the
+standard states the result, so a reader can check it without asking the author.
+
+A standard never says how it is checked. That is the reviewer's job, and it
+changes without the standard changing.
 
 ## Context efficiency
 
@@ -68,6 +67,13 @@ a finding: the copies drift, and the reader cannot tell which is current.
 a default value, or a class structure is waste — the code is the source of
 truth for those. Reference the code instead ("call `compute()`; see the
 function docstring for the `Attempt` contract").
+
+**A summary of behaviour is the same duplication.** A sentence describing what
+a check verifies, what a command does or what a script writes is a second copy
+of that code — and it is the copy that goes stale, because prose is not edited
+when the code changes. State what to run and link to it. A description of
+*purpose* — the one stable reason a thing exists — is not a summary and does
+not rot.
 
 When tempted to copy content into a second doc, link instead — the link is
 the duplication-free way to reuse.
@@ -134,14 +140,19 @@ of a doc that describes it. Prefer interfaces that make it easy to get right
 use them. The test is a living doc that fails when it lies; a written doc
 stays green when it goes stale.
 
-## No lectures on history
+## Reasons, not history
 
-Never explain why a decision was made by describing the alternative that
-failed and the person who made it. "It's a constraint inherited from X's
-code" is a lecture. The reason is what matters; the history is noise. If
-a reader needs to know why, state the constraint: "this message format is
-required by the upstream API" — not "Bob chose this format in 2022 because
-the old parser couldn't handle".
+Write what is true now, and give the reason when the reader could not work it out
+themselves: "Set the timeout to 30s, because a cold start can take 20s."
+
+Never write how it came to be — what changed, who decided, what failed before,
+when it happened. And never justify a rule whose reason is plain: "Do not copy a
+value into an unrelated field" needs no because-clause.
+
+✗ "The timeout was raised from 5s to 30s after the March outage."
+
+✓ "Set the timeout to 30s, because a cold start can take 20s and the shorter
+wait reports a failure that has not happened."
 
 ## API keys never go in docs
 
@@ -197,6 +208,67 @@ fact and decision.
 - **Task-shaped sections.** When a doc describes how to do something, use
   the task-card shape: goal (one verb), scope (exact paths), constraints
   (must / never), acceptance (verifiable command).
+## Clarity rules
+
+Write each sentence as one of two kinds: facts about the software, or
+commands about what the reader does. Do not mix a fact and a command in
+one sentence.
+
+Why: readers use a doc right before acting. A sentence they must re-read
+costs time and can cause the wrong action.
+
+Give each kind its own sentence. Write "`cache.py` reads `cache.toml`
+at startup" as the fact. Write "edit that file, then run `cache gc`" as
+the command.
+
+Write each section by these rules:
+
+- **State the rule, not the steps.** Write "every block carries its task ID",
+  not "add the task ID when you create the block" — the steps belong in the
+  skill.
+- **Put the main point first.** Write the fact or the instruction in the
+  first sentence. Write the reasons after it.
+- **Name the heading after what the section gives the reader.** Do not use
+  "Overview", "Details", or "Misc": they do not say what the section holds.
+- **Write one idea per sentence.** Write each idea in its own sentence.
+- **Write in the active voice.** Write "`backup.py` writes `data.db`",
+  not "`data.db` is written by `backup.py`".
+- **Make every noun knowable.** Write each noun so the reader can tell,
+  with the context they already have, which thing it refers to. Name the
+  thing when the reader knows it. When they cannot know it, define or
+  describe it, or link to where it is defined.
+- **Define terms at first use.** Explain each term in plain words where it
+  first appears, house jargon included. A reader who has not met the word
+  must be able to act on it. Use one name for one thing throughout.
+- **Use concrete words.** Write "the `data.db` lock blocks the write",
+  not "write protection is enabled".
+- **Use the simplest word.** Write "start" not "initiate"; write "end" not
+  "terminate".
+- **Cut words that add no information.** Write "to" not "in order to";
+  write "now" not "at this point in time".
+- Keep sentences under 30 words.
+- Do not start a sentence with "There is" or "There are".
+- Do not use weasel words: enable, leverage, robust, seamless, transparent.
+
+Write each section so it gives the reader one of:
+- a command to run, or a file to edit or open
+- a rule ("Never X")
+- a value to set, or a name to use
+- an acceptance check
+- a fact about the code that reading it would not tell you
+- a link to a document that answers the question
+
+Canonical pairs:
+
+✗ "The service blocks writes."
+
+✓ "The `data.db` lock blocks writes at 23:00. To flush old entries, run
+`cache gc`."
+
+✗ "The scheduler checks the backups using the copy process."
+
+✓ "`backup.py copy` starts at 23:00. It copies the day's `data.db` to
+`backups/` and verifies the copy's size against the original."
 
 ## The documentation-quality checklist
 
@@ -212,4 +284,15 @@ fact and decision.
 - [ ] Commands replace descriptions where executable
 - [ ] Tables replace paragraphs where fields are consistent
 - [ ] Code shows a canonical ✗/✓ pair, not exhaustive cases
+- [ ] Facts and instructions are separate: facts describe the software, commands tell the reader what to do
+- [ ] Every rule is written as a command ("put", "name", "write", "do not")
+- [ ] Every noun's referent is knowable to the reader: name it, define or describe it, or link to its definition
+- [ ] The section's first sentence states the answer
+- [ ] The heading names what the section gives the reader
+- [ ] Each sentence says one thing, in the active voice
+- [ ] Every term is defined in plain words at first use
+- [ ] No sentence over 30 words
+- [ ] No sentence starts with "There is" or "There are"
+- [ ] No weasel words (enable, leverage, robust, seamless, transparent)
+- [ ] No history lessons: no account of what changed, who decided, or what failed before
 - [ ] Always-loaded files within the ~150–200 line ceiling

@@ -25,6 +25,9 @@
 # - Allow auto-merge must be enabled in the repo: Settings → General → Pull
 #   Requests → Allow auto-merge.
 # - Any OTHER CI step that needs a secret (an eval gate, a review) fails on
+#   dependabot PRs: their `pull_request` runs get a read-only token and no
+#   secrets. Give that step the same `pull_request_target` treatment or skip
+#   it for dependabot PRs.
 name: Dependabot auto-merge
 
 on: pull_request_target
