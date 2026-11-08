@@ -15,6 +15,7 @@ from pr_threads import Comment, Thread, unanswered  # noqa: E402
 
 def thread(*authors, resolved=False):
     return Thread(
+        id="t1",
         path="a.md",
         line=1,
         resolved=resolved,
@@ -37,7 +38,7 @@ class UnansweredTest(unittest.TestCase):
         self.assertEqual(unanswered([thread("github-actions", resolved=True)], "omp-harness"), [])
 
     def test_a_thread_with_no_comments_is_ignored(self):
-        empty = Thread(path="a.md", line=1, resolved=False, comments=())
+        empty = Thread(id="t1", path="a.md", line=1, resolved=False, comments=())
         self.assertEqual(unanswered([empty], "omp-harness"), [])
 
 

@@ -16,23 +16,37 @@ import argparse
 import json
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-QUERY = """
+THREADS_QUERY = """
 query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
       reviewThreads(first: 100, after: $cursor) {
         pageInfo { hasNextPage endCursor }
         nodes {
+          id
           isResolved
           path
           line
-          comments(first: 20) {
-            pageInfo { hasNextPage }
+          comments(first: 100) {
+            pageInfo { hasNextPage endCursor }
             nodes { author { login } body }
           }
         }
+      }
+    }
+  }
+}
+"""
+
+COMMENTS_QUERY = """
+query($id: ID!, $cursor: String) {
+  node(id: $id) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { author { login } body }
       }
     }
   }
@@ -43,6 +57,12 @@ DEFAULT_ME = "omp-harness"
 
 
 @dataclass(frozen=True)
+class ThreadPage:
+    threads: list[Thread]
+    next_cursor: str | None
+
+
+@dataclass(frozen=True)
 class Comment:
     author: str
     body: str
@@ -50,6 +70,7 @@ class Comment:
 
 @dataclass(frozen=True)
 class Thread:
+    id: str
     path: str
     line: int | None
     resolved: bool
@@ -60,7 +81,63 @@ class Thread:
         comments = tuple(
             Comment(c["author"]["login"], c["body"]) for c in node["comments"]["nodes"]
         )
-        return cls(node["path"], node.get("line"), node["isResolved"], comments)
+        return cls(node["id"], node["path"], node.get("line"), node["isResolved"], comments)
+
+
+def _graphql(query: str, variables: list[str]) -> dict:  # lucidlint: ignore record-shape the response is the wire format; callers convert it straight away
+    out = subprocess.run(["gh", "api", "graphql", "-f", "query=" + query] + variables,
+                         capture_output=True, text=True)
+    if out.returncode != 0:
+        sys.exit("gh graphql failed: " + out.stderr.strip())
+    try:
+        return json.loads(out.stdout)
+    except json.JSONDecodeError as exc:
+        sys.exit("gh returned something that is not JSON: " + str(exc))
+
+
+def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadPage":
+    variables = ["-f", f"owner={owner}", "-f", f"repo={name}", "-F", f"pr={pr}"]
+    if cursor:
+        variables += ["-f", f"cursor={cursor}"]
+    data = _graphql(THREADS_QUERY, variables)
+    try:
+        payload = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+        nodes, page_info = payload["nodes"], payload["pageInfo"]
+    except (KeyError, TypeError):
+        sys.exit(f"cannot read PR {pr} in {owner}/{name}: it does not exist, or this token cannot see it")
+
+    threads: list[Thread] = []
+    for node in nodes:
+        thread = Thread.from_json(node)
+        if node["comments"]["pageInfo"]["hasNextPage"]:
+            later = _later_comments(thread.id, node["comments"]["pageInfo"]["endCursor"])
+            thread = replace(thread, comments=thread.comments + tuple(later))
+        threads.append(thread)
+    return ThreadPage(threads, page_info["endCursor"] if page_info["hasNextPage"] else None)
+
+
+def _later_comments(thread_id: str, cursor: str) -> list[Comment]:
+    """Comments after the first page of a long thread — the last one decides."""
+    extra: list[Comment] = []
+    while cursor:
+        data = _graphql(COMMENTS_QUERY, ["-f", f"id={thread_id}", "-f", f"cursor={cursor}"])
+        page = data["data"]["node"]["comments"]
+        extra += [Comment(c["author"]["login"], c["body"]) for c in page["nodes"]]
+        cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+    return extra
+
+
+def fetch(pr: int, repo: str) -> list[Thread]:
+    """Every review thread on the PR, with every comment on each."""
+    owner, name = repo.split("/", 1)
+    threads: list[Thread] = []
+    cursor: str | None = None
+    while True:
+        page = _thread_page(pr, owner, name, cursor)
+        threads += page.threads
+        if page.next_cursor is None:
+            return threads
+        cursor = page.next_cursor
 
 
 def unanswered(threads: list[Thread], me: str) -> list[Thread]:
@@ -69,33 +146,6 @@ def unanswered(threads: list[Thread], me: str) -> list[Thread]:
         thread for thread in threads
         if not thread.resolved and thread.comments and thread.comments[-1].author != me
     ]
-
-
-def _page(pr: int, owner: str, name: str, cursor: str | None) -> dict:
-    args = ["gh", "api", "graphql", "-f", "query=" + QUERY,
-            "-f", f"owner={owner}", "-f", f"repo={name}", "-F", f"pr={pr}"]
-    if cursor:
-        args += ["-f", f"cursor={cursor}"]
-    out = subprocess.run(args, capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit("gh graphql failed: " + out.stderr.strip())
-    return json.loads(out.stdout)["data"]["repository"]["pullRequest"]["reviewThreads"]
-
-
-def fetch(pr: int, repo: str) -> list[Thread]:
-    """Every review thread on the PR, not the first page of them."""
-    owner, name = repo.split("/", 1)
-    threads: list[Thread] = []
-    cursor = None
-    while True:
-        page = _page(pr, owner, name, cursor)
-        for node in page["nodes"]:
-            if node["comments"]["pageInfo"]["hasNextPage"]:
-                sys.exit(f"thread on {node['path']} has more comments than one page; raise the 20")
-            threads.append(Thread.from_json(node))
-        if not page["pageInfo"]["hasNextPage"]:
-            return threads
-        cursor = page["pageInfo"]["endCursor"]
 
 
 def repo_slug() -> str:
