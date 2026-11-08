@@ -129,15 +129,19 @@ of a doc that describes it. Prefer interfaces that make it easy to get right
 use them. The test is a living doc that fails when it lies; a written doc
 stays green when it goes stale.
 
-## No history lessons
+## Reasons, not history
 
-Write what is true now. Never write what changed, who decided, what failed
-before, or when it happened: that is history, and history is noise.
+Write what is true now, and give the reason when the reader could not work it out
+themselves: "Set the timeout to 30s, because a cold start can take 20s."
 
-✗ "We renamed this line in 2026 after readers kept taking it the wrong
-way."
+Never write how it came to be — what changed, who decided, what failed before,
+when it happened. And never justify a rule whose reason is plain: "Do not copy a
+value into an unrelated field" needs no because-clause.
 
-✓ "The heading names the file the finding is in."
+✗ "The timeout was raised from 5s to 30s after the March outage."
+
+✓ "Set the timeout to 30s, because a cold start can take 20s and the shorter
+wait reports a failure that has not happened."
 
 ## API keys never go in docs
 
