@@ -95,27 +95,32 @@ jobs:
 
           # Threads are counted separately and paginated. Asking for the first
           # 100 only would report zero unresolved on a PR with more than that,
-          # and merge it with threads still open.
-          open_threads=0
-          cursor=""
-          while : ; do
-            page=$(gh api graphql -f query='
-              query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $pr) {
-                    reviewThreads(first: 100, after: $after) {
-                      pageInfo { hasNextPage endCursor }
-                      nodes { isResolved }
+          # and merge it with threads still open. Called again after the wait:
+          # a thread can be reopened while this job is asleep.
+          count_threads() {
+            local total=0 cursor="" page
+            while : ; do
+              page=$(gh api graphql -f query='
+                query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $pr) {
+                      reviewThreads(first: 100, after: $after) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes { isResolved }
+                      }
                     }
                   }
-                }
-              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" -F after="$cursor")
-            open_threads=$(( open_threads + $(printf '%s' "$page" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length') ))
-            if [ "$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" != "true" ]; then
-              break
-            fi
-            cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty')
-          done
+                }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" -F after="$cursor")
+              total=$(( total + $(printf '%s' "$page" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length') ))
+              if [ "$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" != "true" ]; then
+                break
+              fi
+              cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty')
+            done
+            echo "$total"
+          }
+
+          open_threads=$(count_threads)
 
           # Checks usually finish after the approval that started this job, and
           # the last one to finish is often the review the PR is waiting on. Wait
@@ -160,6 +165,13 @@ jobs:
                        (.headRepository.nameWithOwner // "")]
                     | @tsv')
           done
+          # The wait can last fifteen minutes; a thread reopened in that window
+          # must stop the merge, not be discovered afterwards.
+          open_threads=$(count_threads)
+          if [ "$open_threads" != "0" ]; then
+            echo "$open_threads review thread(s) unresolved — not merging"; exit 0
+          fi
+
           case "$state" in
             CLEAN) ;;
             BEHIND)
