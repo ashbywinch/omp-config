@@ -1,0 +1,135 @@
+name: Merge when approved
+
+# GitHub's own auto-merge is unavailable on a private repo without GitHub Pro,
+# so this job does the same thing by hand: when a PR is approved, every review
+# thread is resolved, and every check has passed, it merges.
+#
+# It does not approve anything. The approval has to come from a person, and the
+# thread resolution has to come from whoever raised the thread. This job only
+# removes the last click.
+#
+# Same-repo branches only: a fork PR cannot be merged by this token, and should
+# not merge itself anyway.
+
+on:
+  # For client repos that cannot use GitHub's own auto-merge — a private repo
+  # without Pro. The approval and the thread resolution are still the gate; this
+  # only removes the last click.
+  #
+  #   jobs:
+  #     merge:
+  #       uses: ashbywinch/omp-config/.github/workflows/merge-when-approved.yml@v0.2.0
+  workflow_call:
+    inputs:
+      merge_method:
+        description: merge, squash or rebase.
+        type: string
+        default: merge
+  pull_request_review:
+    types: [submitted]
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  check_suite:
+    types: [completed]
+  status: {}
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  merge:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge if approved, resolved and green
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          # A check_suite event names its PRs; a status event names only a sha, so
+          # that case falls through to the script, which finds the PR from the sha.
+          PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || '' }}
+          SHA: ${{ github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          pr="$PR_FROM_EVENT"
+          if [ -z "$pr" ]; then
+            pr=$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '.[0].number // empty')
+          fi
+          if [ -z "$pr" ]; then
+            echo "no pull request for this event — nothing to do"; exit 0
+          fi
+          echo "evaluating PR #$pr"
+
+          read -r decision state checks head_repo < <(
+            gh api graphql -f query='
+              query($owner: String!, $repo: String!, $pr: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    reviewDecision
+                    mergeStateStatus
+                    headRepository { nameWithOwner }
+                    commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+                  }
+                }
+              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" \
+            --jq '.data.repository.pullRequest
+                  | [(.reviewDecision // "NONE"),
+                     .mergeStateStatus,
+                     (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
+                     (.headRepository.nameWithOwner // "")]
+                  | @tsv'
+          )
+
+          # Threads are counted separately and paginated. Asking for the first
+          # 100 only would report zero unresolved on a PR with more than that,
+          # and merge it with threads still open.
+          open_threads=0
+          cursor=""
+          while : ; do
+            page=$(gh api graphql -f query='
+              query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    reviewThreads(first: 100, after: $after) {
+                      pageInfo { hasNextPage endCursor }
+                      nodes { isResolved }
+                    }
+                  }
+                }
+              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" -F after="$cursor")
+            open_threads=$(( open_threads + $(printf '%s' "$page" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length') ))
+            if [ "$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" != "true" ]; then
+              break
+            fi
+            cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
+          done
+
+          echo "review: $decision | merge state: $state | checks: $checks | unresolved threads: $open_threads | head: $head_repo"
+
+          if [ "$head_repo" != "$REPO" ]; then
+            echo "fork PR — not merged here"; exit 0
+          fi
+          if [ "$decision" != "APPROVED" ]; then
+            echo "not approved yet — nothing to do"; exit 0
+          fi
+          if [ "$open_threads" != "0" ]; then
+            echo "$open_threads review thread(s) unresolved — not merging"; exit 0
+          fi
+          if [ "$checks" != "SUCCESS" ]; then
+            echo "checks are $checks — not merging"; exit 0
+          fi
+          case "$state" in
+            CLEAN) ;;
+            BEHIND)
+              gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
+              echo "branch updated; the next run merges"
+              exit 0 ;;
+            *)
+              echo "merge state is $state — not merging"; exit 0 ;;
+          esac
+
+          gh pr merge "$pr" --repo "$REPO" --${{ inputs.merge_method || 'merge' }}
