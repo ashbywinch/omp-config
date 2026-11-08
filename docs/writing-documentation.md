@@ -57,6 +57,13 @@ a default value, or a class structure is waste — the code is the source of
 truth for those. Reference the code instead ("call `compute()`; see the
 function docstring for the `Attempt` contract").
 
+**A summary of behaviour is the same duplication.** A sentence describing what
+a check verifies, what a command does or what a script writes is a second copy
+of that code — and it is the copy that goes stale, because prose is not edited
+when the code changes. State what to run and link to it. A description of
+*purpose* — the one stable reason a thing exists — is not a summary and does
+not rot.
+
 When tempted to copy content into a second doc, link instead — the link is
 the duplication-free way to reuse.
 
