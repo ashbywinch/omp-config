@@ -124,7 +124,7 @@ def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadP
             # threads we can see would understate what is open, so stop instead.
             sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
         thread = Thread.from_json(node)
-        comments_page = node.get("comments", {}).get("pageInfo", {})
+        comments_page = (node.get("comments") or {}).get("pageInfo", {})
         if comments_page.get("hasNextPage"):
             later = _later_comments(thread.id, comments_page["endCursor"])
             thread = replace(thread, comments=thread.comments + tuple(later))
@@ -137,7 +137,10 @@ def _later_comments(thread_id: str, cursor: str) -> list[Comment]:
     extra: list[Comment] = []
     while cursor:
         data = _graphql(COMMENTS_QUERY, ["-f", f"id={thread_id}", "-f", f"cursor={cursor}"])
-        page = data["data"]["node"]["comments"]
+        node = data["data"].get("node")
+        if not node:
+            sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
+        page = node["comments"]
         extra += [Comment(c["author"]["login"], c["body"]) for c in page["nodes"]]
         cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
     return extra
