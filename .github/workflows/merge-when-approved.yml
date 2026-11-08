@@ -13,12 +13,11 @@ name: Merge when approved
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
-  # without Pro. The approval and the thread resolution are still the gate; this
-  # only removes the last click.
+  # without Pro.
   #
   #   jobs:
   #     merge:
-  #       uses: ashbywinch/omp-config/.github/workflows/merge-when-approved.yml@v0.2.0
+  #       uses: ashbywinch/omp-config/.github/workflows/merge-when-approved.yml@v0.2.2
   workflow_call:
     inputs:
       merge_method:
@@ -29,6 +28,11 @@ on:
     types: [submitted]
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
+  # Resolving a thread is the last thing that happens before a PR is mergeable,
+  # and it fires none of the events above — the gate can be satisfied with
+  # nothing left to notice it.
+  pull_request_review_thread:
+    types: [resolved, unresolved]
   check_suite:
     types: [completed]
   status: {}
@@ -42,9 +46,8 @@ permissions:
 jobs:
   merge:
     # Runs for every trigger this workflow has. On check_suite/status there is no
-    # pull_request object at all — that is the point: those events are how a PR
-    # approved while its checks were still running gets looked at again. Only a
-    # draft pull_request is excluded.
+    # pull_request object at all — that is the point: those are how an approved
+    # PR whose checks had not finished gets re-examined. Only a draft is excluded.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     steps:
@@ -52,10 +55,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          # A check_suite event names its PRs; a status event names only a sha, so
-          # that case falls through to the script, which finds the PR from the sha.
           PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || '' }}
           SHA: ${{ github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
+          MERGE_METHOD: ${{ inputs.merge_method || 'merge' }}
         run: |
           set -euo pipefail
 
@@ -68,7 +70,12 @@ jobs:
           fi
           echo "evaluating PR #$pr"
 
-          read -r decision state checks head_repo < <(
+          # Everything below is re-read rather than remembered: this job can wait
+          # fifteen minutes, and an approval, a check or a thread can change in
+          # that time. Deciding on a stale value is how a PR merges on an approval
+          # that was withdrawn.
+
+          read_state() {
             gh api graphql -f query='
               query($owner: String!, $repo: String!, $pr: Int!) {
                 repository(owner: $owner, name: $repo) {
@@ -80,52 +87,90 @@ jobs:
                   }
                 }
               }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" \
-            --jq '.data.repository.pullRequest
-                  | [(.reviewDecision // "NONE"),
-                     .mergeStateStatus,
-                     (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
-                     (.headRepository.nameWithOwner // "")]
-                  | @tsv'
-          )
+              --jq '.data.repository.pullRequest
+                    | [(.reviewDecision // "NONE"),
+                       .mergeStateStatus,
+                       (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
+                       (.headRepository.nameWithOwner // "")]
+                    | @tsv'
+          }
 
-          # Threads are counted separately and paginated. Asking for the first
-          # 100 only would report zero unresolved on a PR with more than that,
-          # and merge it with threads still open.
-          open_threads=0
-          cursor=""
-          while : ; do
-            page=$(gh api graphql -f query='
-              query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
-                repository(owner: $owner, name: $repo) {
-                  pullRequest(number: $pr) {
-                    reviewThreads(first: 100, after: $after) {
-                      pageInfo { hasNextPage endCursor }
-                      nodes { isResolved }
+          # Threads are paginated: first:100 reports zero unresolved on a PR with
+          # more than a hundred, and merges it with threads still open. A failed
+          # query is fatal, not zero — an unreadable answer must never read as
+          # "no unresolved threads".
+          count_threads() {
+            local total=0 cursor="" page
+            while : ; do
+              if ! page=$(gh api graphql -f query='
+                query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $pr) {
+                      reviewThreads(first: 100, after: $after) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes { isResolved }
+                      }
                     }
                   }
-                }
-              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" -F after="$cursor")
-            open_threads=$(( open_threads + $(printf '%s' "$page" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length') ))
-            if [ "$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" != "true" ]; then
+                }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" -F after="$cursor"); then
+                echo "::error::could not read review threads — refusing to merge on an unknown answer" >&2
+                exit 3
+              fi
+              if ! printf '%s' "$page" | jq -e '.data.repository.pullRequest.reviewThreads' >/dev/null 2>&1; then
+                echo "::error::review thread query returned no data — refusing to merge on an unknown answer" >&2
+                exit 3
+              fi
+              total=$(( total + $(printf '%s' "$page" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length') ))
+              if [ "$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" != "true" ]; then
+                break
+              fi
+              cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty')
+            done
+            echo "$total"
+          }
+
+          # Checks usually finish after the approval that started this job, and the
+          # last one to finish is often the review the PR is waiting on. Wait for
+          # them rather than deciding on a snapshot.
+          for attempt in $(seq 1 15); do
+            read -r decision state checks head_repo < <(read_state)
+            open_threads=$(count_threads) || exit $?
+
+            echo "attempt $attempt — review: $decision | state: $state | checks: $checks | threads: $open_threads | head: $head_repo"
+
+            if [ "$head_repo" != "$REPO" ]; then
+              echo "fork PR — not merged here"; exit 0
+            fi
+            if [ "$decision" != "APPROVED" ]; then
+              echo "not approved — nothing to do"; exit 0
+            fi
+            if [ "$open_threads" != "0" ]; then
+              echo "$open_threads review thread(s) unresolved — not merging"; exit 0
+            fi
+            if [ "$checks" = "SUCCESS" ]; then
               break
             fi
-            cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty')
+            case "$checks" in
+              PENDING|QUEUED|IN_PROGRESS|EXPECTED) ;;
+              *) echo "checks are $checks — not merging"; exit 0 ;;
+            esac
+            if [ "$attempt" -eq 15 ]; then
+              echo "checks still $checks after 15 minutes — leaving it"; exit 0
+            fi
+            sleep 60
           done
 
-          echo "review: $decision | merge state: $state | checks: $checks | unresolved threads: $open_threads | head: $head_repo"
+          # One last read, after the wait: the loop's last look can be a minute
+          # old, and every condition it checked can have changed since.
+          read -r decision state checks head_repo < <(read_state)
+          open_threads=$(count_threads) || exit $?
+          echo "final — review: $decision | state: $state | checks: $checks | threads: $open_threads"
 
-          if [ "$head_repo" != "$REPO" ]; then
-            echo "fork PR — not merged here"; exit 0
-          fi
-          if [ "$decision" != "APPROVED" ]; then
-            echo "not approved yet — nothing to do"; exit 0
-          fi
-          if [ "$open_threads" != "0" ]; then
-            echo "$open_threads review thread(s) unresolved — not merging"; exit 0
-          fi
-          if [ "$checks" != "SUCCESS" ]; then
-            echo "checks are $checks — not merging"; exit 0
-          fi
+          if [ "$head_repo" != "$REPO" ]; then echo "fork PR — not merged here"; exit 0; fi
+          if [ "$decision" != "APPROVED" ]; then echo "approval is now $decision — not merging"; exit 0; fi
+          if [ "$open_threads" != "0" ]; then echo "$open_threads review thread(s) unresolved — not merging"; exit 0; fi
+          if [ "$checks" != "SUCCESS" ]; then echo "checks are $checks — not merging"; exit 0; fi
+
           case "$state" in
             CLEAN) ;;
             BEHIND)
@@ -136,4 +181,4 @@ jobs:
               echo "merge state is $state — not merging"; exit 0 ;;
           esac
 
-          gh pr merge "$pr" --repo "$REPO" --${{ inputs.merge_method || 'merge' }}
+          gh pr merge "$pr" --repo "$REPO" --"$MERGE_METHOD"
