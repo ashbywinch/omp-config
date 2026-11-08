@@ -346,10 +346,15 @@ git push origin <branch>
 
 After push, checks trigger again automatically (if configured). Wait for completion, then:
 
-1. Re-read the review comments — the persistent review will be updated
-2. Confirm the specific finding you fixed is no longer reported
-3. Check for ANY new findings that may have been uncovered
-4. Repeat until the review reports "No security concerns" and "No major issues/detected"
+1. **Ask what still needs an answer**: `pr-threads <pr>`. Everything it prints as
+   UNANSWERED is unfinished work — including a thread you replied to earlier and
+   the reviewer followed up on. A non-zero exit means the PR is not ready to
+   report, however green the checks are.
+2. Re-read the review comments — the persistent review will be updated
+3. Confirm the specific finding you fixed is no longer reported
+4. Check for ANY new findings that may have been uncovered
+5. Repeat until `pr-threads` prints nothing and the review reports "No security
+   concerns" and "No major issues/detected"
 
 ### 12. Know When to Stop
 

@@ -18,6 +18,7 @@ GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
+PR_THREADS_DST := $(H)/.local/bin/pr-threads
 LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
 
 help:
@@ -52,8 +53,9 @@ install:
 		fi; \
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
+	ln -sf $(CURDIR)/tools/pr_threads.py $(PR_THREADS_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
-	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(PR_THREADS_DST)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
 install-gh-shim:
