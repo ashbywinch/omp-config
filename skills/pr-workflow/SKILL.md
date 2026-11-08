@@ -88,6 +88,16 @@ PATCH the whole body directly — otherwise split just before the marker,
 insert the new text into the description half, rejoin, PATCH the whole body.
 ---
 
+## Stage the files you changed
+
+Use `git add <path>` for each path you edited. **Never `git add -A`, `git add .`
+or `git commit -a`** in a working tree you share with other sessions: those
+commands stage everything untracked, including another agent's work in progress,
+and put it in your PR under your name.
+
+That is not hypothetical — it put a whole unrelated project (35 files) into a
+skill PR, where a reviewer then reviewed code that was never part of the change.
+
 ## Never resolve someone else's thread
 
 A review thread belongs to the person who opened it. Resolving it is their
