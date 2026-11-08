@@ -142,7 +142,7 @@ jobs:
               break
             fi
             case "$checks" in
-              PENDING|QUEUED|IN_PROGRESS) ;;
+              PENDING|QUEUED|IN_PROGRESS|EXPECTED) ;;
               *) echo "checks are $checks — not merging"; exit 0 ;;
             esac
             if [ "$attempt" -eq 15 ]; then
@@ -159,7 +159,8 @@ jobs:
                     commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
                   }
                 }
-              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr"               --jq '.data.repository.pullRequest
+              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" \
+              --jq '.data.repository.pullRequest
                     | [(.reviewDecision // "NONE"), .mergeStateStatus,
                        (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
                        (.headRepository.nameWithOwner // "")]
