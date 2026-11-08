@@ -85,19 +85,37 @@ def _job_log(repo: str, token: str) -> str | None:
         jobs = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs", token)
         if not jobs.get("jobs"):
             return None
+        # The reason we want lives in the REVIEW job's log, not in whichever job
+        # the API happens to list first — this runs from a second job in the
+        # same run, and listing order is not the workflow's order.
+        wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
+        matches = [j for j in jobs["jobs"] if j.get("name") == wanted]
+        if not matches:
+            return None
         req = urllib.request.Request(
-            f"https://api.github.com/repos/{repo}/actions/jobs/{jobs['jobs'][0]['id']}/logs",
+            f"https://api.github.com/repos/{repo}/actions/jobs/{matches[0]['id']}/logs",
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
         )
         try:
-            return _OPENER.open(req).read().decode("utf-8", errors="replace")
+            resp = _OPENER.open(req)
+            # GitHub answers the log endpoint with a redirect to blob storage.
+            # Whether the custom opener raises on that or hands the response
+            # back depends on its handler set, so handle both: follow the
+            # Location ourselves, WITHOUT the token — the redirect target is a
+            # third-party host and must not receive it.
+            if getattr(resp, "status", 200) in (301, 302, 303, 307, 308):
+                location = resp.headers.get("Location")
+                if not location:
+                    return None
+                return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
+            return resp.read().decode("utf-8", errors="replace")
         except HTTPError as e:
-            if e.code != 302:
+            if e.code not in (301, 302, 303, 307, 308):
                 raise
             location = e.headers.get("Location")
             if not location:
                 return None
-            return urllib.request.urlopen(location).read().decode("utf-8", errors="replace")
+            return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
     except (HTTPError, KeyError, ValueError, urllib.error.URLError):
         return None
 
@@ -157,8 +175,7 @@ def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
         (
             c.get("body", "").startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
             and (
-                sha in c.get("body", "")
-                or f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
+                f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
                 or c.get("created_at", "") >= reviewed_after
                 or c.get("updated_at", "") >= reviewed_after  # the persistent guide is EDITED in place: its created_at never advances, and pr-agent's persistent-state read sometimes fails so the edit carries no SHA footer — an edit after the head was received is still coverage
             )
@@ -189,18 +206,25 @@ def main() -> int:
     # predates the push, so a review posted for an earlier revision could
     # "cover" a newer head authored before it. A review that covers THIS
     # push must post after the run that checks it started.
-    reviewed_after = commit["commit"]["committer"]["date"]
     run_id = os.environ.get("GITHUB_RUN_ID")
-    if run_id:
-        try:
-            run = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}", token)
-            reviewed_after = run["run_started_at"]
-        # lucidlint: ignore swallow the run API is best-effort data availability — the ::warning print surfaces the degradation at runtime, and re-raising would fail the check when the committer-date anchor is still a conservative fallback
-        except (HTTPError, KeyError, ValueError) as e:
-            # fall back to the committer date — the run API may lag or the
-            # token may lack actions: read. Never silent: a degraded anchor
-            # is still a conservative one (committer date predates the push).
-            print(f"::warning::run_started_at unavailable ({type(e).__name__}: {e}) — anchoring coverage to the committer date")
+    if not run_id:
+        print("::error::GITHUB_RUN_ID is not set — the coverage anchor cannot be determined, "
+              "and a guess here would pass a review that does not cover this commit.")
+        return 1
+    try:
+        run = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}", token)
+        reviewed_after = run["run_started_at"]
+    # No fallback is deliberate: the anchor IS the check. With no run start
+    # there is no conservative guess, because the committer date predates the
+    # push and an earlier head's review can land inside that window.
+    except (HTTPError, KeyError, ValueError) as e:
+        # NO fallback to the committer date. It predates the push, so a review
+        # of an earlier head, posted after the commit was authored but before
+        # it was pushed, would count as covering this one. Failing is the
+        # honest answer: the anchor is unknown, so coverage is unproven.
+        print(f"::error::run_started_at unavailable ({type(e).__name__}: {e}) — "
+              "cannot determine whether a review covers this commit.")
+        return 1
 
     try:
         comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments?per_page=100", token)
