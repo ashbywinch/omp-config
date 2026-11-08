@@ -50,8 +50,7 @@ be written as named anti-patterns with checkable forms.
 
 ## The self-check
 
-Every repo runs `make test` as its gate. The test suite includes a self-check
-where the toolchain supports it (omp-config's `tools/check_docs_links.py`
-validates discoverability from AGENTS.md, skill well-formedness, and
-always-loaded size ceilings). This is the deterministic part of enforcement;
-the judgment part stays with the review bot.
+Every repo runs `make test` as its gate. The suite includes a self-check where
+the toolchain supports it (omp-config's own contracts live in `tools/tests/`).
+This is the deterministic part of enforcement; the judgment part stays with the
+review bot.

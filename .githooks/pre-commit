@@ -1,6 +1,6 @@
 #!/bin/sh
-# Fast pre-commit check for omp-config: the repo's self-check must pass.
-# Tests stay in `make test` + CI — the hook is the fast gate, never the gate.
+# Fast pre-commit check for omp-config: the repo's contracts must hold.
+# The suite is milliseconds; lucidlint and the rest stay in `make test` + CI.
 set -e
 cd "$(git rev-parse --show-toplevel)"
-python3 tools/check_docs_links.py
+python3 -m unittest discover -s tools/tests

@@ -1,6 +1,20 @@
 ## External Writes
 
-Never write to an external system (Notion, calendars, GitHub, any side-effecting API) without explicit user approval of the exact write. Enumerate the specific pages/properties/values, wait for an explicit yes to that list, never create records by inference, and never bundle writes into the same turn as an answer to a question. Discussion and design talk are NOT approval. This is a standing rule for every session, not just Notion workflows.
+Anything outside this repository is external: Notion, Drive, Gmail, the calendar,
+GitHub, any API. Before writing to one, show exactly what will be written — each
+field and its value, in prose a person reads, not JSON — then stop and wait.
+
+Write only after the user says yes to those words. Nothing else counts as a yes:
+
+- a yes to the plan, the folder, the parent or the placement — that answers a
+  different question from the one you asked;
+- a reply that answers something else;
+- silence, or "carry on";
+- approval of an earlier version, if the words have changed since.
+
+If several records belong together, show them as one list and take one yes. If
+you cannot tell whether a surface is external, treat it as external. Nothing
+enforces this: it is a rule you follow, not a check that will catch you.
 
 Never treat a reply as approval unless it approves the enumerated write: a "yes" about content, a preference, or another question is not approval. One approval covers one write, and never write a value the user has already rejected this session.
 
