@@ -1,127 +1,148 @@
 ---
 name: litellm-gateway
-description: LiteLLM proxy for Paseo/OMP — provider failover chain (GLM -> Muse -> OpenCode -> DeepSeek), blue-green swaps, rollback-first operations
----
+description: LiteLLM proxy for Paseo/OMP — the local failover chain, the blue-green swap procedure, and rollback-first operations
+One local endpoint (`http://localhost:4000/v1`) owns the model failover chain:
+clients (omp, Paseo agents) ask for model `primary`, LiteLLM routes through the
+chain and fails over per request. The text default runs through this proxy;
+Cloudflare AI Gateway stays configured as the manual rollback.
 
-# LiteLLM Gateway
+## Where the originals live
 
-One local endpoint (`http://localhost:4000/v1`) that owns the model fallback
-chain. Clients (omp, Paseo agents) ask for model `primary`; LiteLLM routes
-through the chain and fails over per request. Replaces Cloudflare AI Gateway
-for the text default; Cloudflare stays configured as the manual rollback.
+The chain and the gate are defined in these files. Read them there — never
+restate their contents in a doc or a skill.
 
-## The chain (what `primary` means)
-
-`primary` = GLM-5.3-Flash (z.ai Coding Plan) → Muse Spark (OpenCode) →
-DeepSeek V4 Flash (OpenCode) → DeepSeek (direct). Chain order and models live
-in the LiteLLM config only — clients never change. Editing the chain never
-touches omp/Paseo config.
-
-## Blue-green layout
+The tooling is sourced from `ashbywinch/bluegreen-config` and installed into the
+state directory by `make install` (copies, not symlinks); `make check-installed`
+fails when the installed copy drifts from the repo. Change a script in the repo,
+install, then operate.
 
 ```
 ~/.paseo/litellm/
-  config.green.yaml    # last-known-good chain (never edit in place)
-  config.blue.yaml     # staging chain (edit THIS for a change)
-  config.current.yaml  # symlink -> green|blue ; what :4000 serves
-  test.sh              # validate a config on :4001 (3 probes, no live traffic)
-  swap.sh              # status / activate / rollback
-  switch-execstart.sh  # install/verify the unit's ExecStart; rolls back on failure
+  config.blue.yaml        the chain to edit: `model_list` order (head first) and
+                          `fallbacks:` (the order after it), plus the header
+                          comments carrying the provider constraints
+  config.green.yaml       the rollback target: the chain the last promote left
+                          in place
+  config.green.yaml.prev  the chain the last promote replaced (one step back)
+  config.current.yaml     symlink -> config.green.yaml or config.blue.yaml ;
+                          what :4000 serves
+  swap.sh                 the state machine — run it with no arguments for the
+                          subcommand list; `swap.sh status` prints the live side,
+                          whether the sides differ, health, the last gate outcome
+                          (.gate-state), and the next command
+  test.sh                 the gate — its header documents the probes, the
+                          chain-shape contract it parses, and the per-member
+                          error/consequence output on FAIL
+  snapshot-live.sh        the pre-switch snapshot — prints a timestamped backup
+                          of the live side and the exact restore lines
+  .gate-state             the last gate outcome keyed to blue's content hash —
+                          status withholds activate/promote while it is FAIL
 ```
 
-Service: `litellm.service` (systemd --user); `ExecStart` sources `~/.secrets`
-(the single secret store — no `EnvironmentFile=`) and serves
+Service: `litellm.service` (systemd --user); `ExecStart` sources `~/.secrets` —
+the single secret store, so there is no `EnvironmentFile` — and serves
 `config.current.yaml`.
 
-## ROLLBACK FIRST — non-negotiable
+## Sides and the live side
 
-BEFORE running any `swap.sh activate` (or any change to the live chain):
+`BLUE` (`config.blue.yaml`) is the side to edit. `GREEN` (`config.green.yaml`) is
+the chain that keeps serving. `config.current.yaml` symlinks whichever one `:4000`
+reads, so "live" means the side that symlink points at.
 
-1. Print the rollback command and make the user acknowledge it.
-2. The rollback must never depend on a model provider: it is a symlink flip
-   plus a systemd restart, runnable from any terminal even if every LLM call
-   is failing.
+At rest both sides hold the same chain: nothing is staged, and the next change is
+an edit to BLUE. An edit makes the sides differ, and that difference *is* the
+staged change — invisible to `:4000` until a live-side command points
+`config.current.yaml` at BLUE. When the sides hold the same chain again the staged
+change is gone: it either went live or was reverted.
 
-```
-# Revert LiteLLM chain to last-known-good:
-~/.paseo/litellm/swap.sh rollback
-# manual equivalent:
-ln -sf ~/.paseo/litellm/config.green.yaml ~/.paseo/litellm/config.current.yaml
-systemctl --user restart litellm
+Never edit the live side. Nothing on the filesystem enforces this — the check is
+the guard.
 
-# Revert omp/Paseo to Cloudflare (skip LiteLLM entirely):
-# edit ~/.omp/agent/config.yml -> modelRoles.default (and advisor):
-#   cloudflare-gateway/dynamic/fallback2
-# (the cloudflare-gateway provider entry in ~/.omp/agent/models.yml remains)
-```
+## The gate
 
-## Operations
+`test.sh` proves every chain member serves on its own, so a failing member
+cannot hide behind a working fallback, and it asserts real content — a chain
+that answers with empty messages is not working.
 
-```bash
-~/.paseo/litellm/swap.sh status    # which side is live
-~/.paseo/litellm/test.sh           # validate BLUE on :4001 (serve/SSE/cascade)
-~/.paseo/litellm/swap.sh activate  # current -> blue + restart (prints rollback first)
-~/.paseo/litellm/swap.sh rollback  # current -> green + restart
-systemctl --user status litellm    # service health
-curl -s http://localhost:4000/health/readiness
-```
+## Chain members that fail report their provider error
 
-`test.sh` probes: `primary` returns 200 (GLM healthy), streamed `primary` ends
-with `[DONE]`, and a copy of the config with GLM's endpoint killed still
-returns 200 from a fallback model. NEVER activate a config that fails `test.sh`.
+A chain member is one model in `model_list` that the alias can fall through to:
+the head first, then `fallbacks` in order. `test.sh` probes each member alone
+with fallbacks disabled and prints the failing member's HTTP status, error type
+and message, plus which members ride instead.
 
-## Changing the chain
+Report that error as printed. A member failing on exhausted credit, a billing
+gate, or "model disabled" is not classified here: whether it needs a fix or is
+an acceptable fallback is the operator's decision. Pass the printed errors to
+the user verbatim and wait for their call before any live-side command.
 
-1. Edit `config.blue.yaml` (order, models, keys, timeouts).
-2. `~/.paseo/litellm/test.sh` — must pass ALL probes.
-3. Print the rollback command (above) and confirm the user has it.
-4. `~/.paseo/litellm/swap.sh activate`.
-5. Verify `/health/readiness` and a `primary` call.
-6. After a stable soak, promote blue → green is NOT automatic: copy
-   `config.blue.yaml` over `config.green.yaml` ONLY when you are ready for
-   the new chain to be the rollback target.
+`--yes` is the tool-level acknowledgment — it never bypasses the probe. The
+routes to a passing gate are a provider-side fix or reshaping the chain
+(drop/swap the failing member).
+
+## Rollback first
+
+Run `swap.sh status`: it prints the live side, whether the sides differ, health,
+the last gate outcome, and the next command. Run the command its `next:` line
+names.
+
+- `swap.sh rollback` re-links GREEN and restarts. It reverts a soak
+  (`live = BLUE`); in every other state it restarts onto the chain already
+  live, so it changes nothing.
+- `promote --yes` makes GREEN the live chain and saves the outgoing chain to
+  `config.green.yaml.prev`. `swap.sh promote` prints the one-step undo, so run
+  it without `--yes` and state that output before promoting.
+- With `live = BLUE`, run `snapshot-live.sh` before anything else: it prints the
+  timestamped backup and the exact restore lines. State that output plus the
+  Cloudflare fallback (`~/.omp/agent/config.yml` →
+  `modelRoles.default: cloudflare-gateway/dynamic/fallback2`) before `test`,
+  `activate --yes`, or `promote --yes`. State every path as the full filesystem
+  path the tool printed — never `swap.sh`, `skill://...`, or `~` shorthand.
+  Never state a recovery that leaves the live head unrestored.
+- Never run `promote --yes` before stating that recovery and receiving the
+  user's acknowledgment.
+- At steady state the dry run (`swap.sh activate` without `--yes`) prints the
+  rollback lines (full paths): copy them exactly, never retype or shorten, then
+  wait for acknowledgment before `test` or `activate --yes`.
+- Never stage and activate in one turn: edit, gate, report, wait.
+
+## Traps
+
+- Prove the chain with `swap.sh test`, which probes every member alone. A 200
+  from the alias proves that one member answered, nothing more.
+- Never edit the live side: a restart mid-edit serves the half-staged config.
+- Never promote to escape a failure: promotion copies the live chain over the
+  rollback target, so the bad chain becomes the rollback target too. `.prev`
+  undoes one promotion, once.
+- A restart takes tens of seconds; a shell that times out while waiting is not
+  evidence of failure — check `swap.sh status`.
 
 ## Clients
 
-- omp/Paseo agents: `litellm/primary` in `modelRoles`; `litellm` provider
-  (`baseUrl http://localhost:4000/v1`) in `~/.omp/agent/models.yml`.
-  Restart the omp session to pick up provider/model changes.
-- `designer`/`vision` roles: still `cloudflare-gateway/dynamic/image`
-  (Cloudflare image route, free of the text-chain).
-- PR-Agent (GitHub Actions): stays on Cloudflare — it cannot reach
-  localhost.
+- omp/Paseo agents: the `litellm` provider entry and the role pointing at it
+  live in `~/.omp/agent/models.yml` and `~/.omp/agent/config.yml`.
+- `designer`/`vision` roles and PR-Agent stay on Cloudflare — PR-Agent cannot
+  reach localhost.
 
-### Paseo sessions pin the model per session — restarts never migrate them
+### Paseo sessions pin their model — restarts never migrate them
 
-Each session stores its model in `~/.paseo/agents/<worktree>/<agent>.json`
-(`config.model`, duplicated in `runtimeInfo.model` and
-`persistence.metadata.model`). Those pins OVERRIDE `modelRoles.default`:
-sessions created before the migration keep
-`cloudflare-gateway/dynamic/fallback2` no matter how often the daemon
-restarts. Migration = rewrite the pins:
+A session's model lives in `~/.paseo/agents/<worktree>/<agent>.json` and
+overrides the default in `~/.paseo/config.json`.
 
-1. `systemctl --user stop paseo` FIRST — editing under a live daemon loses
-   the race: dirty in-memory session state flushes back on shutdown and
-   reverts the edit (observed: 4 of 21 pins reverted through a live edit).
-2. Rewrite pins with an exact match (spares the historical `lastError`
-   strings, which reference the old model with `model=` syntax):
+Change a model in the LiteLLM chain (`config.blue.yaml`). Override it in
+`~/.paseo/config.json` only when the user explicitly asks for that session to
+bypass the chain.
 
-   ```bash
-   grep -rl '"model": "cloudflare-gateway/dynamic/fallback2"' \
-     ~/.paseo/agents --include='*.json' | xargs sed -i \
-     's/"model": "cloudflare-gateway\/dynamic\/fallback2"/"model": "litellm\/primary"/g'
-   ```
-
-3. `systemctl --user start paseo`, then re-grep: expect 0 hits.
-
-New sessions follow `agents.providers.omp.models[].isDefault` in
-`~/.paseo/config.json`; the per-session pin is what the Paseo UI model
-dropdown sets.
+Migrate existing pins with
+`skill://litellm-gateway/examples/migrate-paseo-pins.sh`, daemon stopped:
+in-memory session state flushes back on shutdown and reverts an edit made
+against a live daemon.
 
 ## Diagnostics
 
-- Provider-side errors — z.ai `429` (wrong endpoint for the Coding Plan
-  key), `DataPolicyError` (OpenCode workspace opt-in), `MonthlyLimitError`
-  (OpenCode spend cap) — meanings and fixes are canonical in
-  `skill://cloudflare-ai-gateway/references/adding-providers.md`.
-- Keys live in `~/.secrets` (600), sourced by `litellm.service`; never print them.
+- Provider-side errors (`DataPolicyError`, `MonthlyLimitError`, region and
+  billing gates) are fixed on the provider side, not in this chain's config;
+  while they persist they block every live-side command (`Chain members that
+  fail report their provider error`). Provider configuration for these routes
+  is in `skill://cloudflare-ai-gateway`.
+- Keys live in `~/.paseo/litellm/env`; never print them.

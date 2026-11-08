@@ -1,36 +1,40 @@
 ---
 name: session
 description: |
-  Standardised wrapper for all engagement execution. Handles session lifecycle,
-  role adoption, completion protocols, and integration with coordination systems.
+  Standardised wrapper for session execution — lifecycle, role adoption and
+  completion. Runs the skill the calendar block names.
 ---
 
 # Session Playbook
 
-Standardised wrapper for all session execution. Must be used by `skill://pa-coordination` for every operation — never execute domain skills directly.
+Standardised wrapper for session execution. It runs the lifecycle around the
+skill the block names, and never chooses one itself.
 
-## Session Type Routing
+## Resolving the block
 
-| Session Type | Routes to |
-|---|---|
-| Morning Check-in | `skill://morning-checkin` |
-| Inbox Processing | `skill://notion-insights-processing` |
-| Backlog Grooming | `skill://backlog-grooming` |
-| Day Planning | `skill://google-calendar` |
-| Create Artifact | Direct artifact creation |
-| PR Workflow | `skill://pr-workflow` |
-| Process Improvement | `skill://process-improvement` |
+A session is the calendar block it was scheduled as. The block's **title is the
+name of the skill that runs it**, written in words: `Backlog Grooming` is
+`skill://backlog-grooming`. Resolve the title to a skill and read that skill's
+description to confirm it is the one meant.
+
+A block titled with a task — `Task X`, or the task's own name — is that task: the
+work is the task itself, and no skill is started.
+
+If nothing resolves, or two candidates do, ask the user which skill the block is
+for. Never pick one, and never start a skill the title does not name.
 
 ## Parameters
 
-- **Session Type** (required): Maps to a skill from the table above
-- **Session Definition** (optional): Timing, objectives, constraints from PA Coordination
+- **Session Type** (required): the calendar block's title (`skill://google-calendar`)
+- **Skill** (required): resolved from the title, or named by whoever starts the
+  session
+- **Session Definition** (optional): Timing, objectives, constraints from the caller
 
 ## Process
 
 ### 1. Session Setup
 
-- **Validate Session Type**: Confirm the target skill/plan exists
+- **Validate the Skill**: Confirm the named skill exists
 - **User Profile Check**: Verify profile exists at `~/.config/omp/profiles/User Profile.md`. If missing, create one first.
 - **Pre-Session Prep**: Gather any required context for the session
 
