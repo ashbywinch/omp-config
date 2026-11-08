@@ -13,6 +13,7 @@ instead of a tool produced.
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -51,6 +52,7 @@ ORIGINAL = [{"type": "text", "text": {"content": "Original"}, "plain_text": "Ori
 class NotionWriteTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         bindir = self.tmp / "bin"
         bindir.mkdir()
         stub = bindir / "ntn"
