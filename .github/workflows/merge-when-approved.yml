@@ -105,7 +105,7 @@ jobs:
             if [ "$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" != "true" ]; then
               break
             fi
-            cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
+            cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty')
           done
 
           echo "review: $decision | merge state: $state | checks: $checks | unresolved threads: $open_threads | head: $head_repo"

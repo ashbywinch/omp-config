@@ -107,7 +107,7 @@ def _job_log(repo: str, token: str) -> str | None:
                 location = resp.headers.get("Location")
                 if not location:
                     return None
-                return urllib.request.urlopen(location).read().decode("utf-8", errors="replace")
+                return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
             return resp.read().decode("utf-8", errors="replace")
         except HTTPError as e:
             if e.code not in (301, 302, 303, 307, 308):
@@ -115,7 +115,7 @@ def _job_log(repo: str, token: str) -> str | None:
             location = e.headers.get("Location")
             if not location:
                 return None
-            return urllib.request.urlopen(location).read().decode("utf-8", errors="replace")
+            return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
     except (HTTPError, KeyError, ValueError, urllib.error.URLError):
         return None
 
