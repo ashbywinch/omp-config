@@ -92,11 +92,15 @@ def exchange(raw):
 
     if not PENDING.exists():
         sys.exit("no pending authorisation: run `mint` first, and use the URL it printed")
-    pending = json.loads(PENDING.read_text())
+    try:
+        pending = json.loads(PENDING.read_text())
+        client, verifier = pending["client"], pending["verifier"]
+    except (json.JSONDecodeError, KeyError, OSError) as exc:
+        sys.exit("pending authorisation at %s is unusable (%s): run `mint` again" % (PENDING, exc))
 
-    flow = InstalledAppFlow.from_client_config(pending["client"], scopes=SCOPES)
+    flow = InstalledAppFlow.from_client_config(client, scopes=SCOPES)
     flow.redirect_uri = REDIRECT
-    flow.fetch_token(code=code, code_verifier=pending["verifier"])
+    flow.fetch_token(code=code, code_verifier=verifier)
 
     PICKLE.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(PICKLE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FILE_MODE)
