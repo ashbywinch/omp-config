@@ -16,15 +16,14 @@ loaded in full when used, so the 150–200 line / 32 KiB targets apply to it
 directly). The review bot checks skill changes against this standard like
 any other doc.
 
-## Standards pair with their enforcement
+## Skills and standards come in pairs
 
-A standard states the rule; something must operationalize it — a skill that
-walks the procedure, an architecture test, a lint gate, or the review bot
-reading these files. Writing a standard commits you to naming its enforcement
-mechanism in the same change: a standard nothing enforces is a wish. A skill
-that restates rules from a canonical document is a duplication finding — link
-the canonical section instead; a standard with no skill or check behind it is
-a finding at review.
+A skill that produces an artefact — a document, a task, an epic — has a standards
+document saying what that artefact must be. The skill walks the procedure; the
+standard states the result, so a reader can check it without asking the author.
+
+A standard never says how it is checked. That is the reviewer's job, and it
+changes without the standard changing.
 
 ## Context efficiency
 
@@ -125,16 +124,13 @@ stays green when it goes stale.
 
 ## No history lessons
 
-Documentation never explains how the current state came to be. Do not
-write what changed, who decided, what failed before, or when the shift
-happened: that is history, and history is noise. Write the state and the
-reason instead.
+Write what is true now. Never write what changed, who decided, what failed
+before, or when it happened: that is history, and history is noise.
 
 ✗ "We renamed this line in 2026 after readers kept taking it the wrong
 way."
 
-✓ "The line above the findings names the code whose change would cost the
-most."
+✓ "The heading names the file the finding is in."
 
 ## API keys never go in docs
 
@@ -202,14 +198,12 @@ costs time and can cause the wrong action.
 Give each kind its own sentence. Write "`cache.py` reads `cache.toml`
 at startup" as the fact. Write "edit that file, then run `cache gc`" as
 the command.
-- **Write instructions with the same rules as facts.** Use the active
-  voice, write one idea per sentence, make every noun knowable, use simple
-  words.
 
 Write each section by these rules:
 
-- **Write each rule as a command.** Write "put X", "name X", "write X",
-  "do not X".
+- **State the rule, not the steps.** Write "every block carries its task ID",
+  not "add the task ID when you create the block" — the steps belong in the
+  skill.
 - **Put the main point first.** Write the fact or the instruction in the
   first sentence. Write the reasons after it.
 - **Name the heading after what the section gives the reader.** Do not use
@@ -223,7 +217,8 @@ Write each section by these rules:
   Link to the document that defines it when such a document exists. A name
   alone is not enough when the reader cannot know what the name refers to.
 - **Define terms at first use.** Explain each term in plain words where it
-  first appears. Use one name for one thing throughout.
+  first appears — house jargon such as finding, seam, stamp, directive,
+  baseline and action included. Use one name for one thing throughout.
 - **Use concrete words.** Write "the `data.db` lock blocks the write",
   not "write protection is enabled".
 - **Use the simplest word.** Write "start" not "initiate"; write "end" not
@@ -233,15 +228,13 @@ Write each section by these rules:
 - Keep sentences under 30 words.
 - Do not start a sentence with "There is" or "There are".
 - Do not use weasel words: enable, leverage, robust, seamless, transparent.
-- Define project-specific jargon in plain words at first use — house
-  terms such as finding, seam, stamp, directive, baseline, action, and
-  family included.
 
 Write each section so it gives the reader one of:
 - a command to run, or a file to edit or open
 - a rule ("Never X")
 - a value to set, or a name to use
 - an acceptance check
+- a fact about the code that reading it would not tell you
 - a link to a document that answers the question
 
 Canonical pairs:
