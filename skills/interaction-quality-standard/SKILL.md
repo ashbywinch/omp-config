@@ -73,7 +73,8 @@ Action: owner — chase the supplier once the revised dates arrive.
 
 - A bare acknowledgement: "thanks", "got it", "oh fantastic". It earns a row
   only when it closes an action someone asked for.
-- A view confirmation, or a template that promises feedback and nothing else.
+- A view confirmation, or a stock reply that only promises feedback: "thanks for
+  your enquiry, we'll be in touch".
 - A notification with nothing decided in it. It is a fact about a system, not
   an event between people.
 
