@@ -41,7 +41,11 @@ permissions:
 
 jobs:
   merge:
-    if: github.event.pull_request.draft != true
+    # Runs for every trigger this workflow has. On check_suite/status there is no
+    # pull_request object at all — that is the point: those events are how a PR
+    # approved while its checks were still running gets looked at again. Only a
+    # draft pull_request is excluded.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     steps:
       - name: Merge if approved, resolved and green
