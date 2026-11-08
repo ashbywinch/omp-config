@@ -95,8 +95,8 @@ or `git commit -a`** in a working tree you share with other sessions: those
 commands stage everything untracked, including another agent's work in progress,
 and put it in your PR under your name.
 
-That is not hypothetical — it put a whole unrelated project (35 files) into a
-skill PR, where a reviewer then reviewed code that was never part of the change.
+Unstaged changes from other sessions are invisible until you stage them; adding
+everything publishes them under your name.
 
 ## Never resolve someone else's thread
 
