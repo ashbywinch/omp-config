@@ -7,6 +7,10 @@ description: Drive Google Calendar from the gcalcli command line — adding, sea
 
 The command-line calendar tool, its commands, its traps, and its token.
 
+## Prerequisites
+
+`gcalcli` at `~/.local/bin/gcalcli`, on `PATH`; add `~/.local/bin` if it is not.
+
 ## Commands
 
 `gcalcli` needs `--calendar` on writes: without it the command prompts
@@ -44,10 +48,23 @@ The credential is a pickle at `~/.local/share/gcalcli/oauth` holding a
 it (`creds._client_id`, `creds._client_secret`), so recover them from the old
 file before replacing it.
 
-If the user is at this machine, `gcalcli init` opens a browser and is the
-shortest path. If they are elsewhere — a phone, another machine — use the
+`gcalcli init` opens a browser on this machine and is the shortest path when the
+user is in front of it. Elsewhere — a phone, another machine — use the
 out-of-band flow: Google shows the code on the page instead of redirecting to a
 `localhost` port nobody is listening on.
+
+You cannot prove where the user is. These signals decide it, and when they
+conflict, ask:
+
+| Signal | Likely at this machine | Likely elsewhere |
+|---|---|---|
+| `$DISPLAY` / `$WAYLAND_DISPLAY` set | yes | — a display exists, nobody is watching it |
+| Browser running (`pgrep -x chrome`) | yes | — open, unseen |
+| `$SSH_CONNECTION` set | no | yes |
+| User says "on my phone" | no | yes |
+
+`init` fails harmlessly when no local browser can reach it, so trying it first
+costs nothing.
 
 **Run the script with the interpreter that carries the OAuth libraries**:
 `~/.local/share/uv/tools/gcalcli/bin/python3`.

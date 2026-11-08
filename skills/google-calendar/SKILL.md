@@ -23,8 +23,9 @@ tool.
 ## Writing
 
 - **Never** schedule in the past — `date '+%Y-%m-%d %H:%M'` first.
-- **Never** write without approval of that specific event: title, day, time,
-  calendar. A plan being approved is not this event being approved.
+- **Never** write without the user's explicit approval of that specific event:
+  title, day, time, calendar. A plan being approved is not this event being
+  approved.
 - **Never** put an event on a calendar without knowing who reads it — the
   account is part of the decision, and a workspace with more than one records
   which is which.
