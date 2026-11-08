@@ -55,10 +55,14 @@ Never rely on memory — check the actual diff.
 
 ### 1b. Stage only your own files
 
-Use `git add <path>` for each path you edited. **Never `git add -A`, `git add .`
-or `git commit -a`** in a working tree you share with other sessions: those
-commands stage everything untracked, including another agent's work in progress,
-and put it in your PR under your name.
+Use `git add <path>` for each path you edited. In a working tree you share with
+other sessions, the catch-all forms are hazards:
+
+- **`git add -A` and `git add .`** stage untracked files too, including another
+  agent's work in progress, and put it in your PR under your name.
+- **`git commit -a`** stages every *tracked* modification — so it sweeps up
+  another session's edits to files you never opened, which is harder to notice
+  than a new file appearing in the diff.
 
 ### 2. Push Feature Branch
 
