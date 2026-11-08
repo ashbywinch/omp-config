@@ -25,6 +25,10 @@ TOOL = Path(__file__).resolve().parent.parent / "notion-write.sh"
 NTN_STUB = '''#!{python}
 import json, os, sys
 
+if os.environ.get("NOTION_TEST_FAIL"):
+    print(os.environ["NOTION_TEST_FAIL"], file=sys.stderr)
+    sys.exit(1)
+
 state_path = os.environ["NOTION_TEST_STATE"]
 with open(state_path) as fh:
     state = json.load(fh)
@@ -86,6 +90,18 @@ class NotionWriteTest(unittest.TestCase):
 
     def snapshot_path(self, prop="Description"):
         return self.tmp / "state" / "notion-snapshots" / "P1" / f"{prop}.json"
+
+    def test_api_failure_is_reported_and_nothing_is_written(self):
+        env = dict(self.env, NOTION_TEST_FAIL="connection reset by peer")
+        result = subprocess.run(
+            ["bash", str(TOOL), "P1", "Description", "--text", "Replaced"],
+            capture_output=True, text=True, env=env,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not read page P1", result.stderr)
+        self.assertIn("connection reset by peer", result.stderr)
+        self.assertEqual(self.value()[0]["text"]["content"], "Original")
+        self.assertFalse(self.snapshot_path().exists())
 
     def test_write_snapshots_the_previous_value(self):
         result = self.run_tool("P1", "Description", "--text", "Replaced")

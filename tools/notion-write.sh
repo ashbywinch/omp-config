@@ -31,9 +31,13 @@ snapshot="$snapshot_dir/$(printf '%s' "$prop" | tr '/' '_').json"
 # Current state of the property: {"type": "...", "value": ...}. Errors when the
 # page has no such property, so a typo cannot patch something else.
 read_state() {
-  ntn api "v1/pages/$page" | jq -ce --arg p "$prop" '
+  local raw
+  raw=$(ntn api "v1/pages/$page" 2>&1) \
+    || die "could not read page $page — check the id and your connection: $raw"
+  jq -ce --arg p "$prop" '
     .properties[$p] as $o
-    | if $o == null then error("no property named \($p)") else {type: $o.type, value: $o[$o.type]} end'
+    | if $o == null then error("no property named \($p)") else {type: $o.type, value: $o[$o.type]} end' <<<"$raw" \
+    || die "could not read property $prop on page $page: $raw"
 }
 
 apply_state() { # $1 = {"type","value"} JSON, sent as {"<property>": {"<type>": <value>}}
