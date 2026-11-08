@@ -13,7 +13,7 @@ standards into every new project repo.
 
 ```bash
 make setup      # symlink rules/skills/APPEND_SYSTEM + install git hooks
-make install    # re-symlink after an edit (restart omp to pick up changes)
+make install    # re-symlink after an edit (OpenCode reloads skills itself)
 make test       # repo self-check: every doc link resolves, every skill is well-formed
 ```
 
@@ -32,7 +32,7 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 | `standards/ux-standards.md` | The canonical UX standard — scaffolded into code repos, not applicable to omp-config itself |
 | `profiles/` | User profile |
 | `APPEND_SYSTEM.md` | The system-prompt append |
-| `tools/check_docs_links.py` | The repo self-check (`make test`) |
+| `tools/check_docs_links.py` | Contract checks, asserted by `tools/tests/` |
 | `tools/generate_tree.py` | Notion structure tree generator (mirror-safe, superseded section) |
 | `tools/gh-app-shim` | GitHub App auth shim for `gh` — omp uses the app token, your terminal uses your creds (`make install-gh-shim`) |
 | `tools/secrets.template` | Template for `~/.secrets` — copy, fill, `chmod 600`; never commit values |
@@ -61,7 +61,7 @@ the values and `chmod 600 ~/.secrets`. Keep the private key at the path in
 ## Updating a skill or rule
 
 1. Edit the file in this repo (never `~/.omp/agent/...` — those are symlinks).
-2. `make install` to refresh the symlinks, then **restart omp**.
+2. `make install` to refresh the symlinks. OpenCode reloads skill content as it changes; restart only if a skill does not appear.
 3. Branch + PR, like any repo — never commit to main.
 
 See `skill://update-skills` for the full process, including when a lesson

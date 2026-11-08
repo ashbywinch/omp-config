@@ -1,0 +1,99 @@
+name: AI Code Review (reusable)
+
+# Called by a client repo:
+#
+#   jobs:
+#     review:
+#       uses: ashbywinch/omp-config/.github/workflows/review.yml@v0.2.0
+#       with:
+#         tooling_ref: v0.2.0
+#       secrets:
+#         OPENAI_KEY: ${{ secrets.CLOUDFLARE_AIGATEWAY_TOKEN }}
+#
+# The point of this file is that there is ONE copy of the review job and ONE
+# copy of the coverage guard. A client repo keeps a ten-line caller and nothing
+# else, so a fix lands here and reaches every client on the next tag.
+#
+# `tooling_ref` must be the same ref the caller used in `uses:`. A reusable
+# workflow cannot reliably read its own version, and a guard that silently runs
+# from a different commit than the workflow it belongs to is worse than no guard.
+
+on:
+  workflow_call:
+    inputs:
+      config_branch:
+        description: Branch in the CALLER's repo holding .pr_agent.toml.
+        type: string
+        default: pr-agent-config
+      tooling_ref:
+        description: Ref of this repo to fetch the coverage guard from — the same ref as in `uses:`.
+        type: string
+        default: main
+      openai_base_url:
+        description: OpenAI-compatible base URL (the AI gateway).
+        type: string
+        default: https://gateway.ai.cloudflare.com/v1/e21a5be58ac1e8f7d5619539feb2dc3d/default/compat
+    secrets:
+      OPENAI_KEY:
+        required: true
+
+jobs:
+  pr-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
+        id: pr-agent
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          OPENAI_BASE_URL: ${{ inputs.openai_base_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # SECURITY: pin the config to a maintainer-controlled branch. Using
+          # ${{ github.head_ref }} lets any same-repo branch ship its own
+          # .pr_agent.toml (e.g. api_base pointing at an attacker endpoint)
+          # and exfiltrate the API key.
+          #
+          # The config branch is LOAD-BEARING: it is the review config source,
+          # diverges from main by design, and has no open PRs by definition —
+          # an audit reading it as stale is wrong. Never delete it.
+          PR_AGENT_CONFIG_BRANCH: ${{ inputs.config_branch }}
+
+  verify:
+    # A SEPARATE job that runs AFTER the bot job completes: GitHub does not
+    # serve a job's log until it finishes, so the guard can only read the bot's
+    # failure reason from here — inside the bot's own job the log endpoint
+    # returns 409 and the reason is the generic fallback.
+    needs: pr-review
+    # always(): when the reviewer fails, this is the only thing that can say
+    # why. Skipping it on failure leaves the reason buried in a job log nobody
+    # reads, and the PR simply shows a red check.
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read   # read the bot's completed run log for the failure reason
+    steps:
+      # SECURITY: the guard is fetched from THIS repo at a pinned ref, never
+      # from the PR head — it runs with GITHUB_TOKEN, and a PR could otherwise
+      # replace it with code that exfiltrates the token.
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/omp-config
+          ref: ${{ inputs.tooling_ref }}
+          path: .omp-tooling
+      - name: Fail loud if no review covers the head commit
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEW_JOB_NAME: pr-review
+        # SECURITY: python3 -I (isolated) keeps the checkout off sys.path —
+        # a repo-root json.py/urllib.py/sitecustomize.py must not shadow the
+        # script's stdlib imports and run code with GITHUB_TOKEN.
+        run: python3 -I .omp-tooling/tools/check_review_posted.py
