@@ -100,6 +100,12 @@ uninstall:
 # and drive via `make -C`; the orchestrator finds its sibling scan binary by
 # itself. Pinned to a release tag — never main (house rule).
 LUCIDLINT_DIR ?= .tools/lucidlint
+
+# The interpreter the tools are written for, and the one ci.yml installs. A
+# different python3 on PATH is how code that only runs on the newer semantics
+# reaches CI to fail there instead of here.
+PY_MAJOR := 3
+PY_MINOR := 14
 LUCIDLINT_PIN ?= v0.3.0
 
 install-lucidlint:
@@ -119,6 +125,8 @@ install-lucidlint:
 # any NEW unresolved path in that file shares it — review its links by hand
 # when editing. Everything else must keep passing clean.
 test: install-lucidlint
+	@python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] == ($(PY_MAJOR), $(PY_MINOR)) else 1)' || \
+	  (echo "make test needs Python $(PY_MAJOR).$(PY_MINOR); found $$(python3 -V 2>&1). CI pins the same version (ci.yml)."; exit 1)
 	@python3 -m unittest discover -s tools/tests
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
