@@ -19,15 +19,17 @@ import sys
 from dataclasses import dataclass
 
 QUERY = """
-query($owner: String!, $repo: String!, $pr: Int!) {
+query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           isResolved
           path
           line
           comments(first: 20) {
+            pageInfo { hasNextPage }
             nodes { author { login } body }
           }
         }
@@ -69,17 +71,31 @@ def unanswered(threads: list[Thread], me: str) -> list[Thread]:
     ]
 
 
-def fetch(pr: int, repo: str) -> list[Thread]:
-    owner, name = repo.split("/", 1)
-    out = subprocess.run(
-        ["gh", "api", "graphql", "-f", "query=" + QUERY,
-         "-f", f"owner={owner}", "-f", f"repo={name}", "-F", f"pr={pr}"],
-        capture_output=True, text=True,
-    )
+def _page(pr: int, owner: str, name: str, cursor: str | None) -> dict:
+    args = ["gh", "api", "graphql", "-f", "query=" + QUERY,
+            "-f", f"owner={owner}", "-f", f"repo={name}", "-F", f"pr={pr}"]
+    if cursor:
+        args += ["-f", f"cursor={cursor}"]
+    out = subprocess.run(args, capture_output=True, text=True)
     if out.returncode != 0:
         sys.exit("gh graphql failed: " + out.stderr.strip())
-    nodes = json.loads(out.stdout)["data"]["repository"]["pullRequest"]["reviewThreads"]["nodes"]
-    return [Thread.from_json(node) for node in nodes]
+    return json.loads(out.stdout)["data"]["repository"]["pullRequest"]["reviewThreads"]
+
+
+def fetch(pr: int, repo: str) -> list[Thread]:
+    """Every review thread on the PR, not the first page of them."""
+    owner, name = repo.split("/", 1)
+    threads: list[Thread] = []
+    cursor = None
+    while True:
+        page = _page(pr, owner, name, cursor)
+        for node in page["nodes"]:
+            if node["comments"]["pageInfo"]["hasNextPage"]:
+                sys.exit(f"thread on {node['path']} has more comments than one page; raise the 20")
+            threads.append(Thread.from_json(node))
+        if not page["pageInfo"]["hasNextPage"]:
+            return threads
+        cursor = page["pageInfo"]["endCursor"]
 
 
 def repo_slug() -> str:
