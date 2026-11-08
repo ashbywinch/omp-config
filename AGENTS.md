@@ -10,7 +10,7 @@ links to.
 - `make setup` — provisions everything: symlinks skills/rules/APPEND_SYSTEM into `~/.omp/agent/`, the lucidlint bundle into `.tools/`, git hooks (pre-commit + pre-push), gh/git shims.
 - `make install` — re-symlink after an edit. **Restart omp to pick up changes** (skills load at startup).
 - `make install-gh-shim` — symlink `tools/gh-app-shim` → `~/.local/bin/gh`; create `~/.secrets` from `tools/secrets.template` if missing.
-- `make test` — repo self-check: every relative doc link resolves + every skill is well-formed + the lucidlint gate. Provisions lucidlint on first run; pre-push runs it.
+- `make test` — the repo self-check (provisions lucidlint on first run); pre-push runs it.
 - NEVER run ad-hoc commands for these — everything goes through `make`.
 
 ## Where things live — decision tree
@@ -48,10 +48,7 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 ## Testing rules
 
 - ALWAYS use `make` targets; NEVER construct ad-hoc test commands.
-- `make test` is the gate: doc links resolve, skill frontmatter matches
-  folder names. A skill whose frontmatter name drifts from its folder
-  silently breaks `skill://` resolution — the check exists so that never
-  ships.
+- `make test` is the gate.
 
 ## Secrets
 
@@ -63,6 +60,11 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 ## Git workflow
 
 - NEVER commit to main. Branch off main, PR required, protected main.
+- **Auto-merge is armed on every PR in this repo.** `.github/workflows/automerge.yml`
+  sets the flag at open and again when a review is submitted; the approving review
+  the ruleset demands, the checks and resolved threads are the only remaining gates.
+  Never copy that workflow into `skills/new-repo-scaffold/` or into another repo —
+  it serves this repo's policy, not a house procedure.
 - Agent commits are authored `omp-harness[bot]` (the git shim enforces it) —
   never the user's identity. Mechanics: the `Agent git auth` row above.
 - A skills/standards change is not live until `make install` + omp restart
