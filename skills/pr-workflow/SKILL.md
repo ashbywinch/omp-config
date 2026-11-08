@@ -19,6 +19,21 @@ with or without automated AI code review.
 
 ---
 
+## Always give the link
+
+Every PR, issue, commit, run or file you mention gets its **full URL**, every
+time — not `#82`, not "the PR", not a bare repo-relative path. The reader may be
+on a phone, in a chat transcript, or looking at your message hours later; a
+number they have to go and resolve is a number they will not resolve.
+
+- `https://github.com/ashbywinch/inbox/pull/9` — not `inbox#9`.
+- A commit: `https://github.com/<owner>/<repo>/commit/<sha>`.
+- A run: `https://github.com/<owner>/<repo>/actions/runs/<id>`.
+- A file you are discussing outside the repo: its Drive or Notion URL.
+
+Range links are the exception only when the reader already has the context and
+the thing is genuinely unbounded (a search, a filter).
+
 ## Part 1: Create the PR
 
 ### 1. Change Validation
