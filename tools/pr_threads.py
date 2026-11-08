@@ -101,9 +101,15 @@ def _graphql(query: str, variables: list[str]) -> dict:  # lucidlint: ignore rec
     if out.returncode != 0:
         sys.exit("gh graphql failed: " + out.stderr.strip())
     try:
-        return json.loads(out.stdout)
+        payload = json.loads(out.stdout or "{}")
     except json.JSONDecodeError as exc:
         sys.exit("gh returned something that is not JSON: " + str(exc))
+    # GraphQL reports refusals in a 200 response: without this, a missing
+    # permission reads as a KeyError further down.
+    if payload.get("errors"):
+        messages = "; ".join(e.get("message", "?") for e in payload["errors"])
+        sys.exit("the GitHub API refused the query: " + messages)
+    return payload
 
 
 def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadPage":
@@ -165,7 +171,11 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
     A push starts a review, and it posts minutes later. Reading the threads
     before it finishes reports a clean PR that is about to have findings.
     """
-    deadline = time.monotonic() + timeout
+    started = time.monotonic()
+    deadline = started + timeout
+    # How long to wait for the check runs to appear at all, before deciding there
+    # are none configured for this repo.
+    grace = 90
     while time.monotonic() < deadline:
         out = _gh("pr", "checks", str(pr), "--repo", repo, "--json", "name,state")
         try:
@@ -181,7 +191,7 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
                 return
             # A push creates the check runs a moment later. Waiting a short while
             # is the difference between "no checks configured" and "not here yet".
-            if time.monotonic() < deadline - timeout + 90:
+            if time.monotonic() < started + grace:
                 time.sleep(15)
                 continue
             print("warning: no checks reported; listing what has posted", file=sys.stderr)
