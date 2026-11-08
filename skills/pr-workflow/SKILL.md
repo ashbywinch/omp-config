@@ -19,6 +19,27 @@ with or without automated AI code review.
 
 ---
 
+## Always give the link
+
+Every PR, issue, commit, run or file you mention is a **link**, with its number
+as the text:
+
+- `[#9](https://github.com/ashbywinch/inbox/pull/9)` — not `#9`, and not the bare
+  URL either. The number is what a reader recognises; the link is what makes it
+  one click.
+- A commit: `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)`.
+- A run: `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)`.
+- A file outside the repo: its Drive or Notion URL, with the file's name as the
+  text.
+
+An unlinked `#9` is unfindable to whoever reads the message next — on a phone, in
+a transcript, hours later. A pasted raw URL is findable but ugly, and it pushes
+the sentence it belongs to off the screen. Link the number; don't spell the URL
+out in prose.
+
+Range links are the exception only when the reader already has the context and
+the thing is genuinely unbounded (a search, a filter).
+
 ## Part 1: Create the PR
 
 ### 1. Change Validation
