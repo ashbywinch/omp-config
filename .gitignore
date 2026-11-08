@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .tools/
 .lucidlint-cache/
+
+# Wrangler local cache carries the account id and email; never commit it.
+.wrangler/
