@@ -23,10 +23,13 @@ Invariants (each cost a full session when missed):
   produces an invalid cookie (`authenticated: false` and no error).
 - **The identity payload comes from the environment**, never literals —
   no real person's email/name in committed files.
-- **Set the cookie scoped to the target URL** (`page.setCookie({name,
-  value, url})`) — never `document.cookie` (the harness `run` action
-  executes in Node, not the page DOM) and never a bare
-  `domain: "localhost"` when the page may open on a LAN address.
+- **Set the cookie scoped to the target URL** (`page.setCookie({name, value,
+  url})`) — the `name` is the app's own session cookie name (`session`,
+  `connect.sid`, whatever its set-cookie header says) and the `value` is the
+  forged string; a made-up name sets a cookie the server ignores. Never
+  `document.cookie` (the harness `run` action executes in Node, not the page
+  DOM) and never a bare `domain: "localhost"` when the page may open on a LAN
+  address.
 - **Non-itsdangerous serializer**: use the app's own public
   serializer/session helper — the forge pattern stays the same.
 
