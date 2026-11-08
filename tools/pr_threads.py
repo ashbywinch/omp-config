@@ -166,6 +166,11 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
                   file=sys.stderr)
             return
         if not checks:
+            # A push creates the check runs a moment later. Waiting a short while
+            # is the difference between "no checks configured" and "not here yet".
+            if time.monotonic() < deadline - timeout + 90:
+                time.sleep(15)
+                continue
             print("warning: no checks reported; listing what has posted", file=sys.stderr)
             return
         reviewing = [c for c in checks if "review" in c["name"].lower()]
