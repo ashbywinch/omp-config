@@ -75,7 +75,7 @@ case "$mode" in
     current=$(read_state)
     type=$(jq -r .type <<<"$current")
     case "$type" in
-      rich_text|title) value=$(jq -cn --arg t "$1" '[{text: {content: $t}}]') ;;
+      rich_text|title) value=$(jq -cn --arg t "$1" '[{type: "text", text: {content: $t}}]') ;;
       *) die "property $prop is $type, not rich_text/title — use --json" ;;
     esac
     [ -f "$snapshot" ] || take_snapshot "$current"
