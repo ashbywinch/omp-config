@@ -22,7 +22,7 @@ Review the parent Epic in Notion (see `skill://notion-database-management` for r
 
 ### 2. Define Task
 - **Name**: Action-oriented "Verb + Object" pattern (e.g., "Create Vision Document")
-- **Desired Outcome**: Specific deliverable — reference the applicable quality standard in the task definition (e.g. `skill://vision-quality-standard`). For code deliverables, the desired outcome should be clearly documented within the task itself.
+- **Desired Outcome**: Specific deliverable — reference the applicable quality standard in the task definition (e.g. `skill://task-quality-standard`). For code deliverables, the desired outcome should be clearly documented within the task itself.
 - **Scope Boundaries**: Explicit inclusions and exclusions
 
 ### 3. Create in Notion
