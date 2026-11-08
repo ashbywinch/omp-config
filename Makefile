@@ -24,7 +24,7 @@ NOTION_WRITE_DST := $(H)/.local/bin/notion-write.sh
 help:
 	@echo "omp-config — available commands:"
 	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks + gh/git shims"
-	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM (restart omp to pick up)"
+	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM"
 	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
 	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
@@ -56,7 +56,7 @@ install:
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
 	ln -sf $(CURDIR)/tools/notion-write.sh $(NOTION_WRITE_DST)
 	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(NOTION_WRITE_DST)
-	@echo "Installed omp-config. Restart omp to pick up changes."
+	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
 install-gh-shim:
 	@mkdir -p $(dir $(GH_SHIM_DST))
