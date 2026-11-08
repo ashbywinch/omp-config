@@ -119,8 +119,9 @@ def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadP
     threads: list[Thread] = []
     for node in nodes:
         thread = Thread.from_json(node)
-        if node["comments"]["pageInfo"]["hasNextPage"]:
-            later = _later_comments(thread.id, node["comments"]["pageInfo"]["endCursor"])
+        comments_page = node.get("comments", {}).get("pageInfo", {})
+        if comments_page.get("hasNextPage"):
+            later = _later_comments(thread.id, comments_page["endCursor"])
             thread = replace(thread, comments=thread.comments + tuple(later))
         threads.append(thread)
     return ThreadPage(threads, page_info["endCursor"] if page_info["hasNextPage"] else None)
@@ -166,6 +167,10 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
                   file=sys.stderr)
             return
         if not checks:
+            if out.returncode != 0:
+                print("warning: `gh pr checks` failed (%s); listing what has posted"
+                      % (out.stderr.strip() or out.returncode), file=sys.stderr)
+                return
             # A push creates the check runs a moment later. Waiting a short while
             # is the difference between "no checks configured" and "not here yet".
             if time.monotonic() < deadline - timeout + 90:
@@ -173,8 +178,10 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
                 continue
             print("warning: no checks reported; listing what has posted", file=sys.stderr)
             return
-        reviewing = [c for c in checks if "review" in c["name"].lower()]
-        if reviewing and all(c["state"] != "PENDING" for c in reviewing):
+        # Name the finished states rather than testing for PENDING: QUEUED and
+        # IN_PROGRESS are both "not yet", and neither says PENDING.
+        finished = {"SUCCESS", "FAILURE", "SKIPPED", "CANCELLED", "NEUTRAL"}
+        if all(c["state"] in finished for c in checks):
             return
         time.sleep(15)
     print("warning: the review had not finished; listing what has posted", file=sys.stderr)
