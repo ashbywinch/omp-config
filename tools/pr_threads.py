@@ -161,10 +161,12 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
         out = _gh("pr", "checks", str(pr), "--repo", repo, "--json", "name,state")
         try:
             checks = json.loads(out.stdout or "[]")
-        except json.JSONDecodeError:
-            checks = []
+        except json.JSONDecodeError as exc:
+            print("warning: could not read the checks (%s); listing what has posted" % exc,
+                  file=sys.stderr)
+            return
         if not checks:
-            print("warning: could not read the checks; listing what has posted", file=sys.stderr)
+            print("warning: no checks reported; listing what has posted", file=sys.stderr)
             return
         reviewing = [c for c in checks if "review" in c["name"].lower()]
         if reviewing and all(c["state"] != "PENDING" for c in reviewing):
