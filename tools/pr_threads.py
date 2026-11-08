@@ -3,9 +3,10 @@
 
     pr_threads.py <pr-number> [--repo owner/name] [--me login]
 
-A thread is answered when a comment after the first is authored by `--me`.
-Everything unresolved and last-authored by anyone else prints as UNANSWERED, and
-the exit status is 1, so a caller can gate on it.
+A thread is answered when its **last** comment is authored by `--me` — not "the
+first, plus a reply": a thread I opened has nothing left to answer. Everything
+unresolved and last-authored by anyone else prints as UNANSWERED, and the exit
+status is 1, so a caller can gate on it.
 
 Run it after every push, not before reporting the PR as ready: a reviewer adds
 findings one round at a time, a green check says nothing about a thread, and the

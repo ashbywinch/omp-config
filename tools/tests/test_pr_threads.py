@@ -37,6 +37,10 @@ class UnansweredTest(unittest.TestCase):
     def test_resolved_threads_are_ignored(self):
         self.assertEqual(unanswered([thread("github-actions", resolved=True)], "omp-harness"), [])
 
+    def test_a_thread_only_i_have_spoken_in_is_answered(self):
+        # Nothing to answer in a thread I opened myself.
+        self.assertEqual(unanswered([thread("omp-harness")], "omp-harness"), [])
+
     def test_a_thread_with_no_comments_is_ignored(self):
         empty = Thread(id="t1", path="a.md", line=1, resolved=False, comments=())
         self.assertEqual(unanswered([empty], "omp-harness"), [])
