@@ -32,6 +32,13 @@ git log --oneline <base-branch>..HEAD         # every commit
 
 Never rely on memory — check the actual diff.
 
+### 1b. Stage only your own files
+
+Use `git add <path>` for each path you edited. **Never `git add -A`, `git add .`
+or `git commit -a`** in a working tree you share with other sessions: those
+commands stage everything untracked, including another agent's work in progress,
+and put it in your PR under your name.
+
 ### 2. Push Feature Branch
 
 ```bash
@@ -88,29 +95,6 @@ PATCH the whole body directly — otherwise split just before the marker,
 insert the new text into the description half, rejoin, PATCH the whole body.
 ---
 
-## Stage the files you changed
-
-Use `git add <path>` for each path you edited. **Never `git add -A`, `git add .`
-or `git commit -a`** in a working tree you share with other sessions: those
-commands stage everything untracked, including another agent's work in progress,
-and put it in your PR under your name.
-
-Unstaged changes from other sessions are invisible until you stage them; adding
-everything publishes them under your name.
-
-## Never resolve someone else's thread
-
-A review thread belongs to the person who opened it. Resolving it is their
-statement that the point is settled — not the author's, and not an agent's.
-
-- **Reply, fix, push.** Then leave it open.
-- Resolving hides the reply that came after it and removes the judgement from the
-  person who made the point. A thread shows as `outstanding` precisely because
-  somebody has not yet agreed it is done.
-- Clearing a merge gate is not a reason. If a gate wants resolution, that is the
-  reviewer's click to make; an agent that "unblocks" a PR this way has removed
-  the only human check in the loop.
-
 ## Part 2: Post-Creation — Monitor Checks
 
 ### 5. Wait for Checks to Complete
@@ -138,6 +122,19 @@ If the AI review is still running after 10+ minutes with no step-level progress 
 # Try to peek at partial logs (may not be available until run completes)
 gh run view <run-id> --log 2>&1 | head -30
 ```
+
+### 5a. Never resolve someone else's thread
+
+A review thread belongs to the person who opened it. Resolving it is their
+statement that the point is settled — not the author's, and not an agent's.
+
+- **Reply, fix, push.** Then leave it open.
+- Resolving hides the reply that came after it and removes the judgement from the
+  person who made the point. A thread shows as `outstanding` precisely because
+  somebody has not yet agreed it is done.
+- Clearing a merge gate is not a reason. If a gate wants resolution, that is the
+  reviewer's click to make; an agent that "unblocks" a PR this way has removed
+  the only human check in the loop.
 
 ### 5b. Never Push While a Review Is in Flight
 
