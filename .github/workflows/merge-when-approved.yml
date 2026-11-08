@@ -29,6 +29,11 @@ on:
     types: [submitted]
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
+  # Resolving a thread is the last thing that happens before a PR is mergeable,
+  # and it fires none of the events above — the gate can be satisfied with
+  # nothing left to notice it.
+  pull_request_review_thread:
+    types: [resolved, unresolved]
   check_suite:
     types: [completed]
   status: {}
@@ -112,20 +117,49 @@ jobs:
             cursor=$(printf '%s' "$page" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // empty')
           done
 
-          echo "review: $decision | merge state: $state | checks: $checks | unresolved threads: $open_threads | head: $head_repo"
+          # Checks usually finish after the approval that started this job, and
+          # the last one to finish is often the review the PR is waiting on. Wait
+          # for them rather than deciding on a snapshot: a job that exits on
+          # PENDING has merged nothing and will not run again by itself.
+          for attempt in $(seq 1 15); do
+            echo "attempt $attempt — review: $decision | state: $state | checks: $checks | threads: $open_threads | head: $head_repo"
 
-          if [ "$head_repo" != "$REPO" ]; then
-            echo "fork PR — not merged here"; exit 0
-          fi
-          if [ "$decision" != "APPROVED" ]; then
-            echo "not approved yet — nothing to do"; exit 0
-          fi
-          if [ "$open_threads" != "0" ]; then
-            echo "$open_threads review thread(s) unresolved — not merging"; exit 0
-          fi
-          if [ "$checks" != "SUCCESS" ]; then
-            echo "checks are $checks — not merging"; exit 0
-          fi
+            if [ "$head_repo" != "$REPO" ]; then
+              echo "fork PR — not merged here"; exit 0
+            fi
+            if [ "$decision" != "APPROVED" ]; then
+              echo "not approved yet — nothing to do"; exit 0
+            fi
+            if [ "$open_threads" != "0" ]; then
+              echo "$open_threads review thread(s) unresolved — not merging"; exit 0
+            fi
+            if [ "$checks" = "SUCCESS" ]; then
+              break
+            fi
+            case "$checks" in
+              PENDING|QUEUED|IN_PROGRESS) ;;
+              *) echo "checks are $checks — not merging"; exit 0 ;;
+            esac
+            if [ "$attempt" -eq 15 ]; then
+              echo "checks still $checks after 15 minutes — leaving it"; exit 0
+            fi
+            sleep 60
+            read -r decision state checks head_repo < <(gh api graphql -f query='
+              query($owner: String!, $repo: String!, $pr: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $pr) {
+                    reviewDecision
+                    mergeStateStatus
+                    headRepository { nameWithOwner }
+                    commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+                  }
+                }
+              }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr"               --jq '.data.repository.pullRequest
+                    | [(.reviewDecision // "NONE"), .mergeStateStatus,
+                       (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
+                       (.headRepository.nameWithOwner // "")]
+                    | @tsv')
+          done
           case "$state" in
             CLEAN) ;;
             BEHIND)
