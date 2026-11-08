@@ -9,7 +9,7 @@ otherwise from GCALCLI_CLIENT_ID / GCALCLI_CLIENT_SECRET.
 
 Run it with the interpreter that carries the Google OAuth libraries:
 
-    ~/.local/share/uv/tools/gcalcli/bin/python3 skills/gcalcli/scripts/gcalcli-token.py …
+    ~/.local/share/uv/tools/gcalcli/bin/python3 tools/gcalcli-token.py …
 """
 
 import base64
@@ -27,7 +27,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 # The client block is google_auth_oauthlib's required shape, not a record we own.
 # lucidlint: ignore-file record-shape the {"installed": {...}} envelope is the library contract
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-FILE_MODE = FILE_MODE
+FILE_MODE = 0o600
 VERIFIER_BYTES = 48
 PICKLE = pathlib.Path(os.path.expanduser("~/.local/share/gcalcli/oauth"))
 PENDING = pathlib.Path(os.path.expanduser("~/.local/state/gcalcli-oauth-pending.json"))
@@ -37,7 +37,11 @@ REDIRECT = "urn:ietf:wg:oauth:2.0:oob"
 def client_config():
     """Client credentials: from the existing pickle, else from the environment."""
     if PICKLE.exists():
-        creds = pickle.loads(PICKLE.read_bytes())
+        try:
+            creds = pickle.loads(PICKLE.read_bytes())
+        except (pickle.UnpicklingError, EOFError) as exc:  # lucidlint: ignore swallow a corrupt pickle is recoverable: the environment supplies the credentials, and stderr says what happened
+            print(f"warning: unreadable credential pickle at {PICKLE}: {exc}", file=sys.stderr)
+            creds = None
         client_id = getattr(creds, "_client_id", None)
         client_secret = getattr(creds, "_client_secret", None)
         if client_id and client_secret:

@@ -65,7 +65,6 @@ a fresh `mint`.
 
 ## Which of this and the MCP tools
 
-Both write the same calendar. `gcalcli` is a local binary with its own token;
-the MCP tools ride on the workspace's Google grant. Use whichever the workspace
-has configured — the rules for *whether* and *when* to write live in
-`skill://google-calendar` and do not change.
+Both write the same calendar. `gcalcli` is a local binary with its own token; the
+MCP tools ride on the workspace's Google grant, and `skill://google-calendar` says
+which to use. The rules for *whether* and *when* to write live there too.

@@ -15,9 +15,9 @@ tool.
    wastes the user's only turn.
 2. **Offer the day's shape with the question.** "You're busy 3–4, then free from
    5 — put it in the gap or at 5?" is answerable; "what time?" is not.
-3. **Never invent a time.** A time comes from the user, or from an event it is
-   deliberately attached to (the notes after the visit they follow). Anything
-   else is a guess wearing a timetable.
+3. **Take the time from the user.** A time copied from what they said ("after the
+   3pm", "the gap before lunch") is theirs. A time worked out by analogy with
+   another event, or from a pattern, is a guess.
 4. **Check the slot is free before writing**, not after.
 
 ## Writing
@@ -40,5 +40,8 @@ The rules above hold whatever writes the event.
 - **`gcalcli`** — commands, flags and their traps: `skill://gcalcli`.
 - **MCP** — where a workspace grants calendar scope, its Google Workspace server
   exposes `list_calendars`, `get_events`, `query_freebusy` and `manage_event`
-  (create/update/delete/rsvp). Use the one the workspace provides; `manage_event`
-  can also delete, which is a write like any other.
+  (create/update/delete/rsvp). `manage_event` can also delete, which is a write
+  like any other.
+
+Use MCP where the workspace grants calendar scope. Use `gcalcli` where it does
+not, or when the token needs minting.
