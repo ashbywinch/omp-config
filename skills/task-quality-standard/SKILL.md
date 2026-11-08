@@ -34,7 +34,7 @@ something else on Wednesday cannot be completed, scheduled, or chased as one thi
 | **Completed** | The deliverable exists and meets the task's success criteria. |
 | **Superseded** | Something made it moot — the plan changed, a decision went another way, the work happened elsewhere, or it was a duplicate. It is not to be worked on further, and nothing has to have replaced it. |
 
-## Never invent what the user meant
+## Do not invent the purpose
 
 A task title names an activity. It does not say what the outcome is for, and the
 two are not the same thing. "Make a task to triage the red rows" says what to do;
@@ -54,8 +54,9 @@ it says nothing about what the result has to answer, who will read it, or what
 - **Do not upgrade the user's shorthand into something tidier.** If they said
   "triage", write triage; do not silently widen it into "remediate", or narrow it
   into "count".
-- **The test**: could the user read the outcome back and say "yes, that is what I
-  wanted"? If you cannot hear them saying yes, you have not asked yet.
+- **The test**: put the outcome text in front of the user and wait for them to say
+  "yes, that is what I wanted". Not a reading of it you imagine — the text itself,
+  under the external-writes rule (APPEND_SYSTEM.md).
 - **When in doubt, leave it Draft** with the open question in the task body,
   rather than Ready with an invented purpose.
 

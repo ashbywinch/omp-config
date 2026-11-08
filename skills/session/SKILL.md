@@ -17,6 +17,9 @@ name of the skill that runs it**, written in words: `Backlog Grooming` is
 `skill://backlog-grooming`. Resolve the title to a skill and read that skill's
 description to confirm it is the one meant.
 
+A block titled with a task — `Task X`, or the task's own name — is that task: the
+work is the task itself, and no skill is started.
+
 If nothing resolves, or two candidates do, ask the user which skill the block is
 for. Never pick one, and never start a skill the title does not name.
 
