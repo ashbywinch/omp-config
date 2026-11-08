@@ -88,6 +88,19 @@ PATCH the whole body directly — otherwise split just before the marker,
 insert the new text into the description half, rejoin, PATCH the whole body.
 ---
 
+## Never resolve someone else's thread
+
+A review thread belongs to the person who opened it. Resolving it is their
+statement that the point is settled — not the author's, and not an agent's.
+
+- **Reply, fix, push.** Then leave it open.
+- Resolving hides the reply that came after it and removes the judgement from the
+  person who made the point. A thread shows as `outstanding` precisely because
+  somebody has not yet agreed it is done.
+- Clearing a merge gate is not a reason. If a gate wants resolution, that is the
+  reviewer's click to make; an agent that "unblocks" a PR this way has removed
+  the only human check in the loop.
+
 ## Part 2: Post-Creation — Monitor Checks
 
 ### 5. Wait for Checks to Complete
