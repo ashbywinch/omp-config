@@ -11,7 +11,7 @@ Skills are the harness's specialised-knowledge files, loaded on demand via
 `skill://<name>`. They live in the neighbouring **omp-config** repo, one
 folder per skill; the harness reads them through symlinks that `make install`
 creates in `~/.omp/agent/`. `skill://<name>` resolves to those installed
-links, so an edit is only visible after install + restart.
+links, so an edit to the source is live as soon as it is saved.
 
 ## Where things live
 
@@ -36,8 +36,8 @@ links, so an edit is only visible after install + restart.
    skills reference a mechanics skill (e.g. `skill://notion-database-management`)
    rather than inlining its content — a second copy of the same mechanics is
    the anti-pattern.
-4. **`make install` in the omp-config repo** to refresh the symlinks, then
-   tell the user to **restart omp** — the harness loads skills at startup.
+4. **`make install` in the omp-config repo** after adding or renaming a skill, to
+   refresh the symlinks. Editing an existing one needs nothing.
 5. **Commit and push** on a branch with a PR, like any repo — never commit to
    main.
 
@@ -84,4 +84,4 @@ lookup that resolves the current value at run time instead, and put the
 version only in the verification step's expectation. The lookup, concretely:
 `VER=$(gh release view --repo <owner>/<repo> --json tagName -q .tagName)` —
 the version literal then appears once, as the expected output of the check.
-✓ edit `SKILL.md` in omp-config → `make install` → restart omp → branch + PR.
+✓ edit `SKILL.md` in omp-config → `make install` → branch + PR.

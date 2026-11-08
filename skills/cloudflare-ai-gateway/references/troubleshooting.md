@@ -95,7 +95,6 @@ version active.
 - Assume the model node `timeout` is first-byte or last-byte — set it generously (~1800s) to cover both cases.
 - Set `tier.openai = none` (disables the OpenAI provider entirely)
 - Skip the `pr-agent-config` branch pin — any PR branch could ship its own `api_base`
-- Forget `make install` + restart omp after editing this skill — changes are not live until installed
 - Swap providers when updating a model name — keep the original provider
   (`custom-opencode-go`, `openrouter`, ...); a provider change alters the
   request path and can break auth or the working fallback.

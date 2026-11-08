@@ -8,7 +8,7 @@ links to.
 ## Quick start
 
 - `make setup` — provisions everything: symlinks skills/rules/APPEND_SYSTEM into `~/.omp/agent/`, the lucidlint bundle into `.tools/`, git hooks (pre-commit + pre-push), gh/git shims.
-- `make install` — re-symlink after an edit. **Restart omp to pick up changes** (skills load at startup).
+- `make install` — re-symlink after adding or renaming a skill; an edit to an existing one is live already.
 - `make install-gh-shim` — symlink `tools/gh-app-shim` → `~/.local/bin/gh`; create `~/.secrets` from `tools/secrets.template` if missing.
 - `make test` — the repo self-check (provisions lucidlint on first run); pre-push runs it.
 - NEVER run ad-hoc commands for these — everything goes through `make`.
@@ -19,7 +19,7 @@ links to.
 |---|---|
 | What this repo is for — JTBD, personas, constraints | `docs/PRD.md` |
 | Load/understand a skill | `skill://<name>` → `skills/<name>/SKILL.md` |
-| Update a skill, or turn a lesson into one | `skill://update-skills` (edit here → `make install` → restart omp → branch + PR) |
+| Update a skill, or turn a lesson into one | `skill://update-skills` (edit here → branch + PR) |
 | Canonical coding standard (scaffolded into code repos) | `standards/coding-standards.md` |
 | Canonical testing standard (scaffolded into code repos) | `standards/testing-standards.md` |
 | Canonical UX standard (scaffolded into code repos) | `standards/ux-standards.md` |
@@ -43,7 +43,7 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 | Locate files or search text | `glob` / `grep` |
 | Edit a doc, skill, or standard | `edit` (surgical) / `write` (create/replace) |
 | Verify the repo self-checks | `make test` |
-| Make a skill/rule/append edit live | `make install` + restart omp → PR (see `skill://update-skills`) |
+| Ship a skill, rule or append edit | branch + PR (see `skill://update-skills`) |
 
 ## Testing rules
 
@@ -67,5 +67,6 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
   it serves this repo's policy, not a house procedure.
 - Agent commits are authored `omp-harness[bot]` (the git shim enforces it) —
   never the user's identity. Mechanics: the `Agent git auth` row above.
-- A skills/standards change is not live until `make install` + omp restart
-  (the fact, stated here — nobody reads the PR description; 2026-08-08).
+- An edit to a skill, rule or append file is live the moment it is saved — the
+  installed files are symlinks into this repo. `make install` matters only for a
+  skill that is new or renamed.
