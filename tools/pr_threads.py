@@ -119,6 +119,8 @@ def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadP
 
     threads: list[Thread] = []
     for node in nodes:
+        if not node or "id" not in node:  # a partial answer is not a thread
+            continue
         thread = Thread.from_json(node)
         comments_page = node.get("comments", {}).get("pageInfo", {})
         if comments_page.get("hasNextPage"):
