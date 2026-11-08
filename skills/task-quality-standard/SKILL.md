@@ -1,24 +1,38 @@
 ---
 name: task-quality-standard
-description: Required fields and validation rules for a Task.
+description: Required fields, status meanings and validation rules for a Task.
 ---
 
 # Task Quality Standard
 
 A Task is a single execution unit with a clear deliverable and success criteria, linked to a parent Epic.
 
+**One task is one action.** If a task's outcome needs two things done — and especially if they happen on
+different days — it is two tasks. A task that can only be closed by doing something on Monday and
+something else on Wednesday cannot be completed, scheduled, or chased as one thing.
+
 ## Required Fields
 
 | Field | Type | Notes |
 |---|---|---|
 | Task (Title) | title | Action-oriented "Verb + Object" pattern, e.g. "Create Vision Document" |
-| Status | select | Draft → Ready → In Progress → Completed → Superseded |
+| Status | select | Draft, Ready, In Progress, Completed or Superseded — defined directly below |
 | Related to Epics (Related Tasks) | relation | Links to the parent Epic |
 | Desired Outcome | rich_text | Specific deliverable, e.g. "Execute [skill/plan] to create [artifact]" |
 | Dependencies | relation | Prerequisite task IDs |
 | Related Business Goal | rich_text | Strategic context from the Epic |
 | Relevant Deadlines | date | Target completion timeline |
 | Scope Boundaries | (in task body) | Explicit inclusions and exclusions |
+
+## Status
+
+| Status | What it means |
+|---|---|
+| **Draft** | The task's scope, desired outcome or success criteria are still being worked out. It is not described well enough for anyone to pick up and do. |
+| **Ready** | The task is fully described: what "done" looks like is settled, and someone could start. If it is waiting on something else, that waiting is a dependency; it does not change the status. |
+| **In Progress** | Someone is working on it now. |
+| **Completed** | The deliverable exists and meets the task's success criteria. |
+| **Superseded** | Something made it moot — the plan changed, a decision went another way, the work happened elsewhere, or it was a duplicate. It is not to be worked on further, and nothing has to have replaced it. |
 
 ## No Invented Requirements
 
