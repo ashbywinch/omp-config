@@ -139,7 +139,9 @@ printed.
   `# ====` lines included, every absolute path as printed, nothing retyped,
   shortened, or paraphrased into prose. It must be a script they can paste when
   this session is gone, so it is never a description of what a command would do.
-- Wait for their sign-off, then re-run with the pin it printed.
+- Wait for their sign-off, then re-run as `swap.sh <command> --yes <pin>`, where
+  `<pin>` is the hash on the block's last line ("Sign-off pin for this state").
+  The pin is positional after `--yes`, not a flag.
 - A refused pin means the state moved: print the new block, do not force it.
 
 The block restores the bytes that were serving before the operation, so it is
