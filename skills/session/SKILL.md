@@ -2,20 +2,29 @@
 name: session
 description: |
   Standardised wrapper for session execution — lifecycle, role adoption and
-  completion. The caller names the skill; this wraps it.
+  completion. Runs the skill the calendar block names.
 ---
 
 # Session Playbook
 
-Standardised wrapper for session execution. The caller names the skill; this
-wrapper runs the lifecycle around it and never chooses one.
+Standardised wrapper for session execution. It runs the lifecycle around the
+skill the block names, and never chooses one itself.
+
+## Resolving the block
+
+A session is the calendar block it was scheduled as. The block's **title is the
+name of the skill that runs it**, written in words: `Backlog Grooming` is
+`skill://backlog-grooming`. Resolve the title to a skill and read that skill's
+description to confirm it is the one meant.
+
+If nothing resolves, or two candidates do, ask the user which skill the block is
+for. Never pick one, and never start a skill the title does not name.
 
 ## Parameters
 
-- **Session Type** (required): the label the caller gives the block — the subject
-  of the calendar block where one was scheduled (`skill://google-calendar`)
-- **Skill** (required): the skill to run. The caller decides it; this wrapper does
-  not keep a routing table of its own
+- **Session Type** (required): the calendar block's title (`skill://google-calendar`)
+- **Skill** (required): resolved from the title, or named by whoever starts the
+  session
 - **Session Definition** (optional): Timing, objectives, constraints from the caller
 
 ## Process
