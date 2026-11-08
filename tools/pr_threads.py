@@ -18,6 +18,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, replace
 
 THREADS_QUERY = """
@@ -149,6 +150,26 @@ def fetch(pr: int, repo: str) -> list[Thread]:
         cursor = page.next_cursor
 
 
+def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
+    """Block until the reviewer has finished on the current head.
+
+    A push starts a review, and it posts minutes later. Reading the threads
+    before it finishes reports a clean PR that is about to have findings.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        out = _gh("pr", "checks", str(pr), "--repo", repo, "--json", "name,state")
+        try:
+            checks = json.loads(out.stdout or "[]")
+        except json.JSONDecodeError:
+            return
+        reviewing = [c for c in checks if "review" in c["name"].lower()]
+        if reviewing and all(c["state"] != "PENDING" for c in reviewing):
+            return
+        time.sleep(15)
+    print("warning: the review had not finished; listing what has posted", file=sys.stderr)
+
+
 def unanswered(threads: list[Thread], me: str) -> list[Thread]:
     """Unresolved threads whose last comment is not mine."""
     return [
@@ -169,9 +190,13 @@ def main() -> int:
     ap.add_argument("pr", type=int)
     ap.add_argument("--repo", default=None)
     ap.add_argument("--me", default=DEFAULT_ME)
+    ap.add_argument("--wait", action="store_true",
+                    help="wait for the reviewer to finish on this head before listing")
     args = ap.parse_args()
 
     repo = args.repo or repo_slug()
+    if args.wait:
+        wait_for_review(args.pr, repo)
     threads = fetch(args.pr, repo)
     pending = unanswered(threads, args.me)
 

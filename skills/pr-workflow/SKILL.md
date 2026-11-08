@@ -346,9 +346,12 @@ git push origin <branch>
 
 After push, checks trigger again automatically (if configured). Wait for completion, then:
 
-1. **Ask what still needs an answer**: `pr-threads <pr>`. Everything it prints as
-   UNANSWERED is unfinished work — including a thread you replied to earlier and
-   the reviewer followed up on. A non-zero exit means the PR is not ready to
+1. **Wait for the review of this head, then ask what still needs an answer.**
+   `pr-threads --wait <pr>` blocks until the reviewer has finished for the
+   current head, then lists every thread it prints as UNANSWERED — including one
+   you replied to earlier that the reviewer followed up on. A push starts a new
+   review, so reading the threads before it lands reports a clean PR that is
+   about to have findings; and a non-zero exit means the PR is not ready to
    report, however green the checks are.
 2. Re-read the review comments — the persistent review will be updated
 3. Confirm the specific finding you fixed is no longer reported
