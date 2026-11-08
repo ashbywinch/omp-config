@@ -86,9 +86,16 @@ class Thread:
         return cls(node["id"], node["path"], node.get("line"), node["isResolved"], comments)
 
 
+def _gh(*args: str) -> subprocess.CompletedProcess:
+    """Run gh, and say so plainly when there is no gh to run."""
+    try:
+        return subprocess.run(["gh", *args], capture_output=True, text=True)
+    except FileNotFoundError:
+        sys.exit("gh is not installed, or not on PATH: this needs the GitHub CLI")
+
+
 def _graphql(query: str, variables: list[str]) -> dict:  # lucidlint: ignore record-shape the response is the wire format; callers convert it straight away
-    out = subprocess.run(["gh", "api", "graphql", "-f", "query=" + query] + variables,
-                         capture_output=True, text=True)
+    out = _gh("api", "graphql", "-f", "query=" + query, *variables)
     if out.returncode != 0:
         sys.exit("gh graphql failed: " + out.stderr.strip())
     try:
@@ -151,8 +158,7 @@ def unanswered(threads: list[Thread], me: str) -> list[Thread]:
 
 
 def repo_slug() -> str:
-    out = subprocess.run(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
-                         capture_output=True, text=True)
+    out = _gh("repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
     if out.returncode != 0:
         sys.exit("not in a repo, and no --repo given")
     return out.stdout.strip()
