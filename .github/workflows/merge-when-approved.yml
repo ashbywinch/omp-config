@@ -134,7 +134,7 @@ jobs:
           # them rather than deciding on a snapshot.
           for attempt in $(seq 1 15); do
             read -r decision state checks head_repo < <(read_state)
-            open_threads=$(count_threads)
+            open_threads=$(count_threads) || exit $?
 
             echo "attempt $attempt — review: $decision | state: $state | checks: $checks | threads: $open_threads | head: $head_repo"
 
@@ -163,7 +163,7 @@ jobs:
           # One last read, after the wait: the loop's last look can be a minute
           # old, and every condition it checked can have changed since.
           read -r decision state checks head_repo < <(read_state)
-          open_threads=$(count_threads)
+          open_threads=$(count_threads) || exit $?
           echo "final — review: $decision | state: $state | checks: $checks | threads: $open_threads"
 
           if [ "$head_repo" != "$REPO" ]; then echo "fork PR — not merged here"; exit 0; fi
