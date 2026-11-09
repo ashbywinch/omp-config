@@ -1,6 +1,6 @@
 ---
 name: paseo-daemon-troubleshooting
-description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE failures, event-loop starvation, memory pressure
+description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE failures, event-loop starvation, memory pressure, client reconnect churn, MCP accumulation
 ---
 
 # Paseo Daemon Troubleshooting
@@ -37,8 +37,49 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
   Workaround: direct LAN endpoint — app manual server `192.168.1.251:6767`; the relay
   stays enabled and reconnects automatically when the cloud recovers.
 
+## Client churn, MCP accumulation and config edits (2026-11-09)
+
+Read the 30s window stats before anything else:
+
+    grep ws_runtime_metrics ~/.paseo/daemon.log | tail -1
+
+`memory.heapUsed`, `eventLoopDelay.maxMs`, `bufferedAmount.max`, `latency[]` and
+`counters` localise a fault in one line. A slow handler with a small
+`bufferedAmount` means the client or the network, not the daemon.
+
+- **Connection churn looks like slowness.** The app owns liveness: 10s heartbeat,
+  15s timeout, two failures then dispose (`1001 Liveness check timed out`), plus a
+  3s verification ping (`Connection verification failed`). The daemon cannot relax
+  either. Symptoms: reconnect every 20–45s, thousands of `ws_send_failed` /
+  `Failed to emit source frame`, `Liveness check timed out` as the disconnect
+  reason, app diagnostic showing high Active RTT against a low TCP probe.
+- **The relay can cause it while the app reports `relay: inactive`.** Flapping
+  `relay_data_connected/disconnected` tears down the session socket. When the app
+  has a direct LAN path, set `daemon.relay.enabled: false` and
+  `paseo daemon reload`; keep the relay only for off-LAN access.
+- **`checkout_status`/`checkout_pr_status` taking seconds is network-bound** and
+  independent of message loading. Do not conflate the two.
+- **MCP children accumulate.** OpenCode keeps one MCP process per (server,
+  directory) for the life of the shared server and never evicts it. Killing a
+  child is not recovered: the tools silently vanish from that session, and only a
+  config change or process restart re-initialises them. Killing the shared
+  OpenCode server is safe instead — sessions re-acquire via `reconnectIfExited()`
+  and shutdown kills the MCP process group. `idleRuntimeCleanup` reaps agent
+  runtimes, not MCP children.
+- **Watcher fleets hit inotify limits.** A per-repo watcher uses one inotify
+  instance per watched directory, not one per repo; roughly 20 repos exceeds the
+  default `fs.inotify.max_user_instances` (128). Raise the limit or watch only
+  active repos.
+- **Validate config before reloading.** An unknown key fails the whole reload.
+  Useful keys: `daemon.relay.enabled`, `agents.idleRuntimeCleanup`,
+  `agents.metadataGeneration.providers` (empty means automatic cheap-model
+  fallback). `paseo daemon reload` applies them without a restart; plugins are
+  managed with `paseo plugin`.
+
 ## Troubleshooting playbook (in order)
 
+0. Window stats first (command above) — heap, event-loop max, buffered amount,
+   per-request latency, agent/timeline counts.
 1. `systemctl --user status paseo` — active? Last `Failed with result`: oom-kill / resources / exit-code.
 2. `journalctl --user -u paseo -n 50` — restart history; `journalctl -k | grep -i oom` for kernel kills.
 3. `paseo daemon status` — "detail request failed" note = slow event loop, not a dead daemon.
@@ -59,6 +100,10 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
   `fallocate -l <size> /swapfile2 && chmod 600 && mkswap && swapon` + fstab line.
 - Delete/regenerate `daemon-keypair.json` or `server-id` (breaks app pairing).
 - Disable the relay (`--no-relay`) unless a direct client path is confirmed — pairing
-  offers are relay-only in v0.2.5; no LAN discovery (mDNS) exists.
+  offers are relay-only in v0.2.5; no LAN discovery (mDNS) exists. The supported form
+  is `daemon.relay.enabled: false` plus `paseo daemon reload`; re-enable it before
+  relying on off-LAN access.
+- Kill an MCP child process to reclaim memory — the session loses its tools and they
+  never come back. Stop the shared server (safe) or restart instead.
 - Bind a specific LAN IP in `daemon.listen` — breaks the local CLI (needs 127.0.0.1).
   Use `0.0.0.0:6767`.
