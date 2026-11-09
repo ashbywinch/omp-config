@@ -159,6 +159,11 @@ fact and decision.
   *act on* — a skill, a rule, a task prompt — see `skill://prompt-craft`.)
 - **Commands over prose.** `make test` beats "run the test suite to verify
   everything works".
+- **A rule is an instruction, not a description.** Write the action: "search the
+  record for the file before creating a row". A sentence about the failure — "two
+  rows split the record" — describes a state and leaves the reader to infer what
+  to do; put it in the reason, if it earns a reason at all. A metaphor is not a
+  rule either: it reads well and cannot be followed.
 - **Tables over prose.** A rule per row beats a paragraph per rule, when a
   fact has consistent fields.
 - **Canonical ✗/✓ examples over exhaustive enumeration.** One right/wrong
