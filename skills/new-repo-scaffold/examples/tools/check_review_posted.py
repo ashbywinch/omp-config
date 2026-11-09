@@ -1,6 +1,5 @@
-# lucidlint: ignore-file record-shape the only record here is the HTTP header
-# mapping, which is the wire format urllib takes — a class for two headers is
-# ceremony, and there is one site that builds it.
+# lucidlint: ignore-file record-shape urllib requires a mapping for request
+# headers — a third-party shape we do not own, not a record of ours.
 # lucidlint: ignore-file duplicate-module this file is copied verbatim into
 # skills/new-repo-scaffold/examples/tools/ by make sync-examples, which fails when
 # the two diverge — one source, one check, two copies on purpose.
