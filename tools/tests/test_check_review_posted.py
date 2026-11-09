@@ -17,6 +17,7 @@ import io
 import os
 import sys
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -36,10 +37,10 @@ def comment(body: str, created_at: str = AFTER_HEAD, user_type: str = "Bot"):
     """One issue comment, as the gate models it."""
     return check_review_posted._Comment(body, created_at, user_type)
 class ApiFailureTest(unittest.TestCase):
-    """A response that is not the JSON it promised fails the gate with a
-    message. Only HTTPError was caught, so a proxy's error page reached the
-    user as a traceback — and the whole point of this check is that its
-    failure names the reason."""
+    """A failed fetch fails the gate with a message. Only HTTPError was caught
+    once, so a proxy's error page reached the user as a traceback; the job-log
+    fetch was swallowed, so the user was told the log was mid-run when the
+    fetch had simply been refused."""
 
     def test_a_body_that_is_not_json_is_reported_not_raised(self):
         with mock.patch.object(check_review_posted, "_get", return_value=b"<html>Bad gateway</html>"):
@@ -54,6 +55,31 @@ class ApiFailureTest(unittest.TestCase):
         self.assertIn("::error::", out.getvalue())
         self.assertIn("is not fetchable", out.getvalue())
         self.assertIn("not JSON", out.getvalue())
+
+    def test_an_unreadable_job_log_names_the_failure_it_was(self):
+        def refuse_the_log(url, token, accept="application/vnd.github+json"):
+            if "/actions/runs/" in url and url.endswith("/jobs"):
+                refused = urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+                refused.close()  # an unclosed fake leaks a file handle at GC
+                raise refused
+            if "/commits/" in url:
+                return b"{}"
+            if "/actions/runs/" in url:
+                return b'{"run_started_at": "' + HEAD_AT.encode() + b'"}'
+            return b"[]"  # no comments, so coverage is unproven
+        with mock.patch.object(check_review_posted, "_get", side_effect=refuse_the_log):
+            with mock.patch.dict(os.environ, {
+                "SHA": SHA,
+                "PR_NUMBER": "1",
+                "GITHUB_REPOSITORY": "o/r",
+                "GITHUB_TOKEN": "t",
+                "GITHUB_RUN_ID": "7",
+            }):
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    self.assertEqual(check_review_posted.main(), 1)
+        self.assertIn("could not be read", out.getvalue())
+        self.assertIn("HTTP 403", out.getvalue())
+        self.assertNotIn("not served while the job is still running", out.getvalue())
 
 
 class ReviewSkippedTest(unittest.TestCase):

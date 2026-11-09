@@ -115,69 +115,67 @@ class _ReviewGate:
 
     def job_log(self) -> str | None:
         """The running job's own accumulated log (the bot step's output), or
-        None when the checks API won't serve it mid-run — the caller falls back
-        to the generic message. Requires the workflow's ``actions: read``."""
+        None when there is no log to read: no run id, no jobs yet, no job by
+        that name. A fetch that fails raises, so the caller can say which
+        failure it was. Requires the workflow's ``actions: read``."""
         run_id = os.environ.get("GITHUB_RUN_ID")
         if not run_id:
             return None
+        jobs = self.api(f"actions/runs/{run_id}/jobs")
+        if not jobs.get("jobs"):
+            return None
+        # The reason we want lives in the REVIEW job's log, not in whichever job
+        # the API happens to list first — this runs from a second job in the
+        # same run, and listing order is not the workflow's order.
+        wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
+        matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
+        if not matches:
+            return None
+        req = _ApiRequest(
+            f"https://api.github.com/repos/{self.repo}/actions/jobs/{matches[0]['id']}/logs", self.token)
         try:
-            jobs = self.api(f"actions/runs/{run_id}/jobs")
-            if not jobs.get("jobs"):
-                return None
-            # The reason we want lives in the REVIEW job's log, not in whichever job
-            # the API happens to list first — this runs from a second job in the
-            # same run, and listing order is not the workflow's order.
-            wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
-            matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
-            if not matches:
-                return None
-            req = _ApiRequest(
-                f"https://api.github.com/repos/{self.repo}/actions/jobs/{matches[0]['id']}/logs", self.token)
-            try:
-                resp = _OPENER.open(req)
-                # GitHub answers the log endpoint with a redirect to blob storage.
-                # Whether the custom opener raises on that or hands the response
-                # back depends on its handler set, so handle both: follow the
-                # Location ourselves, WITHOUT the token — the redirect target is a
-                # third-party host and must not receive it.
-                if getattr(resp, "status", 200) in (301, 302, 303, 307, 308):
-                    location = resp.headers.get("Location")
-                    if not location:
-                        return None
-                    return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-                return resp.read().decode("utf-8", errors="replace")
-            except HTTPError as e:
-                if e.code not in (301, 302, 303, 307, 308):
-                    raise
-                location = e.headers.get("Location")
+            resp = _OPENER.open(req)
+            # GitHub answers the log endpoint with a redirect to blob storage.
+            # Whether the custom opener raises on that or hands the response
+            # back depends on its handler set, so handle both: follow the
+            # Location ourselves, WITHOUT the token — the redirect target is a
+            # third-party host and must not receive it.
+            if getattr(resp, "status", 200) in (301, 302, 303, 307, 308):
+                location = resp.headers.get("Location")
                 if not location:
                     return None
                 return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-        except (_ApiFailure, HTTPError, KeyError, urllib.error.URLError):
-            return None
+            return resp.read().decode("utf-8", errors="replace")
+        except HTTPError as e:
+            if e.code not in (301, 302, 303, 307, 308):
+                raise
+            location = e.headers.get("Location")
+            if not location:
+                return None
+            return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
 
 
-    def bot_failure_reason(self, log: str | None = None) -> str:
-        """The bot's own words about its failure, from the run log — the reason
-        the review died, instead of a guess. Falls back to the last thing the
-        bot said."""
-        if log is None:
-            log = self.job_log()
-        if log is None:
-            # the fail-loud step runs inside the bot's OWN job — GitHub does not
-            # serve a job's log until the job completes, so the reason extractor
-            # can never see it here. Run this check from a SEPARATE job (needs:
-            # the bot job) for the real reason; this fallback is the honest
-            # admission that the review did not post.
-            return "the bot's job log is not served while the job is still running (run this check from a separate job)"
-        # The raw job blob is TIMESTAMPZ + message lines with no step prefixes
-        # (the runner's processed view adds them); the bot's own records are the
-        # structured JSON lines with a "text" field — those carry the markers.
-        bot_lines = [ln for ln in log.splitlines() if '"text"' in ln]
-        if not bot_lines:
-            return "the bot's step produced no log output"
 
-        return _failure_reason(bot_lines)
+
+def _bot_failure_reason(log: str | None) -> str:
+    """The bot's own words about its failure, from the run log — the reason
+    the review died, instead of a guess. Falls back to the last thing the
+    bot said."""
+    if log is None:
+        # the fail-loud step runs inside the bot's OWN job — GitHub does not
+        # serve a job's log until the job completes, so the reason extractor
+        # can never see it here. Run this check from a SEPARATE job (needs:
+        # the bot job) for the real reason; this fallback is the honest
+        # admission that the review did not post.
+        return "the bot's job log is not served while the job is still running (run this check from a separate job)"
+    # The raw job blob is TIMESTAMPZ + message lines with no step prefixes
+    # (the runner's processed view adds them); the bot's own records are the
+    # structured JSON lines with a "text" field — those carry the markers.
+    bot_lines = [ln for ln in log.splitlines() if '"text"' in ln]
+    if not bot_lines:
+        return "the bot's step produced no log output"
+
+    return _failure_reason(bot_lines)
 
 
 def _failure_reason(
@@ -313,12 +311,17 @@ def main() -> int:
         print(f"::error::PR comments are not fetchable ({e}) — the review coverage cannot be checked.")
         return 1
     if not _review_covers(comments, sha, reviewed_after):
-        log = gate.job_log()
+        try:
+            log = gate.job_log()
+        except (_ApiFailure, KeyError, urllib.error.URLError) as e:
+            print(f"::error::AI review did not post for commit {sha} — the job log could not be "
+                  f"read ({type(e).__name__}: {e}), so the reason is unknown.")
+            return 1
         if _review_skipped(log):
             print(f"::notice::no review posted for {sha} — the reviewer found nothing it can "
                   "analyse in this PR. A clean skip, not a failure.")
             return 0
-        reason = gate.bot_failure_reason(log)
+        reason = _bot_failure_reason(log)
         print(f"::error::AI review did not post for commit {sha} — {reason}.")
         return 1
     return 0
