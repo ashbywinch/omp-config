@@ -101,11 +101,9 @@ uninstall:
 # itself. Pinned to a release tag — never main (house rule).
 LUCIDLINT_DIR ?= .tools/lucidlint
 
-# The interpreter the tools are written for, and the one ci.yml installs. A
-# different python3 on PATH is how code that only runs on the newer semantics
-# reaches CI to fail there instead of here.
-PY_MAJOR := 3
-PY_MINOR := 14
+PY_VERSION := 3.14
+VENV := .venv
+PYTHON := $(VENV)/bin/python
 LUCIDLINT_PIN ?= v0.3.0
 
 install-lucidlint:
@@ -124,12 +122,16 @@ install-lucidlint:
 # intentionally does not exist inside this exempt repo. The key is file-level:
 # any NEW unresolved path in that file shares it — review its links by hand
 # when editing. Everything else must keep passing clean.
-test: install-lucidlint
-	@python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] == ($(PY_MAJOR), $(PY_MINOR)) else 1)' || \
-	  (echo "make test needs Python $(PY_MAJOR).$(PY_MINOR); found $$(python3 -V 2>&1). CI pins the same version (ci.yml)."; exit 1)
-	@python3 -m unittest discover -s tools/tests
+test: install-lucidlint $(PYTHON)
+	@$(PYTHON) -m unittest discover -s tools/tests
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
+
+# The tests run on this interpreter and no other. uv builds it, so the version
+# here and the one ci.yml installs are the same by construction.
+$(PYTHON):
+	@command -v uv >/dev/null 2>&1 || (echo "uv is required: it provisions $(VENV) with Python $(PY_VERSION)" && exit 1)
+	uv venv --python $(PY_VERSION) $(VENV)
 
 .PHONY: sync-examples
 sync-examples:

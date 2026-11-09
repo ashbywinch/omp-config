@@ -24,10 +24,6 @@ jobs:
       # make test provisions the lucidlint bundle itself (test depends on
       # install-lucidlint) — dev and CI run the identical entry point.
       - uses: actions/checkout@v4
-      # Pinned, and checked by `make test`: the runner image's default python3
-      # is not the version the tools are developed on, and 3.14 changed
-      # annotation evaluation, which made a forward reference pass here and
-      # raise NameError there.
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
