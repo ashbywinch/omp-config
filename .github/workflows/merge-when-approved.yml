@@ -28,11 +28,11 @@ on:
     types: [submitted]
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
-  # Resolving a thread is the last thing that happens before a PR is mergeable,
-  # and it fires none of the events above — the gate can be satisfied with
-  # nothing left to notice it.
-  pull_request_review_thread:
-    types: [resolved, unresolved]
+  # There is no `pull_request_review_thread` trigger: it is a webhook event, not
+  # an Actions event, and naming it here makes GitHub reject the whole file — the
+  # workflow then never runs at all, which is silent until you look. Resolving a
+  # thread after everything else is therefore not noticed; re-run by hand
+  # (workflow_dispatch) when that happens.
   check_suite:
     types: [completed]
   status: {}
