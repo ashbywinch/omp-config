@@ -39,24 +39,32 @@ class _GcalCliToken:
     PENDING = pathlib.Path(os.path.expanduser("~/.local/state/gcalcli-oauth-pending.json"))
     REDIRECT = "urn:ietf:wg:oauth:2.0:oob"
 
+    def stored_client(self):
+        """The client id and secret from the existing pickle, or None when there
+        is no readable one."""
+        if not self.PICKLE.exists():
+            return None
+        # A pickle from another library version fails on missing attributes or
+        # modules, not only on corruption; this one read is the blast radius.
+        try:
+            creds = pickle.loads(self.PICKLE.read_bytes())
+        except Exception as exc:  # lucidlint: ignore broad-except reading one pickle is the blast radius; any failure returns no stored client
+            print(f"warning: unreadable credential pickle at {self.PICKLE}: {exc}", file=sys.stderr)
+            return None
+        client_id = getattr(creds, "_client_id", None)
+        client_secret = getattr(creds, "_client_secret", None)
+        return (client_id, client_secret) if client_id and client_secret else None
+
     def client_config(self):
         """Client credentials: from the existing pickle, else from the environment."""
-        if self.PICKLE.exists():
-            try:
-                creds = pickle.loads(self.PICKLE.read_bytes())
-            except (pickle.UnpicklingError, EOFError) as exc:  # lucidlint: ignore swallow a corrupt pickle is recoverable: the environment supplies the credentials, and stderr says what happened
-                print(f"warning: unreadable credential pickle at {self.PICKLE}: {exc}", file=sys.stderr)
-                creds = None
-            client_id = getattr(creds, "_client_id", None)
-            client_secret = getattr(creds, "_client_secret", None)
-            if client_id and client_secret:
-                return client_id, client_secret
+        stored = self.stored_client()
+        if stored:
+            return stored
         client_id = os.environ.get("GCALCLI_CLIENT_ID")
         client_secret = os.environ.get("GCALCLI_CLIENT_SECRET")
         if not (client_id and client_secret):
             sys.exit("no client credentials: no pickle at %s and no GCALCLI_CLIENT_ID/SECRET" % self.PICKLE)
         return client_id, client_secret
-
 
     def mint(self):
         client_id, client_secret = self.client_config()
