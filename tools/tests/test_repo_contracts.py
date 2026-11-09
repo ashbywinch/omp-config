@@ -7,6 +7,7 @@ test below fails on a non-empty list. This is the gate — `make test` runs the
 unittest suite, so a contract that stops being true stops the build.
 """
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -34,6 +35,17 @@ class RepoContractsTest(unittest.TestCase):
 
     def test_always_loaded_files_are_within_the_ceiling(self):
         self.assertEqual(_check_sizes(REPO).hard, [])
+
+    def test_ci_installs_the_python_the_makefile_builds(self):
+        """The interpreter is pinned in two files; they must say one version."""
+        makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+        workflow = (REPO / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        built = re.search(r"^PY_VERSION := (\d+\.\d+)$", makefile, re.MULTILINE)
+        installed = re.search(r'python-version: "(\d+\.\d+)"', workflow)
+        self.assertIsNotNone(built, "the Makefile no longer states PY_VERSION")
+        self.assertIsNotNone(installed, "ci.yml no longer installs a python-version")
+        self.assertEqual(built.group(1), installed.group(1),
+                         "ci.yml and the Makefile pin different Pythons")
 
     def test_the_scaffold_example_matches_the_tool(self):
         """tools/ is canonical; the scaffold copy is generated from it."""

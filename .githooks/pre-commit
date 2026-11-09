@@ -4,4 +4,5 @@
 set -e
 cd "$(git rev-parse --show-toplevel)"
 [ -x .venv/bin/python ] || { echo "pre-commit: run 'make test' once to provision .venv"; exit 1; }
+make -s check-python
 .venv/bin/python -m unittest discover -s tools/tests

@@ -5,7 +5,7 @@
 # no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
 # (docs links + lucidlint gate + skill well-formedness).
 
-.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test
+.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test check-python
 
 # Home may be unset or wrong when run from a daemon/bare env; resolve it.
 H := $(if $(HOME),$(HOME),$(shell getent passwd $$(id -u) | cut -d: -f6))
@@ -124,16 +124,22 @@ install-lucidlint:
 # intentionally does not exist inside this exempt repo. The key is file-level:
 # any NEW unresolved path in that file shares it — review its links by hand
 # when editing. Everything else must keep passing clean.
-test: install-lucidlint $(PYTHON)
+test: install-lucidlint check-python
 	@$(PYTHON) -m unittest discover -s tools/tests
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
 
-# The tests run on this interpreter and no other. uv builds it, so the version
-# here and the one ci.yml installs are the same by construction.
+# The tests run on this interpreter and no other: uv builds the venv from
+# PY_VERSION, check-python fails when the venv disagrees, and the suite fails
+# when ci.yml pins a different version.
 $(PYTHON):
 	@command -v uv >/dev/null 2>&1 || (echo "uv is required: it provisions $(VENV) with Python $(PY_VERSION)" && exit 1)
 	uv venv --python $(PY_VERSION) $(VENV)
+
+# A venv built earlier — or by hand — can be a different minor, and the rule
+# above only creates one when the file is missing.
+check-python: $(PYTHON)
+	@$(PYTHON) -c 'import sys; want = "$(PY_VERSION)"; have = "%d.%d" % sys.version_info[:2]; sys.exit(0 if have == want else "$(VENV) runs Python %s, not %s: delete $(VENV) and run make test — uv rebuilds it" % (have, want))'
 
 .PHONY: sync-examples
 sync-examples:
