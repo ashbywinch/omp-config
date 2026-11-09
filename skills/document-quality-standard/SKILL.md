@@ -41,9 +41,10 @@ A clean document — a `.docx`, a text-layer PDF — does not earn one.
 
 ## One file, one row
 
-Two rows for one file split the record; two copies of one file in one folder are
-the same fault. Look for what is already there before creating anything — by
-reference, amount and date.
+Before creating a row, search the record for the file: by its reference, the
+amount on it, and its date. Create the row only when no row for that file
+exists, and store one copy of the file. Two rows for one file, or two copies in
+one folder, leave two versions of the record to disagree.
 
 ## Validation Checklist
 
