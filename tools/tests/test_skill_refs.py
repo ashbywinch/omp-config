@@ -79,7 +79,7 @@ class ThisRepoTest(unittest.TestCase):
     def test_every_skill_reference_resolves_here(self):
         known = {p.parent.name for p in (REPO / "skills").glob("*/SKILL.md")}
         broken: list[str] = []
-        for md in _doc_files():
+        for md in _doc_files(REPO):
             for name in missing_refs(skill_ref_names(md.read_text(encoding="utf-8")), known):
                 broken.append(f"{md.relative_to(REPO)}: skill://{name}")
         self.assertEqual(broken, [], "references to skills that are not in this repo")

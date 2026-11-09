@@ -19,8 +19,6 @@ import json
 import subprocess
 import sys
 
-EPICS_DS = "20d3122e-1a13-81ee-a750-000ba5e61df5"
-VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"
 
 
 def query(ds):
@@ -147,7 +145,7 @@ class _RelationGraph:
         return grouped
 
 
-class _TreeRenderer:
+class _StructureTree:
     """Renders the structure tree markdown. The emit walkers are
     mutual-recursive methods over the graph, sharing the line buffer."""
 
@@ -206,16 +204,26 @@ class _TreeRenderer:
 
 
 def build():
-    epics = query(EPICS_DS)
-    vs = query(VS_DS)
+    epics = query("20d3122e-1a13-81ee-a750-000ba5e61df5")
+    vs = query("20d3122e-1a13-8180-bf41-000b2f83fdc2")
     em = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
     vm = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
-    return _TreeRenderer(_RelationGraph(em, vm)).render()
+    return _StructureTree(_RelationGraph(em, vm)).render()
 
 
-if __name__ == "__main__":
-    out = build()
-    path = sys.argv[1] if len(sys.argv) > 1 else "notion-structure.md"
+def main(argv: list[str] | None = None, render=build) -> None:
+    """Write the rendered tree to the path given, or to the default.
+
+    `argv` and `render` are parameters so the entry point can be run in a test
+    without the network and without patching the module.
+    """
+    args = sys.argv[1:] if argv is None else argv
+    path = args[0] if args else "notion-structure.md"
+    out = render()
     with open(path, "w") as f:
         f.write(out)
     print(f"written {path}")
+
+
+if __name__ == "__main__":
+    main()
