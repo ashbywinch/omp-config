@@ -75,7 +75,21 @@ jobs:
           # that time. Deciding on a stale value is how a PR merges on an approval
           # that was withdrawn.
 
+          # The check state this job waits on, with its own run removed: its
+          # `merge` check is in progress while it decides, so the aggregate
+          # rollup never reaches SUCCESS and the wait would watch itself.
+          check_state() {
+            gh pr checks "$pr" --repo "$REPO" --json name,state 2>/dev/null \
+              | jq -r '[.[] | select(.name != "merge") | .state]
+                  | if index("FAILURE") then "FAILURE"
+                    elif index("PENDING") then "PENDING"
+                    elif index("CANCELLED") then "CANCELLED"
+                    else "SUCCESS" end' 2>/dev/null || echo "UNKNOWN"
+          }
+
           read_state() {
+            local check
+            check=$(check_state)
             gh api graphql -f query='
               query($owner: String!, $repo: String!, $pr: Int!) {
                 repository(owner: $owner, name: $repo) {
@@ -90,7 +104,7 @@ jobs:
               --jq '.data.repository.pullRequest
                     | [(.reviewDecision // "NONE"),
                        .mergeStateStatus,
-                       (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
+                       "${check}",
                        (.headRepository.nameWithOwner // "")]
                     | @tsv'
           }
