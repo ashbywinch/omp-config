@@ -45,9 +45,9 @@ it says nothing about what the result has to answer, who will read it, or what
   said why — "so we can prove we were responsible custodians of the funds",
   "so a random accuser has nothing to point at" — that reason *is* the outcome,
   and it goes in, quoted.
-- **If the purpose is not stated, ask before writing the task.** One question:
-  what is this for, and what would let you say it is finished? Do not fill the
-  gap with the most plausible reading of the title.
+- **If the purpose is not stated, propose one from what the user did say** — what
+  it is for, and what would let you call it finished, with nothing invented
+  beyond that — then get approval of the exact record before writing it.
 - **Do not infer the deliverable from the field's usual shape.** A task called
   "find the POA documents" might want the documents, links to them, a written
   summary of the powers, or a decision about who may sign. Four different tasks.
@@ -71,7 +71,10 @@ The Desired Outcome and Scope Boundaries contain only what the user asked for. N
 
 Each of those is a requirement, and writing one into a ticket puts work in front of the user that they never asked for. If a task looks incomplete, ask — do not fill the gap yourself.
 
-When restoring an item you wrongly dropped, re-read everything the user said about it and carry all of it. Restoring the headline action while dropping the conditions attached to it is the same error twice.
+When something was dropped by mistake, put it back with the tool that
+snapshotted it: `notion-write.sh --revert` restores the exact value that was
+there before the write (see `skill://notion-database-management`). Reconstructing
+it from what was said is how the same error gets made twice.
 
 ## Validation Checklist
 
@@ -83,5 +86,4 @@ When restoring an item you wrongly dropped, re-read everything the user said abo
 - [ ] Dependencies are explicitly documented (or empty if none)
 - [ ] Success criteria are objective, not subjective
 - [ ] When scheduled on the calendar, the event description must include the task's Notion ID
-- [ ] Desired Outcome and Scope Boundaries contain only what the user asked for — no invented confirmations, exception handling, artefacts or approvals
 - [ ] Task is immediately executable without clarification
