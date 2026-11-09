@@ -19,6 +19,13 @@ the PR's diff) — so it covers the commit exactly like the human /skip
 opt-out does. A run that genuinely failed to post leaves no comment and
 still fails.
 
+A second, silent skip is real too: when the PR has no files the bot can
+analyse — a one-file CSV diff, for instance — pr-agent logs "PR has no
+analyzable files" and "skipping review" and posts nothing, by design. The
+run log is the only witness, so the guard reads it: a clean skip (the
+marker with no traceback and no token-cap) passes, and the same log with a
+failure marker still fails.
+
 Why the bot's own step cannot fail (2026-08-11, read from the v0.41.1
 source): ``PRAgent.handle_request`` catches EVERY exception with a bare
 ``except`` — it logs "Failed to process the command." plus the traceback
@@ -74,6 +81,13 @@ for _handler in (urllib.request.HTTPHandler(), urllib.request.HTTPSHandler(),
     _OPENER.add_handler(_handler)
 
 
+def _job_name_matches(name: str, wanted: str) -> bool:
+    """A reusable workflow's job is listed with its workflow prefix: the job
+    called ``pr-review`` appears as ``review / pr-review``. Match the bare name
+    and the prefixed form, and nothing else — a prefix is not a wildcard."""
+    return name == wanted or name.endswith(f"/ {wanted}")
+
+
 def _job_log(repo: str, token: str) -> str | None:
     """The running job's own accumulated log (the bot step's output), or
     None when the checks API won't serve it mid-run — the caller falls back
@@ -89,7 +103,7 @@ def _job_log(repo: str, token: str) -> str | None:
         # the API happens to list first — this runs from a second job in the
         # same run, and listing order is not the workflow's order.
         wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
-        matches = [j for j in jobs["jobs"] if j.get("name") == wanted]
+        matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
         if not matches:
             return None
         req = urllib.request.Request(
@@ -120,11 +134,12 @@ def _job_log(repo: str, token: str) -> str | None:
         return None
 
 
-def _bot_failure_reason(repo: str, token: str) -> str:
+def _bot_failure_reason(repo: str, token: str, log: str | None = None) -> str:
     """The bot's own words about its failure, from the run log — the reason
     the review died, instead of a guess. Falls back to the last thing the
     bot said."""
-    log = _job_log(repo, token)
+    if log is None:
+        log = _job_log(repo, token)
     if log is None:
         # the fail-loud step runs inside the bot's OWN job — GitHub does not
         # serve a job's log until the job completes, so the reason extractor
@@ -160,6 +175,28 @@ def _failure_reason(bot_lines: list[str]) -> str:
             return f"the bot logged an error before dying: {snippet}"
     last = next((line for line in reversed(bot_lines) if line.strip()), "")
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
+
+
+_SKIP_MARKERS = (
+    "PR has no analyzable files",
+    "skipping review",
+    "skipping describe",
+)
+
+
+def _review_skipped(log: str | None) -> bool:
+    """True when the bot examined the PR and deliberately reviewed nothing.
+
+    pr-agent skips a PR it has no analyzable files for — a lone CSV diff, say
+    — logs why, and posts no comment. That is a verdict, not a failure. The
+    run log is its only record, so the marker counts ONLY when the same log
+    carries no traceback and no token-cap line: a run that died cannot hide
+    behind a skip line it logged before dying."""
+    if not log:
+        return False
+    if any(mark in log for mark in _ERROR_MARKERS) or _SIZE_RE.search(log):
+        return False
+    return any(marker in log for marker in _SKIP_MARKERS)
 
 
 def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
@@ -231,7 +268,12 @@ def main() -> int:
         print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
         return 1
     if not _review_covers(comments, sha, reviewed_after):
-        reason = _bot_failure_reason(repo, token)
+        log = _job_log(repo, token)
+        if _review_skipped(log):
+            print(f"::notice::no review posted for {sha} — the reviewer found nothing it can "
+                  "analyse in this PR. A clean skip, not a failure.")
+            return 0
+        reason = _bot_failure_reason(repo, token, log)
         print(f"::error::AI review did not post for commit {sha} — {reason}.")
         return 1
     return 0
