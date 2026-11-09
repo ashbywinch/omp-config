@@ -49,7 +49,8 @@ setup: deps install-hooks
 deps: uv-sync
 
 uv-sync:
-	@$(UV) --version >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+	@$(UV) --version >/dev/null 2>&1 || \
+	  (echo "uv is not installed: see https://docs.astral.sh/uv/getting-started/installation/ — CI installs it with astral-sh/setup-uv"; exit 1)
 	@$(UV) sync
 
 install-hooks:

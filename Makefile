@@ -19,6 +19,7 @@ GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
 LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
+GCALCLI_TOKEN_DST := $(H)/.local/bin/gcalcli-token.py
 
 help:
 	@echo "omp-config — available commands:"
@@ -53,7 +54,8 @@ install:
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
-	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST)
+	ln -sf $(CURDIR)/tools/gcalcli-token.py $(GCALCLI_TOKEN_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(GCALCLI_TOKEN_DST)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
 install-gh-shim:
@@ -83,7 +85,7 @@ install-git-shim:
 	@echo "git shim installed -> $(GIT_SHIM_DST) (+ $(GIT_HELPER_DST), $(GIT_AGENT_CFG))"
 
 uninstall:
-	rm -f $(APPEND_DIR)/APPEND_SYSTEM.md
+	rm -f $(APPEND_DIR)/APPEND_SYSTEM.md $(GCALCLI_TOKEN_DST)
 	for f in $(CURDIR)/rules/*.md; do \
 		rm -f $(RULES_DIR)/$$(basename $$f); \
 	done
@@ -104,7 +106,7 @@ LUCIDLINT_DIR ?= .tools/lucidlint
 PY_VERSION := 3.14
 VENV := .venv
 PYTHON := $(VENV)/bin/python
-LUCIDLINT_PIN ?= v0.3.0
+LUCIDLINT_PIN ?= v0.7.1
 
 install-lucidlint:
 	@if [ "$$(cat $(LUCIDLINT_DIR)/version.txt 2>/dev/null)" = "$(LUCIDLINT_PIN)" ]; then \
