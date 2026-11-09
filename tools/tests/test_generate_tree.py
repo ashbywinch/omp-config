@@ -1,5 +1,3 @@
-# lucidlint: ignore-file record-shape the synthetic fixtures are the wire shape
-# the renderer consumes — a class per fixture would obscure the relation data
 """Tests for tools/generate_tree.py — the tree builder queries live Notion,
 so the tests drive the renderer with synthetic relation data. The contract
 under test: an epic nested under an ACTIVE parent appears in the VS tree

@@ -43,6 +43,8 @@ reason instead of "may have failed silently".
 """
 
 import json
+from collections.abc import Mapping
+from typing import Any
 import os
 import re
 import sys
@@ -87,71 +89,83 @@ def _job_name_matches(name: str, wanted: str) -> bool:
     return name == wanted or name.endswith(f"/ {wanted}")
 
 
-def _job_log(repo: str, token: str) -> str | None:
-    """The running job's own accumulated log (the bot step's output), or
-    None when the checks API won't serve it mid-run — the caller falls back
-    to the generic message. Requires the workflow's ``actions: read``."""
-    run_id = os.environ.get("GITHUB_RUN_ID")
-    if not run_id:
-        return None
-    try:
-        jobs = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs", token)
-        if not jobs.get("jobs"):
+class _ReviewGate:
+    """Review coverage for one repository: what it fetches, and what the bot's
+    own log says when a review did not post."""
+
+    def __init__(self, repo: str, token: str):
+        self.repo = repo
+        self.token = token
+
+    def api(self, path: str):
+        """GET a repository-relative API path."""
+        return _get_json(f"https://api.github.com/repos/{self.repo}/{path}", self.token)
+
+    def job_log(self) -> str | None:
+        """The running job's own accumulated log (the bot step's output), or
+        None when the checks API won't serve it mid-run — the caller falls back
+        to the generic message. Requires the workflow's ``actions: read``."""
+        run_id = os.environ.get("GITHUB_RUN_ID")
+        if not run_id:
             return None
-        # The reason we want lives in the REVIEW job's log, not in whichever job
-        # the API happens to list first — this runs from a second job in the
-        # same run, and listing order is not the workflow's order.
-        wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
-        matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
-        if not matches:
-            return None
-        req = _ApiRequest(
-            f"https://api.github.com/repos/{repo}/actions/jobs/{matches[0]['id']}/logs", token)
         try:
-            resp = _OPENER.open(req)
-            # GitHub answers the log endpoint with a redirect to blob storage.
-            # Whether the custom opener raises on that or hands the response
-            # back depends on its handler set, so handle both: follow the
-            # Location ourselves, WITHOUT the token — the redirect target is a
-            # third-party host and must not receive it.
-            if getattr(resp, "status", 200) in (301, 302, 303, 307, 308):
-                location = resp.headers.get("Location")
+            jobs = self.api(f"actions/runs/{run_id}/jobs")
+            if not jobs.get("jobs"):
+                return None
+            # The reason we want lives in the REVIEW job's log, not in whichever job
+            # the API happens to list first — this runs from a second job in the
+            # same run, and listing order is not the workflow's order.
+            wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
+            matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
+            if not matches:
+                return None
+            req = _ApiRequest(
+                f"https://api.github.com/repos/{self.repo}/actions/jobs/{matches[0]['id']}/logs", self.token)
+            try:
+                resp = _OPENER.open(req)
+                # GitHub answers the log endpoint with a redirect to blob storage.
+                # Whether the custom opener raises on that or hands the response
+                # back depends on its handler set, so handle both: follow the
+                # Location ourselves, WITHOUT the token — the redirect target is a
+                # third-party host and must not receive it.
+                if getattr(resp, "status", 200) in (301, 302, 303, 307, 308):
+                    location = resp.headers.get("Location")
+                    if not location:
+                        return None
+                    return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
+                return resp.read().decode("utf-8", errors="replace")
+            except HTTPError as e:
+                if e.code not in (301, 302, 303, 307, 308):
+                    raise
+                location = e.headers.get("Location")
                 if not location:
                     return None
                 return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-            return resp.read().decode("utf-8", errors="replace")
-        except HTTPError as e:
-            if e.code not in (301, 302, 303, 307, 308):
-                raise
-            location = e.headers.get("Location")
-            if not location:
-                return None
-            return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-    except (HTTPError, KeyError, ValueError, urllib.error.URLError):
-        return None
+        except (HTTPError, KeyError, ValueError, urllib.error.URLError):
+            return None
 
 
-def _bot_failure_reason(repo: str, token: str, log: str | None = None) -> str:
-    """The bot's own words about its failure, from the run log — the reason
-    the review died, instead of a guess. Falls back to the last thing the
-    bot said."""
-    if log is None:
-        log = _job_log(repo, token)
-    if log is None:
-        # the fail-loud step runs inside the bot's OWN job — GitHub does not
-        # serve a job's log until the job completes, so the reason extractor
-        # can never see it here. Run this check from a SEPARATE job (needs:
-        # the bot job) for the real reason; this fallback is the honest
-        # admission that the review did not post.
-        return "the bot's job log is not served while the job is still running (run this check from a separate job)"
-    # The raw job blob is TIMESTAMPZ + message lines with no step prefixes
-    # (the runner's processed view adds them); the bot's own records are the
-    # structured JSON lines with a "text" field — those carry the markers.
-    bot_lines = [ln for ln in log.splitlines() if '"text"' in ln]
-    if not bot_lines:
-        return "the bot's step produced no log output"
+    def bot_failure_reason(self, log: str | None = None) -> str:
+        """The bot's own words about its failure, from the run log — the reason
+        the review died, instead of a guess. Falls back to the last thing the
+        bot said."""
+        if log is None:
+            log = self.job_log()
+        if log is None:
+            # the fail-loud step runs inside the bot's OWN job — GitHub does not
+            # serve a job's log until the job completes, so the reason extractor
+            # can never see it here. Run this check from a SEPARATE job (needs:
+            # the bot job) for the real reason; this fallback is the honest
+            # admission that the review did not post.
+            return "the bot's job log is not served while the job is still running (run this check from a separate job)"
+        # The raw job blob is TIMESTAMPZ + message lines with no step prefixes
+        # (the runner's processed view adds them); the bot's own records are the
+        # structured JSON lines with a "text" field — those carry the markers.
+        bot_lines = [ln for ln in log.splitlines() if '"text"' in ln]
+        if not bot_lines:
+            return "the bot's step produced no log output"
 
-    return _failure_reason(bot_lines)
+        return _failure_reason(bot_lines)
 
 
 def _failure_reason(
@@ -205,39 +219,57 @@ def _review_skipped(
     return any(marker in log for marker in skip_markers)
 
 
-def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
+class _Comment:
+    """One issue comment, in the shape the API returns it."""
+
+    def __init__(self, body: str, created_at: str, user_type: str = "Bot"):
+        self.body = body
+        self.created_at = created_at
+        self.user_type = user_type
+
+    @classmethod
+    def from_json(cls, node: "Mapping[str, Any]") -> "_Comment":
+        """Read one comment off the wire. The mapping is the API's shape."""
+        return cls(
+            node.get("body", ""),
+            node.get("created_at", ""),
+            (node.get("user") or {}).get("type", ""),
+        )
+
+
+def _review_covers(comments: list[_Comment], sha: str, reviewed_after: str) -> bool:
     """Does any comment cover the head commit? A human /skip opt-out (applies
     to the whole PR), a posted guide (regular or incremental, referencing the
     sha or created after the head was received), or the bot's own
     incremental-skip verdict (created after the head was received — the diff
     was examined and found empty, so the skip is the review, not a
     failure)."""
-    if any(c.get("body", "").strip() == "/skip" for c in comments):
+    if any(c.body.strip() == "/skip" for c in comments):
         return True
     return any(
         (
-            c.get("body", "").startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
+            c.body.startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
             and (
-                f"commit/{sha}" in c.get("body", "")  # the incremental "Starting from commit .../<SHA>" form
-                or c.get("created_at", "") >= reviewed_after
+                f"commit/{sha}" in c.body  # the incremental "Starting from commit .../<SHA>" form
+                or c.created_at >= reviewed_after
             )
         )
         or (
-            c.get("body", "").startswith("Incremental Review Skipped")
-            and (c.get("user") or {}).get("type") == "Bot"
-            and c.get("created_at", "") >= reviewed_after
+            c.body.startswith("Incremental Review Skipped")
+            and c.user_type == "Bot"
+            and c.created_at >= reviewed_after
         )
         for c in comments
     )
 
-def main() -> int:  # lucidlint: ignore latent-class a one-shot CI check: what is threaded through is the repo slug, immutable, needed by every call
+
+def main() -> int:
     sha = os.environ["SHA"]
-    repo = os.environ["GITHUB_REPOSITORY"]
     pr_number = os.environ["PR_NUMBER"]
-    token = os.environ["GITHUB_TOKEN"]
+    gate = _ReviewGate(os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_TOKEN"])
 
     try:
-        commit = _get_json(f"https://api.github.com/repos/{repo}/commits/{sha}", token)
+        commit = gate.api(f"commits/{sha}")
     except HTTPError as e:
         # surfaces via the ::error line + the non-zero exit — not a swallow
         print(f"::error::commit {sha} is not fetchable ({e.code}) — the review cannot cover it.")
@@ -254,7 +286,7 @@ def main() -> int:  # lucidlint: ignore latent-class a one-shot CI check: what i
               "and a guess here would pass a review that does not cover this commit.")
         return 1
     try:
-        run = _get_json(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}", token)
+        run = gate.api(f"actions/runs/{run_id}")
         reviewed_after = run["run_started_at"]
     # No fallback is deliberate: the anchor IS the check. With no run start
     # there is no conservative guess, because the committer date predates the
@@ -269,17 +301,17 @@ def main() -> int:  # lucidlint: ignore latent-class a one-shot CI check: what i
         return 1
 
     try:
-        comments = _get_json(f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments?per_page=100", token)
+        comments = [_Comment.from_json(c) for c in gate.api(f"issues/{pr_number}/comments?per_page=100")]
     except HTTPError as e:
         print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
         return 1
     if not _review_covers(comments, sha, reviewed_after):
-        log = _job_log(repo, token)
+        log = gate.job_log()
         if _review_skipped(log):
             print(f"::notice::no review posted for {sha} — the reviewer found nothing it can "
                   "analyse in this PR. A clean skip, not a failure.")
             return 0
-        reason = _bot_failure_reason(repo, token, log)
+        reason = gate.bot_failure_reason(log)
         print(f"::error::AI review did not post for commit {sha} — {reason}.")
         return 1
     return 0

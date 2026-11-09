@@ -29,9 +29,8 @@ BEFORE_HEAD = "2026-08-22T12:00:00Z"
 AFTER_HEAD = "2026-08-22T12:42:27Z"
 
 def comment(body: str, created_at: str = AFTER_HEAD, user_type: str = "Bot"):
-    """One issue comment in the wire shape the gate reads."""
-    # lucidlint: ignore record-shape the one-shot test-fixture wire shape — a class is ceremony
-    return {"body": body, "created_at": created_at, "user": {"type": user_type}}
+    """One issue comment, as the gate models it."""
+    return check_review_posted._Comment(body, created_at, user_type)
 class ReviewCoversTest(unittest.TestCase):
     def test_regular_guide_after_head_covers(self):
         c = comment("## PR Reviewer Guide 🔍\nHere are some observations")
