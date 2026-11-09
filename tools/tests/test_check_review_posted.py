@@ -74,5 +74,40 @@ class ReviewCoversTest(unittest.TestCase):
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
 
+class ReviewSkippedTest(unittest.TestCase):
+    """The bot reviews nothing when it has nothing it can analyse — a lone CSV
+    diff. It says so in its log and posts no comment; that is a verdict."""
+
+    def test_clean_skip_passes(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping describe"}\n'
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+        )
+        self.assertTrue(check_review_posted._review_skipped(log))
+
+    def test_skip_with_traceback_fails(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+            '{"text":"Failed to process the command."}\n'
+        )
+        self.assertFalse(check_review_posted._review_skipped(log))
+
+    def test_skip_with_token_cap_fails(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+            '{"text":"Tokens: 91000, total tokens over limit: 80000"}\n'
+        )
+        self.assertFalse(check_review_posted._review_skipped(log))
+
+    def test_no_log_does_not_pass(self):
+        # no log means no evidence of a skip: the gate stays closed
+        self.assertFalse(check_review_posted._review_skipped(None))
+        self.assertFalse(check_review_posted._review_skipped(""))
+
+    def test_ordinary_log_does_not_pass(self):
+        log = '{"text":"Reviewing PR: https://api.github.com/repos/o/r/pulls/12 ..."}\n'
+        self.assertFalse(check_review_posted._review_skipped(log))
+
+
 if __name__ == "__main__":
     unittest.main()
