@@ -109,5 +109,23 @@ class ReviewSkippedTest(unittest.TestCase):
         self.assertFalse(check_review_posted._review_skipped(log))
 
 
+class JobNameMatchesTest(unittest.TestCase):
+    """A reusable workflow prefixes its job names with the workflow: the job
+    called pr-review is listed as "review / pr-review". The log fetcher has to
+    find it, or every failure falls back to a generic message."""
+
+    def test_bare_name_matches(self):
+        self.assertTrue(check_review_posted._job_name_matches("pr-review", "pr-review"))
+
+    def test_prefixed_name_matches(self):
+        self.assertTrue(check_review_posted._job_name_matches("review / pr-review", "pr-review"))
+
+    def test_other_job_does_not_match(self):
+        self.assertFalse(check_review_posted._job_name_matches("review / verify", "pr-review"))
+
+    def test_prefix_is_not_a_wildcard(self):
+        self.assertFalse(check_review_posted._job_name_matches("pr-review / extra", "pr-review"))
+
+
 if __name__ == "__main__":
     unittest.main()
