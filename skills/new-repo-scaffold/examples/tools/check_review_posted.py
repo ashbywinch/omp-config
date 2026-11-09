@@ -55,16 +55,6 @@ from urllib.error import HTTPError
 _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
 
 
-def _has_error_marker(text: str) -> bool:
-    """Whether *text* carries a marker the bot leaves when a review dies
-    inside its swallowed exception seam."""
-    markers = (
-        "Failed to process the command.",
-        "Traceback (most recent call last)",
-    )
-    return any(mark in text for mark in markers)
-
-
 def _headers(token: str, accept: str = "application/vnd.github+json") -> dict:
     """The two headers every request carries — urllib's wire format, one site."""
     return {"Authorization": f"Bearer {token}", "Accept": accept}
@@ -166,10 +156,17 @@ def _bot_failure_reason(repo: str, token: str, log: str | None = None) -> str:
     return _failure_reason(bot_lines)
 
 
-def _failure_reason(bot_lines: list[str]) -> str:
+def _failure_reason(
+    bot_lines: list[str],
+    markers: tuple[str, ...] = ("Failed to process the command.", "Traceback (most recent call last)"),
+    tail_lines: int = 12,  # lines after a failure marker worth reporting
+) -> str:
     """Why the bot died, from its own log lines: the diff-token cap (the
     size signal that precedes a died model call), the swallowed traceback
-    seam, or the last thing it said."""
+    seam, or the last thing it said.
+
+    The markers and the tail are parameters because they describe this log's
+    shape, not the module's state."""
     for ln in bot_lines:
         m = _SIZE_RE.search(ln)
         if m:
@@ -178,15 +175,19 @@ def _failure_reason(bot_lines: list[str]) -> str:
                 f"{m.group(2)}-token review cap; the review died after pruning the diff"
             )
     for i, ln in enumerate(bot_lines):
-        if _has_error_marker(ln):
-            tail = [line for line in bot_lines[i : i + 12] if line.strip()]
+        if any(mark in ln for mark in markers):
+            tail = [line for line in bot_lines[i : i + tail_lines] if line.strip()]
             snippet = " | ".join(line.split("\t")[-1][:200] for line in tail[:4])
             return f"the bot logged an error before dying: {snippet}"
     last = next((line for line in reversed(bot_lines) if line.strip()), "")
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
 
 
-def _review_skipped(log: str | None) -> bool:
+def _review_skipped(
+    log: str | None,
+    failure_markers: tuple[str, ...] = ("Failed to process the command.", "Traceback (most recent call last)"),
+    skip_markers: tuple[str, ...] = ("PR has no analyzable files", "skipping review", "skipping describe"),
+) -> bool:
     """True when the bot examined the PR and deliberately reviewed nothing.
 
     pr-agent skips a PR it has no analyzable files for — a lone CSV diff, say
@@ -196,7 +197,7 @@ def _review_skipped(log: str | None) -> bool:
     behind a skip line it logged before dying."""
     if not log:
         return False
-    if _has_error_marker(log) or _SIZE_RE.search(log):
+    if any(mark in log for mark in failure_markers) or _SIZE_RE.search(log):
         return False
     skip_markers = (
         "PR has no analyzable files",
