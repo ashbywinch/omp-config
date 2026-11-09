@@ -211,10 +211,15 @@ def build():
     return _StructureTree(_RelationGraph(em, vm)).render()
 
 
-def main() -> None:
-    """Write the rendered tree to the path given, or to the default."""
-    path = sys.argv[1] if len(sys.argv) > 1 else "notion-structure.md"
-    out = build()
+def main(argv: list[str] | None = None, render=build) -> None:
+    """Write the rendered tree to the path given, or to the default.
+
+    `argv` and `render` are parameters so the entry point can be run in a test
+    without the network and without patching the module.
+    """
+    args = sys.argv[1:] if argv is None else argv
+    path = args[0] if args else "notion-structure.md"
+    out = render()
     with open(path, "w") as f:
         f.write(out)
     print(f"written {path}")

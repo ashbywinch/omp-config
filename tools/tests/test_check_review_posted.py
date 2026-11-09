@@ -31,6 +31,29 @@ AFTER_HEAD = "2026-08-22T12:42:27Z"
 def comment(body: str, created_at: str = AFTER_HEAD, user_type: str = "Bot"):
     """One issue comment, as the gate models it."""
     return check_review_posted._Comment(body, created_at, user_type)
+class ReviewSkippedTest(unittest.TestCase):
+    """The markers are parameters. A local tuple shadowed them once, so a caller
+    could not change them and the parameter was dead; this fails on that."""
+
+    def test_custom_skip_markers_are_honoured(self):
+        self.assertTrue(
+            check_review_posted._review_skipped(
+                "nothing here it can read",
+                failure_markers=(),
+                skip_markers=("nothing here it can read",),
+            )
+        )
+
+    def test_a_traceback_still_means_not_a_clean_skip(self):
+        self.assertFalse(
+            check_review_posted._review_skipped(
+                "skipping review\nTraceback (most recent call last)",
+                failure_markers=("Traceback (most recent call last)",),
+                skip_markers=("skipping review",),
+            )
+        )
+
+
 class ReviewCoversTest(unittest.TestCase):
     def test_regular_guide_after_head_covers(self):
         c = comment("## PR Reviewer Guide 🔍\nHere are some observations")
