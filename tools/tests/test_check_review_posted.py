@@ -12,9 +12,13 @@ the base branch into the PR (which changes nothing in the PR's diff) used to
 fail the gate because the skip comment was not counted as coverage.
 """
 
+import contextlib
+import io
+import os
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import check_review_posted  # noqa: E402  (sys.path bootstrap must precede the import)
@@ -31,6 +35,27 @@ AFTER_HEAD = "2026-08-22T12:42:27Z"
 def comment(body: str, created_at: str = AFTER_HEAD, user_type: str = "Bot"):
     """One issue comment, as the gate models it."""
     return check_review_posted._Comment(body, created_at, user_type)
+class ApiFailureTest(unittest.TestCase):
+    """A response that is not the JSON it promised fails the gate with a
+    message. Only HTTPError was caught, so a proxy's error page reached the
+    user as a traceback — and the whole point of this check is that its
+    failure names the reason."""
+
+    def test_a_body_that_is_not_json_is_reported_not_raised(self):
+        with mock.patch.object(check_review_posted, "_get", return_value=b"<html>Bad gateway</html>"):
+            with mock.patch.dict(os.environ, {
+                "SHA": SHA,
+                "PR_NUMBER": "1",
+                "GITHUB_REPOSITORY": "o/r",
+                "GITHUB_TOKEN": "t",
+            }):
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    self.assertEqual(check_review_posted.main(), 1)
+        self.assertIn("::error::", out.getvalue())
+        self.assertIn("is not fetchable", out.getvalue())
+        self.assertIn("not JSON", out.getvalue())
+
+
 class ReviewSkippedTest(unittest.TestCase):
     """The markers are parameters. A local tuple shadowed them once, so a caller
     could not change them and the parameter was dead; this fails on that."""

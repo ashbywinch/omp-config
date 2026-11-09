@@ -67,8 +67,20 @@ def _get(url: str, token: str, accept: str = "application/vnd.github+json") -> b
     return urllib.request.urlopen(_ApiRequest(url, token, accept)).read()
 
 
+class _ApiFailure(Exception):
+    """The API did not give a usable answer: a non-2xx status, or a body that
+    is not the JSON it promised — a proxy's error page, a truncated read."""
+
+
 def _get_json(url: str, token: str):
-    return json.loads(_get(url, token))
+    try:
+        body = _get(url, token)
+    except HTTPError as e:
+        raise _ApiFailure(f"HTTP {e.code}") from e
+    try:
+        return json.loads(body)
+    except ValueError as e:
+        raise _ApiFailure(f"the body is not JSON ({e})") from e
 
 
 # The log endpoint 302s to a signed blob URL; urllib's auto-follow forwards
@@ -141,7 +153,7 @@ class _ReviewGate:
                 if not location:
                     return None
                 return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-        except (HTTPError, KeyError, ValueError, urllib.error.URLError):
+        except (_ApiFailure, HTTPError, KeyError, urllib.error.URLError):
             return None
 
 
@@ -265,9 +277,9 @@ def main() -> int:
 
     try:
         commit = gate.api(f"commits/{sha}")
-    except HTTPError as e:
+    except _ApiFailure as e:
         # surfaces via the ::error line + the non-zero exit — not a swallow
-        print(f"::error::commit {sha} is not fetchable ({e.code}) — the review cannot cover it.")
+        print(f"::error::commit {sha} is not fetchable ({e}) — the review cannot cover it.")
         return 1
 
     # "Reviewed after" is anchored to the workflow run's start, not the
@@ -286,7 +298,7 @@ def main() -> int:
     # No fallback is deliberate: the anchor IS the check. With no run start
     # there is no conservative guess, because the committer date predates the
     # push and an earlier head's review can land inside that window.
-    except (HTTPError, KeyError, ValueError) as e:
+    except (_ApiFailure, KeyError) as e:
         # NO fallback to the committer date. It predates the push, so a review
         # of an earlier head, posted after the commit was authored but before
         # it was pushed, would count as covering this one. Failing is the
@@ -297,8 +309,8 @@ def main() -> int:
 
     try:
         comments = [_Comment.from_json(c) for c in gate.api(f"issues/{pr_number}/comments?per_page=100")]
-    except HTTPError as e:
-        print(f"::error::PR comments are not fetchable ({e.code}) — the review coverage cannot be checked.")
+    except _ApiFailure as e:
+        print(f"::error::PR comments are not fetchable ({e}) — the review coverage cannot be checked.")
         return 1
     if not _review_covers(comments, sha, reviewed_after):
         log = gate.job_log()
