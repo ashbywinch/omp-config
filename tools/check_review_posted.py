@@ -211,11 +211,6 @@ def _review_skipped(
         return False
     if any(mark in log for mark in failure_markers) or _SIZE_RE.search(log):
         return False
-    skip_markers = (
-        "PR has no analyzable files",
-        "skipping review",
-        "skipping describe",
-    )
     return any(marker in log for marker in skip_markers)
 
 

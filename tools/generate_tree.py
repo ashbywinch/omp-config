@@ -211,8 +211,14 @@ def build():
     return _StructureTree(_RelationGraph(em, vm)).render()
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Write the rendered tree to the path given, or to the default."""
+    path = sys.argv[1] if len(sys.argv) > 1 else "notion-structure.md"
     out = build()
     with open(path, "w") as f:
         f.write(out)
     print(f"written {path}")
+
+
+if __name__ == "__main__":
+    main()
