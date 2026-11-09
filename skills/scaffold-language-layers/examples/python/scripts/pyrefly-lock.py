@@ -75,7 +75,7 @@ def _pyrefly_binary() -> str:
 
 
 # Extra args passed to every pyrefly invocation.
-PYREFLY_BASE_ARGS = (_pyrefly_binary(), "check", "--output-format", "json")
+PYREFLY_BASE_ARGS = (_pyrefly_binary(), "check", "--output-format", "json")  # lucidlint: ignore global-state the arguments pyrefly needs on every run; read here only
 
 
 def error_key(e: Diagnostic) -> DiagnosticKey:

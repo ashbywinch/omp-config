@@ -32,7 +32,7 @@ VM = {"v1": page({}, "Stream One"), "v2": page({}, "Stream Two")}
 
 
 def render(em, vm):
-    return generate_tree._TreeRenderer(generate_tree._RelationGraph(em, vm)).render()
+    return generate_tree._StructureTree(generate_tree._RelationGraph(em, vm)).render()
 
 
 class TreeRendererTest(unittest.TestCase):

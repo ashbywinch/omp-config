@@ -32,13 +32,14 @@ import re
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+# The repo this file lives in; every check walks from here.
+REPO = Path(__file__).resolve().parent.parent  # lucidlint: ignore global-state one path, read by this module's checks, never reassigned
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 FENCE_RE = re.compile(r"^```", re.MULTILINE)
 BACKTICK_PATH_RE = re.compile(r"`([A-Za-z0-9_./*-]+\.md)`")
-SKIP_PREFIXES = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")
-HARD_BYTES = 32 * 1024
-SOFT_LINES = 200
+SKIP_PREFIXES = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")  # lucidlint: ignore global-state the link schemes that are not files; read by this module only
+HARD_BYTES = 32 * 1024  # lucidlint: ignore global-state the stated ceiling for always-loaded files; read by this module only
+SOFT_LINES = 200  # lucidlint: ignore global-state the stated target for always-loaded files; read by this module only
 
 
 def _doc_files() -> list[Path]:

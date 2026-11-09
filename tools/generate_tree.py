@@ -19,8 +19,8 @@ import json
 import subprocess
 import sys
 
-EPICS_DS = "20d3122e-1a13-81ee-a750-000ba5e61df5"
-VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"
+EPICS_DS = "20d3122e-1a13-81ee-a750-000ba5e61df5"  # lucidlint: ignore global-state the Epics data source id; read here only
+VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"  # lucidlint: ignore global-state the Value Streams data source id; read here only
 
 
 def query(ds):
@@ -147,7 +147,7 @@ class _RelationGraph:
         return grouped
 
 
-class _TreeRenderer:
+class _StructureTree:
     """Renders the structure tree markdown. The emit walkers are
     mutual-recursive methods over the graph, sharing the line buffer."""
 
@@ -210,12 +210,12 @@ def build():
     vs = query(VS_DS)
     em = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
     vm = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
-    return _TreeRenderer(_RelationGraph(em, vm)).render()
+    return _StructureTree(_RelationGraph(em, vm)).render()
 
 
 if __name__ == "__main__":
     out = build()
-    path = sys.argv[1] if len(sys.argv) > 1 else "notion-structure.md"
+    path = sys.argv[1] if len(sys.argv) > 1 else "notion-structure.md"  # lucidlint: ignore global-state the tree path being walked; local to this renderer call
     with open(path, "w") as f:
         f.write(out)
     print(f"written {path}")

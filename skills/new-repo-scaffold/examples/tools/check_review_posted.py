@@ -1,3 +1,9 @@
+# lucidlint: ignore-file record-shape the only record here is the HTTP header
+# mapping, which is the wire format urllib takes — a class for two headers is
+# ceremony, and there is one site that builds it.
+# lucidlint: ignore-file duplicate-module this file is copied verbatim into
+# skills/new-repo-scaffold/examples/tools/ by make sync-examples, which fails when
+# the two diverge — one source, one check, two copies on purpose.
 """Called by .github/workflows/pr-agent.yml — fail the PR if the review bot
 did not post a "PR Reviewer Guide" comment covering the head commit.
 The review may have failed silently; this check prevents merging unreviewed.
@@ -46,23 +52,25 @@ import sys
 import urllib.request
 from urllib.error import HTTPError
 
-BOT_STEP_MARK = "Run the-pr-agent/pr-agent"
+BOT_STEP_MARK = "Run the-pr-agent/pr-agent"  # lucidlint: ignore global-state the heading of the bot's own step in the job log; read here only
 
 # The markers the bot leaves when a review dies inside the (swallowed)
 # exception seam, plus the size signal that precedes a died model call.
-_ERROR_MARKERS = (
+_ERROR_MARKERS = (  # lucidlint: ignore global-state the strings that mean the bot failed; read here only
     "Failed to process the command.",
     "Traceback (most recent call last)",
 )
 _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
-_TRACEBACK_TAIL = 12  # lines after a traceback/marker worth reporting
+_TRACEBACK_TAIL = 12  # lucidlint: ignore global-state how many lines after a traceback are worth reporting; read here only
+
+
+def _headers(token: str, accept: str = "application/vnd.github+json") -> dict:
+    """The two headers every request carries — urllib's wire format, one site."""
+    return {"Authorization": f"Bearer {token}", "Accept": accept}
 
 
 def _get(url: str, token: str, accept: str = "application/vnd.github+json") -> bytes:
-    req = urllib.request.Request(
-        url,
-        headers={"Authorization": f"Bearer {token}", "Accept": accept},
-    )
+    req = urllib.request.Request(url, headers=_headers(token, accept))
     return urllib.request.urlopen(req).read()
 
 
@@ -108,7 +116,7 @@ def _job_log(repo: str, token: str) -> str | None:
             return None
         req = urllib.request.Request(
             f"https://api.github.com/repos/{repo}/actions/jobs/{matches[0]['id']}/logs",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            headers=_headers(token),
         )
         try:
             resp = _OPENER.open(req)
@@ -177,7 +185,7 @@ def _failure_reason(bot_lines: list[str]) -> str:
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
 
 
-_SKIP_MARKERS = (
+_SKIP_MARKERS = (  # lucidlint: ignore global-state the strings that mean the review was skipped by hand; read here only
     "PR has no analyzable files",
     "skipping review",
     "skipping describe",
@@ -224,7 +232,7 @@ def _review_covers(comments, sha: str, reviewed_after: str) -> bool:
         for c in comments
     )
 
-def main() -> int:
+def main() -> int:  # lucidlint: ignore latent-class a one-shot CI check: what is threaded through is the repo slug, immutable, needed by every call
     sha = os.environ["SHA"]
     repo = os.environ["GITHUB_REPOSITORY"]
     pr_number = os.environ["PR_NUMBER"]
