@@ -81,6 +81,13 @@ for _handler in (urllib.request.HTTPHandler(), urllib.request.HTTPSHandler(),
     _OPENER.add_handler(_handler)
 
 
+def _job_name_matches(name: str, wanted: str) -> bool:
+    """A reusable workflow's job is listed with its workflow prefix: the job
+    called ``pr-review`` appears as ``review / pr-review``. Match the bare name
+    and the prefixed form, and nothing else — a prefix is not a wildcard."""
+    return name == wanted or name.endswith(f"/ {wanted}")
+
+
 def _job_log(repo: str, token: str) -> str | None:
     """The running job's own accumulated log (the bot step's output), or
     None when the checks API won't serve it mid-run — the caller falls back
@@ -96,7 +103,7 @@ def _job_log(repo: str, token: str) -> str | None:
         # the API happens to list first — this runs from a second job in the
         # same run, and listing order is not the workflow's order.
         wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
-        matches = [j for j in jobs["jobs"] if j.get("name") == wanted]
+        matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
         if not matches:
             return None
         req = urllib.request.Request(
