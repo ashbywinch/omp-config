@@ -1,5 +1,3 @@
-# lucidlint: ignore-file record-shape urllib requires a mapping for request
-# headers — a third-party shape we do not own, not a record of ours.
 # lucidlint: ignore-file duplicate-module this file is copied verbatim into
 # skills/new-repo-scaffold/examples/tools/ by make sync-examples, which fails when
 # the two diverge — one source, one check, two copies on purpose.
@@ -54,14 +52,17 @@ from urllib.error import HTTPError
 _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
 
 
-def _headers(token: str, accept: str = "application/vnd.github+json") -> dict:
-    """The two headers every request carries — urllib's wire format, one site."""
-    return {"Authorization": f"Bearer {token}", "Accept": accept}
+class _ApiRequest(urllib.request.Request):
+    """A GitHub API request: the two headers every call carries."""
+
+    def __init__(self, url: str, token: str, accept: str = "application/vnd.github+json"):
+        super().__init__(url)
+        self.add_header("Authorization", f"Bearer {token}")
+        self.add_header("Accept", accept)
 
 
 def _get(url: str, token: str, accept: str = "application/vnd.github+json") -> bytes:
-    req = urllib.request.Request(url, headers=_headers(token, accept))
-    return urllib.request.urlopen(req).read()
+    return urllib.request.urlopen(_ApiRequest(url, token, accept)).read()
 
 
 def _get_json(url: str, token: str):
@@ -104,10 +105,8 @@ def _job_log(repo: str, token: str) -> str | None:
         matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
         if not matches:
             return None
-        req = urllib.request.Request(
-            f"https://api.github.com/repos/{repo}/actions/jobs/{matches[0]['id']}/logs",
-            headers=_headers(token),
-        )
+        req = _ApiRequest(
+            f"https://api.github.com/repos/{repo}/actions/jobs/{matches[0]['id']}/logs", token)
         try:
             resp = _OPENER.open(req)
             # GitHub answers the log endpoint with a redirect to blob storage.

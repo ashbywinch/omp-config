@@ -204,7 +204,15 @@ class DocSizeReport:
         self.soft = soft
 
 
-def _check_sizes(repo: Path, hard_bytes: int = 32 * 1024, soft_lines: int = 200) -> DocSizeReport:
+class _AlwaysLoaded:
+    """The size ceilings stated in docs/writing-documentation.md, for files
+    loaded in full every session."""
+
+    HARD_BYTES = 32 * 1024  # 32 KiB, the stated ceiling
+    SOFT_LINES = 200  # the stated target
+
+
+def _check_sizes(repo: Path) -> DocSizeReport:
     """docs/writing-documentation.md ceilings: hard fail > 32 KiB, warn > 200
     lines, for always-loaded files (AGENTS.md + skill bodies)."""
     files = [repo / "AGENTS.md" if (repo / "AGENTS.md").exists() else None]
@@ -215,8 +223,8 @@ def _check_sizes(repo: Path, hard_bytes: int = 32 * 1024, soft_lines: int = 200)
         if f is None:
             continue
         text = f.read_text(encoding="utf-8")
-        if len(text.encode("utf-8")) > hard_bytes:
-            hard.append(f"{f.relative_to(repo)}: {len(text.encode('utf-8'))} bytes > {hard_bytes} ceiling")
-        elif text.count("\n") > soft_lines:
-            soft.append(f"{f.relative_to(repo)}: {text.count(chr(10))} lines > {soft_lines} target (slim it)")
+        if len(text.encode("utf-8")) > _AlwaysLoaded.HARD_BYTES:
+            hard.append(f"{f.relative_to(repo)}: {len(text.encode('utf-8'))} bytes > {_AlwaysLoaded.HARD_BYTES} ceiling")
+        elif text.count("\n") > _AlwaysLoaded.SOFT_LINES:
+            soft.append(f"{f.relative_to(repo)}: {text.count(chr(10))} lines > {_AlwaysLoaded.SOFT_LINES} target (slim it)")
     return DocSizeReport(hard, soft)
