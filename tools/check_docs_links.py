@@ -1,5 +1,3 @@
-# lucidlint: ignore-file unused these four checks exist to be asserted by
-# tools/tests/test_repo_contracts.py; nothing ships them, which is the point.
 """The repo contracts omp-config asserts about itself (stdlib only — no deps).
 
 Each returns the failures it found; `tools/tests/test_repo_contracts.py` asserts
