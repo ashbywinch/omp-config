@@ -69,7 +69,7 @@ The Desired Outcome and Scope Boundaries contain only what the user asked for. N
 - documentation or artefacts they didn't ask for ("a checklist", "notes in Drive")
 - extra approvals, review steps or sign-offs
 
-Each of those is a requirement, and writing one into a ticket puts work in front of the user that they never asked for. If a task looks incomplete, ask — do not fill the gap yourself.
+Each of those is a requirement, and writing one into a ticket puts work in front of the user that they never asked for. Where something is genuinely missing, propose it from what they said and let the approval decide.
 
 When something was dropped by mistake, put it back with the tool that
 snapshotted it: `notion-write.sh --revert` restores the exact value that was
