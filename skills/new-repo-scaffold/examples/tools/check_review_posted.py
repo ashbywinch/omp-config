@@ -52,16 +52,17 @@ import sys
 import urllib.request
 from urllib.error import HTTPError
 
-BOT_STEP_MARK = "Run the-pr-agent/pr-agent"  # lucidlint: ignore global-state the heading of the bot's own step in the job log; read here only
-
-# The markers the bot leaves when a review dies inside the (swallowed)
-# exception seam, plus the size signal that precedes a died model call.
-_ERROR_MARKERS = (  # lucidlint: ignore global-state the strings that mean the bot failed; read here only
-    "Failed to process the command.",
-    "Traceback (most recent call last)",
-)
 _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
-_TRACEBACK_TAIL = 12  # lucidlint: ignore global-state how many lines after a traceback are worth reporting; read here only
+
+
+def _has_error_marker(text: str) -> bool:
+    """Whether *text* carries a marker the bot leaves when a review dies
+    inside its swallowed exception seam."""
+    markers = (
+        "Failed to process the command.",
+        "Traceback (most recent call last)",
+    )
+    return any(mark in text for mark in markers)
 
 
 def _headers(token: str, accept: str = "application/vnd.github+json") -> dict:
@@ -177,19 +178,12 @@ def _failure_reason(bot_lines: list[str]) -> str:
                 f"{m.group(2)}-token review cap; the review died after pruning the diff"
             )
     for i, ln in enumerate(bot_lines):
-        if any(mark in ln for mark in _ERROR_MARKERS):
-            tail = [line for line in bot_lines[i : i + _TRACEBACK_TAIL] if line.strip()]
+        if _has_error_marker(ln):
+            tail = [line for line in bot_lines[i : i + 12] if line.strip()]
             snippet = " | ".join(line.split("\t")[-1][:200] for line in tail[:4])
             return f"the bot logged an error before dying: {snippet}"
     last = next((line for line in reversed(bot_lines) if line.strip()), "")
     return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
-
-
-_SKIP_MARKERS = (  # lucidlint: ignore global-state the strings that mean the review was skipped by hand; read here only
-    "PR has no analyzable files",
-    "skipping review",
-    "skipping describe",
-)
 
 
 def _review_skipped(log: str | None) -> bool:
@@ -202,9 +196,14 @@ def _review_skipped(log: str | None) -> bool:
     behind a skip line it logged before dying."""
     if not log:
         return False
-    if any(mark in log for mark in _ERROR_MARKERS) or _SIZE_RE.search(log):
+    if _has_error_marker(log) or _SIZE_RE.search(log):
         return False
-    return any(marker in log for marker in _SKIP_MARKERS)
+    skip_markers = (
+        "PR has no analyzable files",
+        "skipping review",
+        "skipping describe",
+    )
+    return any(marker in log for marker in skip_markers)
 
 
 def _review_covers(comments, sha: str, reviewed_after: str) -> bool:

@@ -19,8 +19,6 @@ import json
 import subprocess
 import sys
 
-EPICS_DS = "20d3122e-1a13-81ee-a750-000ba5e61df5"  # lucidlint: ignore global-state the Epics data source id; read here only
-VS_DS = "20d3122e-1a13-8180-bf41-000b2f83fdc2"  # lucidlint: ignore global-state the Value Streams data source id; read here only
 
 
 def query(ds):
@@ -206,8 +204,8 @@ class _StructureTree:
 
 
 def build():
-    epics = query(EPICS_DS)
-    vs = query(VS_DS)
+    epics = query("20d3122e-1a13-81ee-a750-000ba5e61df5")
+    vs = query("20d3122e-1a13-8180-bf41-000b2f83fdc2")
     em = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Epic Name")) for r in epics}
     vm = {r["id"]: _Page(r.get("properties") or {}, title(r.get("properties") or {}, "Value Stream Name") or "(untitled)") for r in vs}
     return _StructureTree(_RelationGraph(em, vm)).render()
@@ -215,7 +213,6 @@ def build():
 
 if __name__ == "__main__":
     out = build()
-    path = sys.argv[1] if len(sys.argv) > 1 else "notion-structure.md"  # lucidlint: ignore global-state the tree path being walked; local to this renderer call
     with open(path, "w") as f:
         f.write(out)
     print(f"written {path}")

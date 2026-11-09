@@ -37,9 +37,6 @@ REPO = Path(__file__).resolve().parent.parent  # lucidlint: ignore global-state 
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 FENCE_RE = re.compile(r"^```", re.MULTILINE)
 BACKTICK_PATH_RE = re.compile(r"`([A-Za-z0-9_./*-]+\.md)`")
-SKIP_PREFIXES = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")  # lucidlint: ignore global-state the link schemes that are not files; read by this module only
-HARD_BYTES = 32 * 1024  # lucidlint: ignore global-state the stated ceiling for always-loaded files; read by this module only
-SOFT_LINES = 200  # lucidlint: ignore global-state the stated target for always-loaded files; read by this module only
 
 
 def _doc_files() -> list[Path]:
@@ -81,6 +78,12 @@ def _outside_fences(text: str) -> list[Fence]:
     return spans
 
 
+def _is_skipped(url: str) -> bool:
+    """Whether a link target is a scheme or anchor rather than a file here."""
+    schemes = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")
+    return url.startswith(schemes)
+
+
 def _check_links() -> list[str]:
     failures: list[str] = []
     for md in _doc_files():
@@ -89,7 +92,7 @@ def _check_links() -> list[str]:
         for fence in spans:
             for match in LINK_RE.finditer(text, fence.start, fence.end):
                 url = match.group(2).strip()
-                if url.startswith(SKIP_PREFIXES) or "=" in url or " " in url or "{{" in url or "$" in url:
+                if _is_skipped(url) or "=" in url or " " in url or "{{" in url or "$" in url:
                     continue
                 if "#" in url:
                     url = url[: url.index("#")]
@@ -132,7 +135,7 @@ def _link_targets(md: Path, text: str) -> list[Path]:
     for fence in spans:
         for match in LINK_RE.finditer(text, fence.start, fence.end):
             url = match.group(2).strip()
-            if url.startswith(SKIP_PREFIXES) or "=" in url or " " in url or "{{" in url or "$" in url:
+            if _is_skipped(url) or "=" in url or " " in url or "{{" in url or "$" in url:
                 continue
             if "#" in url:
                 url = url[: url.index("#")]
@@ -213,8 +216,10 @@ def _check_sizes() -> DocSizeReport:
         if f is None:
             continue
         text = f.read_text(encoding="utf-8")
-        if len(text.encode("utf-8")) > HARD_BYTES:
-            hard.append(f"{f.relative_to(REPO)}: {len(text.encode('utf-8'))} bytes > {HARD_BYTES} ceiling")
-        elif text.count("\n") > SOFT_LINES:
-            soft.append(f"{f.relative_to(REPO)}: {text.count(chr(10))} lines > {SOFT_LINES} target (slim it)")
+        hard_bytes = 32 * 1024
+        soft_lines = 200
+        if len(text.encode("utf-8")) > hard_bytes:
+            hard.append(f"{f.relative_to(REPO)}: {len(text.encode('utf-8'))} bytes > {hard_bytes} ceiling")
+        elif text.count("\n") > soft_lines:
+            soft.append(f"{f.relative_to(REPO)}: {text.count(chr(10))} lines > {soft_lines} target (slim it)")
     return DocSizeReport(hard, soft)
