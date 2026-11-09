@@ -22,7 +22,7 @@ message is `skill://interaction-quality-standard`.
 | Kind | what kind of file it is, in two or three words | a description of the epic |
 | Date | the date on the document itself | the date it arrived |
 | Link | to the file in Drive (`account:file_id` where the store is a stand-in) | a path, a URL, a bare id |
-| Readable copy | a link to a markdown copy of its text, when one is warranted | a note saying there is none |
+| Transcript | a link to a markdown transcript of its text, when one is warranted | a note saying there is none |
 | Related to Epics | the deepest epic it belongs to — a Notion epic, never a value stream | a value stream |
 | Interaction | the message it arrived with, or that it answers (`skill://interaction-quality-standard`) | an unrelated message |
 | Note | what it is and what it says that matters, in two or three lines; anything it requires of the reader goes first | anything another column already holds |
@@ -31,20 +31,20 @@ message is `skill://interaction-quality-standard`.
 
 Record the name the file has.
 
-## The readable copy
+## The transcript
 
-A copy exists for one reason: the original cannot be read or searched cheaply.
-A scan with no text layer, a photograph of a letter, a long report. Store the
-text beside the original and point the readable-copy field at it.
+A transcript exists where the original cannot be read or searched cheaply: a scan
+with no text layer, a photograph of a letter, a long report. Store the text beside
+the original and point the transcript field at it.
 
-A clean document — a `.docx`, a text-layer PDF — does not earn one. A copy of
-something already readable is a second copy, and worse than none.
+A clean document — a `.docx`, a text-layer PDF — does not earn one.
 
 ## One file, one row
 
-Two rows for one file splits the record. Two copies of one file in one folder is
-the same fault in the storage. Before creating anything, look for what is
-already there — by reference, amount and date, not by the subject line.
+Before creating a row, search the record for the file: by its reference, the
+amount on it, and its date. Create the row only when no row for that file
+exists, and store one copy of the file. Two rows for one file, or two copies in
+one folder, leave two versions of the record to disagree.
 
 ## Validation Checklist
 
@@ -54,4 +54,4 @@ already there — by reference, amount and date, not by the subject line.
 - [ ] The date is the document's own
 - [ ] The note says what it is and what it requires, and repeats no column
 - [ ] The interaction link is set, and the interaction points back
-- [ ] The readable copy exists exactly when the original cannot be read
+- [ ] The transcript exists exactly when the original cannot be read
