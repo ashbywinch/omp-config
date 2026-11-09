@@ -49,7 +49,7 @@ import os
 import re
 import sys
 import urllib.request
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
 
@@ -68,15 +68,18 @@ def _get(url: str, token: str, accept: str = "application/vnd.github+json") -> b
 
 
 class _ApiFailure(Exception):
-    """The API did not give a usable answer: a non-2xx status, or a body that
-    is not the JSON it promised — a proxy's error page, a truncated read."""
+    """The API did not give a usable answer: the request failed on the way
+    (refused, timed out), it came back non-2xx, or the body is not the JSON it
+    promised — a proxy's error page, a truncated read."""
 
 
 def _get_json(url: str, token: str):
     try:
         body = _get(url, token)
-    except HTTPError as e:
+    except HTTPError as e:  # a URLError subclass: check it first
         raise _ApiFailure(f"HTTP {e.code}") from e
+    except URLError as e:
+        raise _ApiFailure(f"{e.reason}") from e
     try:
         return json.loads(body)
     except ValueError as e:
@@ -313,7 +316,7 @@ def main() -> int:
     if not _review_covers(comments, sha, reviewed_after):
         try:
             log = gate.job_log()
-        except (_ApiFailure, KeyError, urllib.error.URLError) as e:
+        except (_ApiFailure, KeyError, URLError) as e:
             print(f"::error::AI review did not post for commit {sha} — the job log could not be "
                   f"read ({type(e).__name__}: {e}), so the reason is unknown.")
             return 1

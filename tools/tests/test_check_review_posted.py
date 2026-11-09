@@ -56,6 +56,20 @@ class ApiFailureTest(unittest.TestCase):
         self.assertIn("is not fetchable", out.getvalue())
         self.assertIn("not JSON", out.getvalue())
 
+    def test_a_transport_failure_is_reported_not_raised(self):
+        with mock.patch.object(check_review_posted, "_get",
+                               side_effect=urllib.error.URLError("connection refused")):
+            with mock.patch.dict(os.environ, {
+                "SHA": SHA,
+                "PR_NUMBER": "1",
+                "GITHUB_REPOSITORY": "o/r",
+                "GITHUB_TOKEN": "t",
+            }):
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    self.assertEqual(check_review_posted.main(), 1)
+        self.assertIn("is not fetchable", out.getvalue())
+        self.assertIn("connection refused", out.getvalue())
+
     def test_an_unreadable_job_log_names_the_failure_it_was(self):
         def refuse_the_log(url, token, accept="application/vnd.github+json"):
             if "/actions/runs/" in url and url.endswith("/jobs"):
