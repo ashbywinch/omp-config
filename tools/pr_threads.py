@@ -22,44 +22,6 @@ import sys
 import time
 from dataclasses import dataclass, replace
 
-THREADS_QUERY = """
-query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $pr) {
-      reviewThreads(first: 100, after: $cursor) {
-        pageInfo { hasNextPage endCursor }
-        nodes {
-          id
-          isResolved
-          path
-          line
-          comments(first: 100) {
-            pageInfo { hasNextPage endCursor }
-            nodes { author { login } body }
-          }
-        }
-      }
-    }
-  }
-}
-"""
-
-COMMENTS_QUERY = """
-query($id: ID!, $cursor: String) {
-  node(id: $id) {
-    ... on PullRequestReviewThread {
-      comments(first: 100, after: $cursor) {
-        pageInfo { hasNextPage endCursor }
-        nodes { author { login } body }
-      }
-    }
-  }
-}
-"""
-
-DEFAULT_ME = "omp-harness"
-
-
 @dataclass(frozen=True)
 class ThreadPage:
     threads: list[Thread]
@@ -112,57 +74,97 @@ def _graphql(query: str, variables: list[str]) -> dict:  # lucidlint: ignore rec
     return payload
 
 
-def _thread_page(pr: int, owner: str, name: str, cursor: str | None) -> "ThreadPage":
-    variables = ["-f", f"owner={owner}", "-f", f"repo={name}", "-F", f"pr={pr}"]
-    if cursor:
-        variables += ["-f", f"cursor={cursor}"]
-    data = _graphql(THREADS_QUERY, variables)
-    try:
-        payload = data["data"]["repository"]["pullRequest"]["reviewThreads"]
-        nodes, page_info = payload["nodes"], payload["pageInfo"]
-    except (KeyError, TypeError):
-        sys.exit(f"cannot read PR {pr} in {owner}/{name}: it does not exist, or this token cannot see it")
+class _ReviewThreads:
+    """The review threads on one repository's PR: the GraphQL documents, and
+    the paging over both levels — the threads, then each thread's comments."""
 
-    threads: list[Thread] = []
-    for node in nodes:
-        if not node or "id" not in node:
-            # GraphQL returns null for a node the viewer cannot see. Reporting the
-            # threads we can see would understate what is open, so stop instead.
-            sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
-        thread = Thread.from_json(node)
-        comments_page = (node.get("comments") or {}).get("pageInfo", {})
-        if comments_page.get("hasNextPage"):
-            later = _later_comments(thread.id, comments_page["endCursor"])
-            thread = replace(thread, comments=thread.comments + tuple(later))
-        threads.append(thread)
-    return ThreadPage(threads, page_info["endCursor"] if page_info["hasNextPage"] else None)
+    THREADS = """
+query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviewThreads(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          isResolved
+          path
+          line
+          comments(first: 100) {
+            pageInfo { hasNextPage endCursor }
+            nodes { author { login } body }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+    COMMENTS = """
+query($id: ID!, $cursor: String) {
+  node(id: $id) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { author { login } body }
+      }
+    }
+  }
+}
+"""
+    ME = "omp-harness"
 
+    def __init__(self, repo: str):
+        self.repo = repo
+        self.owner, self.name = repo.split("/", 1)
 
-def _later_comments(thread_id: str, cursor: str) -> list[Comment]:
-    """Comments after the first page of a long thread — the last one decides."""
-    extra: list[Comment] = []
-    while cursor:
-        data = _graphql(COMMENTS_QUERY, ["-f", f"id={thread_id}", "-f", f"cursor={cursor}"])
-        node = data["data"].get("node")
-        if not node:
-            sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
-        page = node["comments"]
-        extra += [Comment(c["author"]["login"], c["body"]) for c in page["nodes"]]
-        cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
-    return extra
+    def fetch(self, pr: int) -> list[Thread]:
+        """Every review thread on the PR, with every comment on each."""
+        threads: list[Thread] = []
+        cursor: str | None = None
+        while True:
+            page = self._page(pr, cursor)
+            threads += page.threads
+            if page.next_cursor is None:
+                return threads
+            cursor = page.next_cursor
 
+    def _page(self, pr: int, cursor: str | None) -> "ThreadPage":
+        variables = ["-f", f"owner={self.owner}", "-f", f"repo={self.name}", "-F", f"pr={pr}"]
+        if cursor:
+            variables += ["-f", f"cursor={cursor}"]
+        data = _graphql(self.THREADS, variables)
+        try:
+            payload = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+            nodes, page_info = payload["nodes"], payload["pageInfo"]
+        except (KeyError, TypeError):
+            sys.exit(f"cannot read PR {pr} in {self.repo}: it does not exist, or this token cannot see it")
 
-def fetch(pr: int, repo: str) -> list[Thread]:
-    """Every review thread on the PR, with every comment on each."""
-    owner, name = repo.split("/", 1)
-    threads: list[Thread] = []
-    cursor: str | None = None
-    while True:
-        page = _thread_page(pr, owner, name, cursor)
-        threads += page.threads
-        if page.next_cursor is None:
-            return threads
-        cursor = page.next_cursor
+        threads: list[Thread] = []
+        for node in nodes:
+            if not node or "id" not in node:
+                # GraphQL returns null for a node the viewer cannot see. Reporting the
+                # threads we can see would understate what is open, so stop instead.
+                sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
+            thread = Thread.from_json(node)
+            comments_page = (node.get("comments") or {}).get("pageInfo", {})
+            if comments_page.get("hasNextPage"):
+                later = self._later_comments(thread.id, comments_page["endCursor"])
+                thread = replace(thread, comments=thread.comments + tuple(later))
+            threads.append(thread)
+        return ThreadPage(threads, page_info["endCursor"] if page_info["hasNextPage"] else None)
+
+    def _later_comments(self, thread_id: str, cursor: str) -> list[Comment]:
+        """Comments after the first page of a long thread — the last one decides."""
+        extra: list[Comment] = []
+        while cursor:
+            data = _graphql(self.COMMENTS, ["-f", f"id={thread_id}", "-f", f"cursor={cursor}"])
+            node = data["data"].get("node")
+            if not node:
+                sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
+            page = node["comments"]
+            extra += [Comment(c["author"]["login"], c["body"]) for c in page["nodes"]]
+            cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+        return extra
 
 
 def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
@@ -224,7 +226,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("pr", type=int)
     ap.add_argument("--repo", default=None)
-    ap.add_argument("--me", default=DEFAULT_ME)
+    ap.add_argument("--me", default=_ReviewThreads.ME)
     ap.add_argument("--wait", action="store_true",
                     help="wait for the reviewer to finish on this head before listing")
     args = ap.parse_args()
@@ -232,7 +234,7 @@ def main() -> int:
     repo = args.repo or repo_slug()
     if args.wait:
         wait_for_review(args.pr, repo)
-    threads = fetch(args.pr, repo)
+    threads = _ReviewThreads(repo).fetch(args.pr)
     pending = unanswered(threads, args.me)
 
     print(f"PR {args.pr} ({repo}): {len(threads)} threads, {len(pending)} unanswered")
