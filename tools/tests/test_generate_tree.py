@@ -6,13 +6,11 @@ Superseded section, and an epic under a superseded parent is a root.
 """
 
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import generate_tree  # noqa: E402  (sys.path bootstrap must precede the import)
+from tools import generate_tree
 
 
 def page(props, name):

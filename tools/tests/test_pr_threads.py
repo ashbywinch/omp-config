@@ -5,12 +5,9 @@ An earlier reply followed by a follow-up question is still open work, which is
 the mistake this tool exists to catch.
 """
 
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from pr_threads import Check, Comment, Thread, unanswered  # noqa: E402
+from tools.pr_threads import Check, Comment, Thread, unanswered
 
 
 def thread(*authors, resolved=False):
