@@ -130,6 +130,13 @@ class NotionWriteTest(unittest.TestCase):
         self.write_ok("P1", "Description", "--revert")
         self.assertEqual(self.value(), ORIGINAL)
 
+    def test_resnapshot_replaces_the_first_on_purpose(self):
+        self.write_ok("P1", "Description", "--text", "First")
+        self.write_ok("P1", "Description", "--resnapshot")
+        self.write_ok("P1", "Description", "--text", "Second")
+        self.write_ok("P1", "Description", "--revert")
+        self.assertEqual(self.value()[0]["text"]["content"], "First")
+
     def test_revert_without_snapshot_refuses_and_leaves_the_page_alone(self):
         result = self.run_tool("P1", "Description", "--revert")
         self.assertNotEqual(result.returncode, 0)

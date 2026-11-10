@@ -10,8 +10,9 @@
 #
 # Snapshots live under ${XDG_STATE_HOME:-$HOME/.local/state}/notion-snapshots/
 # <page-id>/<property>.json. The FIRST snapshot for a page+property is kept and
-# never overwritten, so --revert always returns to the value from before the
-# first write in that store; pass --resnapshot to replace it deliberately.
+# never overwritten — it is created with a hard link, so a racing writer cannot
+# replace it — and --revert always returns to the value from before the first
+# write in that store; pass --resnapshot to replace it deliberately.
 set -euo pipefail
 
 state_root="${XDG_STATE_HOME:-$HOME/.local/state}"
@@ -54,10 +55,27 @@ show_state() { # $1 = label, $2 = {"type","value"} JSON
          else (.value | tojson) end' <<<"$2"
 }
 
-take_snapshot() { # $1 = {"type","value"} JSON
+snapshot_to_temp() { # $1 = {"type","value"} JSON — prints a fresh temp path
   mkdir -p "$snapshot_dir"
-  printf '%s\n' "$1" | jq . > "$snapshot.tmp"
-  mv "$snapshot.tmp" "$snapshot"
+  local tmp
+  tmp=$(mktemp "$snapshot.XXXXXX")
+  printf '%s\n' "$1" | jq . > "$tmp"
+  printf '%s\n' "$tmp"
+}
+
+take_snapshot() { # $1 = {"type","value"} JSON — the FIRST snapshot wins, atomically
+  local tmp
+  tmp=$(snapshot_to_temp "$1")
+  # link(2) is "create only if absent": a writer that loses the race leaves the
+  # winner's snapshot untouched instead of overwriting it with a later value.
+  ln "$tmp" "$snapshot" 2>/dev/null || true
+  rm -f "$tmp"
+}
+
+replace_snapshot() { # $1 = {"type","value"} JSON — --resnapshot replaces on purpose
+  local tmp
+  tmp=$(snapshot_to_temp "$1")
+  mv "$tmp" "$snapshot"
 }
 
 case "$mode" in
@@ -103,7 +121,7 @@ case "$mode" in
     ;;
 
   --resnapshot)
-    take_snapshot "$(read_state)"
+    replace_snapshot "$(read_state)"
     echo "snapshot: $snapshot (replaced)"
     ;;
 
