@@ -33,6 +33,13 @@ class Comment:
     author: str
     body: str
 
+    @classmethod
+    def from_json(cls, node: dict) -> "Comment":  # lucidlint: ignore record-shape the GraphQL node is the wire format; converting it is this function's whole job
+        """Read one comment off the wire. `author` is null when the account was
+        deleted; nobody's login, so it answers to no one — not to me either."""
+        author = (node.get("author") or {}).get("login") or ""
+        return cls(author, node.get("body") or "")
+
 
 @dataclass(frozen=True)
 class Thread:
@@ -44,9 +51,7 @@ class Thread:
 
     @classmethod
     def from_json(cls, node: dict) -> "Thread":  # lucidlint: ignore record-shape the GraphQL node is the wire format; converting it is this function's whole job
-        comments = tuple(
-            Comment(c["author"]["login"], c["body"]) for c in node["comments"]["nodes"]
-        )
+        comments = tuple(Comment.from_json(c) for c in node["comments"]["nodes"])
         return cls(node["id"], node["path"], node.get("line"), node["isResolved"], comments)
 
 
@@ -146,7 +151,11 @@ query($id: ID!, $cursor: String) {
                 # threads we can see would understate what is open, so stop instead.
                 sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
             thread = Thread.from_json(node)
-            comments_page = (node.get("comments") or {}).get("pageInfo", {})
+            comments_page = (node.get("comments") or {}).get("pageInfo")
+            if comments_page is None:
+                # No pageInfo means the comments were not readable; the first page
+                # would look like the whole thread, and the last comment decides.
+                sys.exit(f"cannot read the comments on thread {thread.id} — refusing a partial answer")
             if comments_page.get("hasNextPage"):
                 later = self._later_comments(thread.id, comments_page["endCursor"])
                 thread = replace(thread, comments=thread.comments + tuple(later))
@@ -162,7 +171,7 @@ query($id: ID!, $cursor: String) {
             if not node:
                 sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
             page = node["comments"]
-            extra += [Comment(c["author"]["login"], c["body"]) for c in page["nodes"]]
+            extra += [Comment.from_json(c) for c in page["nodes"]]
             cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
         return extra
 

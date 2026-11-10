@@ -23,6 +23,18 @@ def thread(*authors, resolved=False):
     )
 
 
+class CommentTest(unittest.TestCase):
+    def test_a_deleted_author_is_nobody(self):
+        # GraphQL returns null for a comment whose account was deleted; reading
+        # it must not crash the whole listing.
+        self.assertEqual(Comment.from_json({"author": None, "body": "gone"}).author, "")
+
+    def test_a_deleted_author_does_not_answer_for_me(self):
+        threads = [Thread(id="t1", path="a.md", line=1, resolved=False,
+                          comments=(Comment.from_json({"author": None, "body": "gone"}),))]
+        self.assertEqual(len(unanswered(threads, "omp-harness")), 1)
+
+
 class UnansweredTest(unittest.TestCase):
     def test_unanswered_when_the_reviewer_spoke_last(self):
         self.assertEqual(len(unanswered([thread("github-actions")], "omp-harness")), 1)
