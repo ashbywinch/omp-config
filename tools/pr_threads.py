@@ -71,8 +71,13 @@ class Thread:
 
     @classmethod
     def from_json(cls, node: dict) -> "Thread":  # lucidlint: ignore record-shape the GraphQL node is the wire format; converting it is this function's whole job
-        comments = tuple(Comment.from_json(c) for c in node["comments"]["nodes"])
-        return cls(node["id"], node["path"], node.get("line"), node["isResolved"], comments)
+        """Read one thread off the wire. Every field the listing needs is
+        required: a thread missing one cannot be reported at all."""
+        try:
+            comments = tuple(Comment.from_json(c) for c in node["comments"]["nodes"])
+            return cls(node["id"], node["path"], node.get("line"), node["isResolved"], comments)
+        except (KeyError, TypeError) as exc:
+            raise ValueError(f"the thread node is missing {exc}") from exc
 
 
 def _gh(*args: str) -> subprocess.CompletedProcess:
@@ -170,7 +175,10 @@ query($id: ID!, $cursor: String) {
                 # GraphQL returns null for a node the viewer cannot see. Reporting the
                 # threads we can see would understate what is open, so stop instead.
                 sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
-            thread = Thread.from_json(node)
+            try:
+                thread = Thread.from_json(node)
+            except ValueError as exc:
+                sys.exit(f"cannot read every review thread on PR {pr} ({exc}) — refusing a partial list")
             comments_page = (node.get("comments") or {}).get("pageInfo")
             if comments_page is None:
                 # No pageInfo means the comments were not readable; the first page
@@ -211,18 +219,17 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
         # `gh pr checks` has no --json in the gh this runs against (2.46); the
         # rollup on the PR is the same data in a shape every gh 2.x serves.
         out = _gh("pr", "view", str(pr), "--repo", repo, "--json", "statusCheckRollup")
+        if out.returncode != 0:
+            # A warning then listing anyway would report a state the tool could
+            # not observe — the failure this option exists to prevent.
+            sys.exit("`gh pr view` failed (%s); cannot wait for the review"
+                     % (out.stderr.strip() or out.returncode))
         try:
             rollup = json.loads(out.stdout or "{}").get("statusCheckRollup") or []
-            checks = [Check.from_json(node) for node in rollup]
         except json.JSONDecodeError as exc:
-            print("warning: could not read the checks (%s); listing what has posted" % exc,
-                  file=sys.stderr)
-            return
+            sys.exit("`gh pr view` returned something that is not JSON (%s); cannot wait for the review" % exc)
+        checks = [Check.from_json(node) for node in rollup]
         if not checks:
-            if out.returncode != 0:
-                print("warning: `gh pr view` failed (%s); listing what has posted"
-                      % (out.stderr.strip() or out.returncode), file=sys.stderr)
-                return
             # A push creates the check runs a moment later. Waiting a short while
             # is the difference between "no checks configured" and "not here yet".
             if time.monotonic() < started + grace:

@@ -41,6 +41,12 @@ class FinishedTest(unittest.TestCase):
         self.assertFalse(self.check(__typename="StatusContext", state="PENDING"))
 
 
+class ThreadShapeTest(unittest.TestCase):
+    def test_a_thread_missing_its_comments_is_refused_not_crashed(self):
+        with self.assertRaises(ValueError):
+            Thread.from_json({"id": "t1", "path": "a.md", "isResolved": False})
+
+
 class CommentTest(unittest.TestCase):
     def test_a_deleted_author_is_nobody(self):
         # GraphQL returns null for a comment whose account was deleted; reading
