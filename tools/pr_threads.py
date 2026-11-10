@@ -185,10 +185,20 @@ query($id: ID!, $cursor: String) {
                 # would look like the whole thread, and the last comment decides.
                 sys.exit(f"cannot read the comments on thread {thread.id} — refusing a partial answer")
             if comments_page.get("hasNextPage"):
-                later = self._later_comments(thread.id, comments_page["endCursor"])
+                thread_cursor = comments_page.get("endCursor")
+                if not thread_cursor:
+                    # More comments exist and the cursor to them is gone: the first
+                    # page would stand in for the thread, and the last comment decides.
+                    sys.exit(f"cannot page the comments on thread {thread.id} — refusing a partial answer")
+                later = self._later_comments(thread.id, thread_cursor)
                 thread = replace(thread, comments=thread.comments + tuple(later))
             threads.append(thread)
-        return ThreadPage(threads, page_info["endCursor"] if page_info["hasNextPage"] else None)
+        if page_info["hasNextPage"]:
+            next_cursor = page_info.get("endCursor")
+            if not next_cursor:
+                sys.exit(f"cannot page the review threads on PR {pr} — refusing a partial answer")
+            return ThreadPage(threads, next_cursor)
+        return ThreadPage(threads, None)
 
     def _later_comments(self, thread_id: str, cursor: str) -> list[Comment]:
         """Comments after the first page of a long thread — the last one decides."""
@@ -198,9 +208,17 @@ query($id: ID!, $cursor: String) {
             node = data["data"].get("node")
             if not node:
                 sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
-            page = node["comments"]
-            extra += [Comment.from_json(c) for c in page["nodes"]]
-            cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+            page = node.get("comments") or {}
+            nodes = page.get("nodes")
+            if nodes is None:
+                sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
+            extra += [Comment.from_json(c) for c in nodes]
+            page_info = page.get("pageInfo") or {}
+            cursor = None
+            if page_info.get("hasNextPage"):
+                cursor = page_info.get("endCursor")
+                if not cursor:
+                    sys.exit(f"cannot page thread {thread_id} — refusing a partial answer")
         return extra
 
 
