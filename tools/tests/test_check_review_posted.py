@@ -33,9 +33,9 @@ HEAD_AT = "2026-08-22T12:41:46Z"
 BEFORE_HEAD = "2026-08-22T12:00:00Z"
 AFTER_HEAD = "2026-08-22T12:42:27Z"
 
-def comment(body: str, created_at: str = AFTER_HEAD, user_type: str = "Bot"):
+def comment(body: str, created_at: str = AFTER_HEAD, updated_at: str = "", user_type: str = "Bot"):
     """One issue comment, as the gate models it."""
-    return check_review_posted._Comment(body, created_at, user_type)
+    return check_review_posted._Comment(body, created_at, updated_at, user_type)
 class ApiFailureTest(unittest.TestCase):
     """A failed fetch fails the gate with a message. Only HTTPError was caught
     once, so a proxy's error page reached the user as a traceback; the job-log
@@ -123,6 +123,19 @@ class ReviewCoversTest(unittest.TestCase):
     def test_regular_guide_after_head_covers(self):
         c = comment("## PR Reviewer Guide 🔍\nHere are some observations")
         self.assertTrue(_covers([c], SHA, HEAD_AT))
+
+    def test_persistent_guide_edited_after_head_covers(self):
+        """The guide is edited in place on every run: `created_at` stays at its
+        first date, and pr-agent's persistent-state read can fail so the edit
+        carries no SHA footer. An edit after the head arrived is coverage."""
+        c = comment("## PR Reviewer Guide 🔍\nNo major issues detected",
+                    created_at=BEFORE_HEAD, updated_at=AFTER_HEAD)
+        self.assertTrue(_covers([c], SHA, HEAD_AT))
+
+    def test_persistent_guide_untouched_since_before_head_does_not_cover(self):
+        c = comment("## PR Reviewer Guide 🔍\nSome older review",
+                    created_at=BEFORE_HEAD, updated_at=BEFORE_HEAD)
+        self.assertFalse(_covers([c], SHA, HEAD_AT))
 
     def test_incremental_guide_with_sha_covers(self):
         c = comment(f"## Incremental PR Reviewer Guide 🔍\nStarting from commit https://github.com/o/r/commit/{SHA}")

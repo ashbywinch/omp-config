@@ -230,17 +230,19 @@ def _review_skipped(
 class _Comment:
     """One issue comment, in the shape the API returns it."""
 
-    def __init__(self, body: str, created_at: str, user_type: str = "Bot"):
+    def __init__(self, body: str, created_at: str, updated_at: str = "", user_type: str = "Bot"):
         self.body = body
         self.created_at = created_at
+        self.updated_at = updated_at
         self.user_type = user_type
 
     @classmethod
     def from_json(cls, node: "Mapping[str, Any]") -> "_Comment":
         """Read one comment off the wire. The mapping is the API's shape."""
         return cls(
-            node.get("body", ""),
-            node.get("created_at", ""),
+            node.get("body") or "",
+            node.get("created_at") or "",
+            node.get("updated_at") or "",
             (node.get("user") or {}).get("type", ""),
         )
 
@@ -248,7 +250,7 @@ class _Comment:
 def _review_covers(comments: list[_Comment], sha: str, reviewed_after: str) -> bool:
     """Does any comment cover the head commit? A human /skip opt-out (applies
     to the whole PR), a posted guide (regular or incremental, referencing the
-    sha or created after the head was received), or the bot's own
+    sha, created or edited after the head was received), or the bot's own
     incremental-skip verdict (created after the head was received — the diff
     was examined and found empty, so the skip is the review, not a
     failure)."""
@@ -260,6 +262,7 @@ def _review_covers(comments: list[_Comment], sha: str, reviewed_after: str) -> b
             and (
                 f"commit/{sha}" in c.body  # the incremental "Starting from commit .../<SHA>" form
                 or c.created_at >= reviewed_after
+                or c.updated_at >= reviewed_after  # the guide is EDITED in place, so created_at never advances and pr-agent's persistent-state read can fail without a SHA footer — an edit after the head arrived is coverage
             )
         )
         or (
