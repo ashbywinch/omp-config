@@ -36,7 +36,11 @@ class Comment:
     @classmethod
     def from_json(cls, node: dict) -> "Comment":  # lucidlint: ignore record-shape the GraphQL node is the wire format; converting it is this function's whole job
         """Read one comment off the wire. `author` is null when the account was
-        deleted; nobody's login, so it answers to no one — not to me either."""
+        deleted; nobody's login, so it answers to no one — not to me either.
+        A null node is a comment this token cannot see, which the caller must
+        not mistake for a comment that is not there."""
+        if not node:
+            raise ValueError("the comment node is null")
         author = (node.get("author") or {}).get("login") or ""
         return cls(author, node.get("body") or "")
 
@@ -220,7 +224,10 @@ query($id: ID!, $cursor: String) {
             nodes = page.get("nodes")
             if nodes is None:
                 sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
-            extra += [Comment.from_json(c) for c in nodes]
+            try:
+                extra += [Comment.from_json(c) for c in nodes]
+            except ValueError as exc:
+                sys.exit(f"cannot read the rest of thread {thread_id} ({exc}) — refusing a partial answer")
             page_info = page.get("pageInfo") or {}
             cursor = None
             if page_info.get("hasNextPage"):

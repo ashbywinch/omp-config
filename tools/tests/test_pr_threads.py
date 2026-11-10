@@ -45,6 +45,12 @@ class ThreadShapeTest(unittest.TestCase):
 
 
 class CommentTest(unittest.TestCase):
+    def test_a_null_comment_node_is_refused(self):
+        # GraphQL returns null for a comment this token cannot see; reading it
+        # as an empty comment would understate the thread.
+        with self.assertRaises(ValueError):
+            Comment.from_json(None)
+
     def test_a_deleted_author_is_nobody(self):
         # GraphQL returns null for a comment whose account was deleted; reading
         # it must not crash the whole listing.
