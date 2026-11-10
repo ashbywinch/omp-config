@@ -5,7 +5,7 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
 
 # Paseo Daemon Troubleshooting
 
-## Architecture facts (as of 2026-08-03)
+## Architecture facts
 
 - **Service**: user systemd unit `paseo.service` (`~/.config/systemd/user/paseo.service`),
   runs `~/.paseo/start.sh` → `paseo daemon start --foreground`. `Restart=on-failure`, `RestartSec=5`.
@@ -18,7 +18,7 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
 - **Guardrails in place**: unit `MemoryMax=6G`, `OOMPolicy=continue`; 16G swap
   (`/swapfile` 2G + `/swapfile2` 14G).
 
-## Known failure modes & what was done (2026-08-03)
+## Known failure modes
 
 - **OOM kill of the whole service**: kernel `global_oom` picked a chrome process inside the
   cgroup (oom_score_adj=300) → `paseo.service: Failed with result 'oom-kill'`, down 2.5h.
@@ -37,7 +37,7 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
   Workaround: direct LAN endpoint — app manual server `192.168.1.251:6767`; the relay
   stays enabled and reconnects automatically when the cloud recovers.
 
-## Client churn, MCP accumulation and config edits (2026-11-09)
+## Client churn, MCP accumulation and config edits
 
 Read the 30s window stats before anything else:
 
@@ -53,19 +53,15 @@ Read the 30s window stats before anything else:
   either. Symptoms: reconnect every 20–45s, thousands of `ws_send_failed` /
   `Failed to emit source frame`, `Liveness check timed out` as the disconnect
   reason, app diagnostic showing high Active RTT against a low TCP probe.
-- **The relay can cause it even when the app reports `relay: inactive`.** Flapping
-  `relay_data_connected/disconnected` tears down the session socket. When the app
+- **Check the relay even when the app reports `relay: inactive`.** Flapping
+  `relay_data_connected/disconnected` tears down the session socket; when the app
   has a direct LAN path, set `daemon.relay.enabled: false` and
-  `paseo daemon reload`; keep the relay only for off-LAN access.
+  `paseo daemon reload` — keep the relay only for off-LAN access.
 - **`checkout_status`/`checkout_pr_status` taking seconds is network-bound** and
   independent of message loading. Do not conflate the two.
 - **MCP children accumulate.** OpenCode keeps one MCP process per (server,
-  directory) for the life of the shared server and never evicts it. Killing a
-  child is not recovered: the tools silently vanish from that session, and only a
-  config change or process restart re-initialises them. Killing the shared
-  OpenCode server is safe instead — sessions re-acquire via `reconnectIfExited()`
-  and shutdown kills the MCP process group. `idleRuntimeCleanup` reaps agent
-  runtimes, not MCP children.
+  directory) for the life of the shared server and never evicts it;
+  `idleRuntimeCleanup` reaps agent runtimes, not these.
 - **Watcher fleets hit inotify limits.** A per-repo watcher uses one inotify
   instance per watched directory, not one per repo; roughly 20 repos exceeds the
   default `fs.inotify.max_user_instances` (128). Raise the limit or watch only
