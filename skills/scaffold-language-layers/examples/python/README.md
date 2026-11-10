@@ -14,6 +14,7 @@ halves together form the repo's shape.
 | File | Purpose |
 |---|---|
 | `Makefile` | Single dev entry point: `setup deps install-hooks run test check lint format coverage clean`. Shell pinned to bash (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — dash on CI runners has no `pipefail`, so unpinned recipes fail CI but pass macOS. `check` = `lint-check typecheck`, the exact gate CI and the pre-push hook run. `deps` never depends on `install-hooks` (the pre-push deadlock). |
+| `.python-version` | The interpreter pin — one record, read by uv, by `make deps`, and by CI's `setup-python`. CHANGE: the current stable at scaffold time (`uv python list`); keep `requires-python` and ruff's `target-version` in step with it. |
 | `pyproject.toml` | uv/ruff/pytest config, PEP 735 dev deps, pyrefly section (or the commented basedpyright alternative). |
 | `pyrefly.toml` | Top-level keys only (a `[pyrefly]` wrapper here is silently ignored); `preset = "default"` + the two meaningful default-off `[errors]` rules. |
 | `scripts/pre-commit` | Delegates to `make lint-check`, then runs a gitleaks secrets scan on the staged diff — never duplicates the tool invocations. |

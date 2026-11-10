@@ -5,7 +5,7 @@
 # no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
 # (docs links + lucidlint gate + skill well-formedness).
 
-.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test
+.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test uv-sync
 
 # Home may be unset or wrong when run from a daemon/bare env; resolve it.
 H := $(if $(HOME),$(HOME),$(shell getent passwd $$(id -u) | cut -d: -f6))
@@ -102,6 +102,11 @@ uninstall:
 # and drive via `make -C`; the orchestrator finds its sibling scan binary by
 # itself. Pinned to a release tag — never main (house rule).
 LUCIDLINT_DIR ?= .tools/lucidlint
+
+# uv owns the venv: `sync` builds it from .python-version and the lock, and
+# rebuilds it when the pin moves.
+PYTHON := .venv/bin/python
+UV := $(shell command -v uv 2>/dev/null || echo $(HOME)/.local/bin/uv)
 LUCIDLINT_PIN ?= v0.7.1
 
 install-lucidlint:
@@ -120,10 +125,14 @@ install-lucidlint:
 # intentionally does not exist inside this exempt repo. The key is file-level:
 # any NEW unresolved path in that file shares it — review its links by hand
 # when editing. Everything else must keep passing clean.
-test: install-lucidlint
-	@python3 -m unittest discover -s tools/tests
+test: install-lucidlint uv-sync
+	@$(PYTHON) -m unittest discover -s tools/tests
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
+
+uv-sync:
+	@$(UV) --version >/dev/null 2>&1 || (echo "uv is required: https://docs.astral.sh/uv/getting-started/installation/" && exit 1)
+	@$(UV) sync --quiet
 
 .PHONY: sync-examples
 sync-examples:
