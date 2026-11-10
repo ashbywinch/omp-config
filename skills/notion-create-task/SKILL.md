@@ -17,23 +17,14 @@ Create a properly structured Task that is immediately executable.
 
 ## The write gate, for tasks
 
-A task is an external record, and this has gone wrong often enough to be stated
-in the skill rather than assumed:
+The rule is APPEND_SYSTEM.md "External Writes" — for a task it means the
+**words**, not the plan:
 
-- **Show the exact title and desired outcome, and get a yes, before the page
-  exists.** Not a summary of the plan, not a list of intended tasks — the words
-  that will be written. One approval covers the set you showed; nothing beyond it.
-- **A correction is a write too.** Changing a task you already created needs the
-  same approval as creating it. "I had already told you the plan" is not approval
-  of different words.
-- **Never archive or trash a page as part of the workflow.** Trash is not a
-  correction mechanism and not a tidy-up: it is invisible to every later reader
-  and it is not yours to use. If a task is wrong, edit it in place. If it must
-  go, say so and let the user remove it.
-- **If you discover you wrote something unapproved, stop and say so.** Do not fix
-  it with another unapproved write; do not delete the evidence of your mistake.
-- **Never create a task whose provenance you cannot state**: which epic, which
-  evidence, and which words the user approved.
+- **The words are the title, the desired outcome and the property values.**
+  Show those — not the intended steps, not a list of tasks — and wait for a yes
+  before the page exists.
+- **State the provenance with the words**: which epic, which evidence, and which
+  approval covers the task. A task you cannot source is a task you do not create.
 
 ## Process
 

@@ -24,6 +24,7 @@ The general rule is APPEND_SYSTEM.md "External Writes" — apply it to every cre
 
 - **Create and link are separate approvals.** Routing an insight into a new epic needs (1) approval to create the epic, then (2) approval of the link. A creation approval never authorizes the link.
 - **Every write needs enumerating, including Status updates.** A "mark as processed"-style PATCH is a write like any other and belongs in the approved list. Properties change only through `notion-write.sh`, which snapshots before patching; `--revert` restores that snapshot — never hand-roll a property PATCH.
+- **Never trash or archive a page as part of a workflow.** Trash is not a correction and not a tidy-up: it is invisible to every later reader, and removing a page is the user's call. Edit in place; if a page must go, say so and let the user remove it.
 
 ## Database IDs
 

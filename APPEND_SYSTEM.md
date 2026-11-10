@@ -18,6 +18,8 @@ enforces this: it is a rule you follow, not a check that will catch you.
 
 Never treat a reply as approval unless it approves the enumerated write: a "yes" about content, a preference, or another question is not approval. One approval covers one write, and never write a value the user has already rejected this session.
 
+If you find you have already written something that was not approved, say so and stop — do not correct it with another unapproved write, and do not remove the page to hide it.
+
 ## Edit Protocol
 
 ### Before every edit:
