@@ -1,5 +1,3 @@
-# lucidlint: ignore-file unused these four checks exist to be asserted by
-# tools/tests/test_repo_contracts.py; nothing ships them, which is the point.
 """The repo contracts omp-config asserts about itself (stdlib only — no deps).
 
 Each returns the failures it found; `tools/tests/test_repo_contracts.py` asserts
@@ -32,22 +30,19 @@ import re
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+# The repo this file lives in; every check walks from here.
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 FENCE_RE = re.compile(r"^```", re.MULTILINE)
 BACKTICK_PATH_RE = re.compile(r"`([A-Za-z0-9_./*-]+\.md)`")
-SKIP_PREFIXES = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")
-HARD_BYTES = 32 * 1024
-SOFT_LINES = 200
 
 
-def _doc_files() -> list[Path]:
-    files = [p for p in (REPO / "docs").rglob("*.md")]
-    files += [p for p in (REPO / "standards").glob("*.md")] + [p for p in (REPO / "rules").glob("*.md")]
-    files += [p for p in (REPO / "skills").rglob("SKILL.md")] + [p for p in (REPO / "profiles").glob("*.md")]
+def _doc_files(repo: Path) -> list[Path]:
+    files = [p for p in (repo / "docs").rglob("*.md")]
+    files += [p for p in (repo / "standards").glob("*.md")] + [p for p in (repo / "rules").glob("*.md")]
+    files += [p for p in (repo / "skills").rglob("SKILL.md")] + [p for p in (repo / "profiles").glob("*.md")]
     for name in ("README.md", "AGENTS.md", "APPEND_SYSTEM.md"):
-        if (REPO / name).exists():
-            files.append(REPO / name)
+        if (repo / name).exists():
+            files.append(repo / name)
     return sorted(files)
 
 
@@ -80,32 +75,38 @@ def _outside_fences(text: str) -> list[Fence]:
     return spans
 
 
-def _check_links() -> list[str]:
+def _is_skipped(url: str) -> bool:
+    """Whether a link target is a scheme or anchor rather than a file here."""
+    schemes = ("http://", "https://", "#", "skill://", "rule://", "agent://", "memory://", "artifact://")
+    return url.startswith(schemes)
+
+
+def _check_links(repo: Path) -> list[str]:
     failures: list[str] = []
-    for md in _doc_files():
+    for md in _doc_files(repo):
         text = md.read_text(encoding="utf-8")
         spans = _outside_fences(text)
         for fence in spans:
             for match in LINK_RE.finditer(text, fence.start, fence.end):
                 url = match.group(2).strip()
-                if url.startswith(SKIP_PREFIXES) or "=" in url or " " in url or "{{" in url or "$" in url:
+                if _is_skipped(url) or "=" in url or " " in url or "{{" in url or "$" in url:
                     continue
                 if "#" in url:
                     url = url[: url.index("#")]
                 if not url:
                     continue
                 target = (md.parent / url).resolve()
-                rel = md.relative_to(REPO)
-                if not target.is_relative_to(REPO):
+                rel = md.relative_to(repo)
+                if not target.is_relative_to(repo):
                     failures.append(f"{rel}: link '{match.group(1)}' -> {url} (outside repo)")
                 elif not target.exists():
-                    failures.append(f"{rel}: link '{match.group(1)}' -> {target.relative_to(REPO)} (missing)")
+                    failures.append(f"{rel}: link '{match.group(1)}' -> {target.relative_to(repo)} (missing)")
     return failures
 
 
-def _check_skills() -> list[str]:
+def _check_skills(repo: Path) -> list[str]:
     failures: list[str] = []
-    for skill_dir in sorted((REPO / "skills").iterdir()):
+    for skill_dir in sorted((repo / "skills").iterdir()):
         if not skill_dir.is_dir():
             continue
         name = skill_dir.name
@@ -124,46 +125,46 @@ def _check_skills() -> list[str]:
     return failures
 
 
-def _link_targets(md: Path, text: str) -> list[Path]:
+def _link_targets(md: Path, text: str, repo: Path) -> list[Path]:
     """Relative markdown-link and backtick-path targets of *md*, resolved."""
     targets: list[Path] = []
     spans = _outside_fences(text)
     for fence in spans:
         for match in LINK_RE.finditer(text, fence.start, fence.end):
             url = match.group(2).strip()
-            if url.startswith(SKIP_PREFIXES) or "=" in url or " " in url or "{{" in url or "$" in url:
+            if _is_skipped(url) or "=" in url or " " in url or "{{" in url or "$" in url:
                 continue
             if "#" in url:
                 url = url[: url.index("#")]
             if not url:
                 continue
             target = (md.parent / url).resolve()
-            if target.is_relative_to(REPO) and target.exists() and target.is_file():
+            if target.is_relative_to(repo) and target.exists() and target.is_file():
                 targets.append(target)
-    _backtick_targets(md, targets, text)
+    _backtick_targets(md, targets, text, repo)
     return targets
 
 
-def _backtick_targets(md, targets, text):
+def _backtick_targets(md, targets, text, repo):
     for match in BACKTICK_PATH_RE.finditer(text):
         raw = match.group(1)
         if "*" in raw:  # a glob reference like rules/*.md — its files are reachable
             for hit in (md.parent).glob(raw):
-                if hit.is_file() and hit.is_relative_to(REPO):
+                if hit.is_file() and hit.is_relative_to(repo):
                     targets.append(hit.resolve())
             continue
         target = (md.parent / raw).resolve()
-        if target.is_relative_to(REPO) and target.exists():
+        if target.is_relative_to(repo) and target.exists():
             if target.is_file():
                 targets.append(target)
             elif target.is_dir():  # a directory reference — its docs are reachable
                 targets.extend(p for p in target.rglob("*.md") if p.is_file())
 
 
-def _check_discoverability() -> list[str]:
+def _check_discoverability(repo: Path) -> list[str]:
     """docs/documentation-structure.md rule: every doc reachable from
     AGENTS.md, directly or one link deep."""
-    agents = REPO / "AGENTS.md"
+    agents = repo / "AGENTS.md"
     if not agents.exists():
         return []
     reachable: set[Path] = set()
@@ -177,14 +178,14 @@ def _check_discoverability() -> list[str]:
                 continue
             reachable.add(doc)
             text = doc.read_text(encoding="utf-8")
-            next_frontier.extend(t for t in _link_targets(doc, text) if t not in reachable)
+            next_frontier.extend(t for t in _link_targets(doc, text, repo) if t not in reachable)
         frontier = next_frontier
     required = sorted(
-        p for p in _doc_files()
-        if p.is_relative_to(REPO / "docs") or p.is_relative_to(REPO / "standards") or p.is_relative_to(REPO / "rules")
+        p for p in _doc_files(repo)
+        if p.is_relative_to(repo / "docs") or p.is_relative_to(repo / "standards") or p.is_relative_to(repo / "rules")
     )
     return [
-        f"{p.relative_to(REPO)}: not reachable from AGENTS.md (directly or one link deep)"
+        f"{p.relative_to(repo)}: not reachable from AGENTS.md (directly or one link deep)"
         for p in required
         if p not in reachable
     ]
@@ -201,19 +202,27 @@ class DocSizeReport:
         self.soft = soft
 
 
-def _check_sizes() -> DocSizeReport:
+class _AlwaysLoaded:
+    """The size ceilings stated in docs/writing-documentation.md, for files
+    loaded in full every session."""
+
+    HARD_BYTES = 32 * 1024  # 32 KiB, the stated ceiling
+    SOFT_LINES = 200  # the stated target
+
+
+def _check_sizes(repo: Path) -> DocSizeReport:
     """docs/writing-documentation.md ceilings: hard fail > 32 KiB, warn > 200
     lines, for always-loaded files (AGENTS.md + skill bodies)."""
-    files = [REPO / "AGENTS.md" if (REPO / "AGENTS.md").exists() else None]
-    files += list((REPO / "skills").rglob("SKILL.md"))
+    files = [repo / "AGENTS.md" if (repo / "AGENTS.md").exists() else None]
+    files += list((repo / "skills").rglob("SKILL.md"))
     hard: list[str] = []
     soft: list[str] = []
     for f in files:
         if f is None:
             continue
         text = f.read_text(encoding="utf-8")
-        if len(text.encode("utf-8")) > HARD_BYTES:
-            hard.append(f"{f.relative_to(REPO)}: {len(text.encode('utf-8'))} bytes > {HARD_BYTES} ceiling")
-        elif text.count("\n") > SOFT_LINES:
-            soft.append(f"{f.relative_to(REPO)}: {text.count(chr(10))} lines > {SOFT_LINES} target (slim it)")
+        if len(text.encode("utf-8")) > _AlwaysLoaded.HARD_BYTES:
+            hard.append(f"{f.relative_to(repo)}: {len(text.encode('utf-8'))} bytes > {_AlwaysLoaded.HARD_BYTES} ceiling")
+        elif text.count("\n") > _AlwaysLoaded.SOFT_LINES:
+            soft.append(f"{f.relative_to(repo)}: {text.count(chr(10))} lines > {_AlwaysLoaded.SOFT_LINES} target (slim it)")
     return DocSizeReport(hard, soft)

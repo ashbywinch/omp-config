@@ -19,6 +19,27 @@ with or without automated AI code review.
 
 ---
 
+## Always give the link
+
+Every PR, issue, commit, run or file you mention is a **link**, with its number
+as the text:
+
+- `[#9](https://github.com/ashbywinch/inbox/pull/9)` — not `#9`, and not the bare
+  URL either. The number is what a reader recognises; the link is what makes it
+  one click.
+- A commit: `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)`.
+- A run: `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)`.
+- A file outside the repo: its Drive or Notion URL, with the file's name as the
+  text.
+
+An unlinked `#9` is unfindable to whoever reads the message next — on a phone, in
+a transcript, hours later. A pasted raw URL is findable but ugly, and it pushes
+the sentence it belongs to off the screen. Link the number; don't spell the URL
+out in prose.
+
+Range links are the exception only when the reader already has the context and
+the thing is genuinely unbounded (a search, a filter).
+
 ## Part 1: Create the PR
 
 ### 1. Change Validation
@@ -31,6 +52,17 @@ git log --oneline <base-branch>..HEAD         # every commit
 ```
 
 Never rely on memory — check the actual diff.
+
+### 1b. Stage only your own files
+
+Use `git add <path>` for each path you edited. In a working tree you share with
+other sessions, the catch-all forms are hazards:
+
+- **`git add -A` and `git add .`** stage untracked files too, including another
+  agent's work in progress, and put it in your PR under your name.
+- **`git commit -a`** stages every *tracked* modification — so it sweeps up
+  another session's edits to files you never opened, which is harder to notice
+  than a new file appearing in the diff.
 
 ### 2. Push Feature Branch
 
@@ -115,6 +147,19 @@ If the AI review is still running after 10+ minutes with no step-level progress 
 # Try to peek at partial logs (may not be available until run completes)
 gh run view <run-id> --log 2>&1 | head -30
 ```
+
+### 5a. Never resolve someone else's thread
+
+A review thread belongs to the person who opened it. Resolving it is their
+statement that the point is settled — not the author's, and not an agent's.
+
+- **Reply, fix, push.** Then leave it open.
+- Resolving hides the reply that came after it and removes the judgement from the
+  person who made the point. A thread shows as `outstanding` precisely because
+  somebody has not yet agreed it is done.
+- Clearing a merge gate is not a reason. If a gate wants resolution, that is the
+  reviewer's click to make; an agent that "unblocks" a PR this way has removed
+  the only human check in the loop.
 
 ### 5b. Never Push While a Review Is in Flight
 

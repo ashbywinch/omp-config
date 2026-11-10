@@ -34,7 +34,7 @@ something else on Wednesday cannot be completed, scheduled, or chased as one thi
 | **Completed** | The deliverable exists and meets the task's success criteria. |
 | **Superseded** | Something made it moot — the plan changed, a decision went another way, the work happened elsewhere, or it was a duplicate. It is not to be worked on further, and nothing has to have replaced it. |
 
-## Never invent what the user meant
+## Do not invent the purpose
 
 A task title names an activity. It does not say what the outcome is for, and the
 two are not the same thing. "Make a task to triage the red rows" says what to do;
@@ -45,19 +45,36 @@ it says nothing about what the result has to answer, who will read it, or what
   said why — "so we can prove we were responsible custodians of the funds",
   "so a random accuser has nothing to point at" — that reason *is* the outcome,
   and it goes in, quoted.
-- **If the purpose is not stated, ask before writing the task.** One question:
-  what is this for, and what would let you say it is finished? Do not fill the
-  gap with the most plausible reading of the title.
+- **If the purpose is not stated, propose one from what the user did say** — what
+  it is for, and what would let you call it finished, with nothing invented
+  beyond that — then get approval of the exact record before writing it.
 - **Do not infer the deliverable from the field's usual shape.** A task called
   "find the POA documents" might want the documents, links to them, a written
   summary of the powers, or a decision about who may sign. Four different tasks.
 - **Do not upgrade the user's shorthand into something tidier.** If they said
   "triage", write triage; do not silently widen it into "remediate", or narrow it
   into "count".
-- **The test**: could the user read the outcome back and say "yes, that is what I
-  wanted"? If you cannot hear them saying yes, you have not asked yet.
+- **The test**: put the outcome text in front of the user and wait for them to say
+  "yes, that is what I wanted". Not a reading of it you imagine — the text itself,
+  under the external-writes rule (APPEND_SYSTEM.md).
 - **When in doubt, leave it Draft** with the open question in the task body,
   rather than Ready with an invented purpose.
+
+## No Invented Requirements
+
+The Desired Outcome and Scope Boundaries contain only what the user asked for. Never add:
+
+- a form of confirmation they didn't ask for ("written confirmation", "a signed copy")
+- exception handling they didn't ask for ("what to do if a dose is missed")
+- documentation or artefacts they didn't ask for ("a checklist", "notes in Drive")
+- extra approvals, review steps or sign-offs
+
+Each of those is a requirement, and writing one into a ticket puts work in front of the user that they never asked for. Where something is genuinely missing, propose it from what they said and let the approval decide.
+
+When something was dropped by mistake, put it back with the tool that
+snapshotted it: `notion-write.sh --revert` restores the exact value that was
+there before the write (see `skill://notion-database-management`). Reconstructing
+it from what was said is how the same error gets made twice.
 
 ## Validation Checklist
 

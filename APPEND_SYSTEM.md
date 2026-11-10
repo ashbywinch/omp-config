@@ -16,6 +16,8 @@ If several records belong together, show them as one list and take one yes. If
 you cannot tell whether a surface is external, treat it as external. Nothing
 enforces this: it is a rule you follow, not a check that will catch you.
 
+Never treat a reply as approval unless it approves the enumerated write: a "yes" about content, a preference, or another question is not approval. One approval covers one write, and never write a value the user has already rejected this session.
+
 ## Edit Protocol
 
 ### Before every edit:
