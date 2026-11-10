@@ -5,10 +5,11 @@
 # is the sane starting point for an EXISTING codebase — a hard 80 gate on
 # day one is a broken CI).
 #
-# CHANGE (JS/TS repos): the coverage step reads the stack's report —
-# Python: irongut/CodeCoverageSummary on coverage.xml (as below); JS/TS:
+# CHANGE (JS/TS repos): swap the two toolchain steps for `setup-node` reading
+# `.nvmrc`, and the coverage step for the stack's report — Python:
+# irongut/CodeCoverageSummary on coverage.xml (as below); JS/TS:
 # slavcodev/coverage-monitor-action on coverage/clover.xml. Keep the make
-# steps identical; only the coverage action + filename swap.
+# steps identical; only the toolchain + coverage action + filename swap.
 #
 # DO NOT CHANGE:
 # - `permissions: contents: read` (+ `pull-requests: write` only while the
@@ -37,6 +38,14 @@ jobs:
       # comment — mutable tags move; the sticky-comment action's bare `v2` tag
       # no longer even exists upstream. SHAs verified against ls-remote tags.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # uv is what builds the venv; the runner does not ship it.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      # The interpreter comes from the pin the repo already carries: the same
+      # file uv reads and the developer's shell reads. GitHub caches these
+      # builds, so this is also the fast path — uv downloads one otherwise.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: ".python-version"
       - run: make setup
       - run: make lint-github
       - run: make test

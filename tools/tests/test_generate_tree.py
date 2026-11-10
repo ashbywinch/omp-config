@@ -1,5 +1,3 @@
-# lucidlint: ignore-file record-shape the synthetic fixtures are the wire shape
-# the renderer consumes — a class per fixture would obscure the relation data
 """Tests for tools/generate_tree.py — the tree builder queries live Notion,
 so the tests drive the renderer with synthetic relation data. The contract
 under test: an epic nested under an ACTIVE parent appears in the VS tree
@@ -7,7 +5,9 @@ ONLY (never also as a Top-Level Epic), superseded items land in the
 Superseded section, and an epic under a superseded parent is a root.
 """
 
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -32,7 +32,34 @@ VM = {"v1": page({}, "Stream One"), "v2": page({}, "Stream Two")}
 
 
 def render(em, vm):
-    return generate_tree._TreeRenderer(generate_tree._RelationGraph(em, vm)).render()
+    return generate_tree._StructureTree(generate_tree._RelationGraph(em, vm)).render()
+
+
+class EntryPointTest(unittest.TestCase):
+    """The script itself runs — the renderer being correct is not enough.
+
+    A refactor removed the argument read and left the writer using an undefined
+    name; every unit test still passed, and the script raised NameError on every
+    run. This is the test that would have failed.
+    """
+
+    # lucidlint: ignore fakefs the entry point's job IS the write; faking open() would test the fake
+    def test_writes_the_tree_to_the_path_given(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "tree.md"
+            generate_tree.main([str(target)], render=lambda: "## rendered\n")
+            self.assertEqual(target.read_text(), "## rendered\n")
+
+    # lucidlint: ignore fakefs same writer, with the default path
+    def test_defaults_the_path_when_no_argument_is_given(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            before = Path.cwd()
+            os.chdir(tmp)
+            try:
+                generate_tree.main([], render=lambda: "## rendered\n")
+                self.assertEqual((Path(tmp) / "notion-structure.md").read_text(), "## rendered\n")
+            finally:
+                os.chdir(before)
 
 
 class TreeRendererTest(unittest.TestCase):
