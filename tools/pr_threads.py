@@ -196,7 +196,12 @@ query($id: ID!, $cursor: String) {
                 later = self._later_comments(thread.id, thread_cursor)
                 thread = replace(thread, comments=thread.comments + tuple(later))
             threads.append(thread)
-        if page_info["hasNextPage"]:
+        has_next = page_info.get("hasNextPage")
+        if has_next is None:
+            # No flag means the page boundary is unknown; treating it as the last
+            # page would report the first one as the whole list.
+            sys.exit(f"cannot page the review threads on PR {pr} — refusing a partial answer")
+        if has_next:
             next_cursor = page_info.get("endCursor")
             if not next_cursor:
                 sys.exit(f"cannot page the review threads on PR {pr} — refusing a partial answer")
@@ -225,6 +230,29 @@ query($id: ID!, $cursor: String) {
         return extra
 
 
+def _rollup(pr: int, repo: str) -> list[Check]:
+    """The PR's check runs and status contexts, retried a few times: a blip
+    during a long wait is not the same as a refusal, and only a persistent
+    failure means the state cannot be observed at all."""
+    out = None
+    for attempt in range(3):
+        out = _gh("pr", "view", str(pr), "--repo", repo, "--json", "statusCheckRollup")
+        if out.returncode == 0:
+            break
+        if attempt < 2:
+            time.sleep(15)
+    else:
+        # Listing anyway would report a state the tool did not observe — the
+        # failure --wait exists to prevent.
+        sys.exit("`gh pr view` failed (%s); cannot wait for the review"
+                 % (out.stderr.strip() or out.returncode))
+    try:
+        payload = json.loads(out.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        sys.exit("`gh pr view` returned something that is not JSON (%s); cannot wait for the review" % exc)
+    return [Check.from_json(node) for node in (payload.get("statusCheckRollup") or [])]
+
+
 def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
     """Block until the reviewer has finished on the current head.
 
@@ -237,19 +265,7 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
     # are none configured for this repo.
     grace = 90
     while time.monotonic() < deadline:
-        # `gh pr checks` has no --json in the gh this runs against (2.46); the
-        # rollup on the PR is the same data in a shape every gh 2.x serves.
-        out = _gh("pr", "view", str(pr), "--repo", repo, "--json", "statusCheckRollup")
-        if out.returncode != 0:
-            # A warning then listing anyway would report a state the tool could
-            # not observe — the failure this option exists to prevent.
-            sys.exit("`gh pr view` failed (%s); cannot wait for the review"
-                     % (out.stderr.strip() or out.returncode))
-        try:
-            rollup = json.loads(out.stdout or "{}").get("statusCheckRollup") or []
-        except json.JSONDecodeError as exc:
-            sys.exit("`gh pr view` returned something that is not JSON (%s); cannot wait for the review" % exc)
-        checks = [Check.from_json(node) for node in rollup]
+        checks = _rollup(pr, repo)
         if not checks:
             # A push creates the check runs a moment later. Waiting a short while
             # is the difference between "no checks configured" and "not here yet".
