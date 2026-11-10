@@ -53,7 +53,7 @@ Read the 30s window stats before anything else:
   either. Symptoms: reconnect every 20–45s, thousands of `ws_send_failed` /
   `Failed to emit source frame`, `Liveness check timed out` as the disconnect
   reason, app diagnostic showing high Active RTT against a low TCP probe.
-- **The relay can cause it while the app reports `relay: inactive`.** Flapping
+- **The relay can cause it even when the app reports `relay: inactive`.** Flapping
   `relay_data_connected/disconnected` tears down the session socket. When the app
   has a direct LAN path, set `daemon.relay.enabled: false` and
   `paseo daemon reload`; keep the relay only for off-LAN access.
@@ -103,7 +103,8 @@ Read the 30s window stats before anything else:
   offers are relay-only in v0.2.5; no LAN discovery (mDNS) exists. The supported form
   is `daemon.relay.enabled: false` plus `paseo daemon reload`; re-enable it before
   relying on off-LAN access.
-- Kill an MCP child process to reclaim memory — the session loses its tools and they
-  never come back. Stop the shared server (safe) or restart instead.
+- Never kill an MCP child process to reclaim memory — the session loses its tools
+  permanently, and only a config change or a daemon restart brings them back. Stop the
+  shared OpenCode server (safe) or restart the daemon instead.
 - Bind a specific LAN IP in `daemon.listen` — breaks the local CLI (needs 127.0.0.1).
   Use `0.0.0.0:6767`.
