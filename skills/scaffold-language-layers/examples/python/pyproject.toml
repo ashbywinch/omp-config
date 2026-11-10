@@ -1,7 +1,7 @@
 # <project> — pyproject.toml
 #
-# CHANGE: name/version/description; bump requires-python to the current
-# stable at scaffold time (`uv python list` — never guess); the dev
+# CHANGE: name/version/description; bump requires-python AND .python-version
+# to the current stable at scaffold time (`uv python list` — never guess); the dev
 # dependency versions; <pkg> in the setuptools + ruff + coverage paths.
 #
 # DO NOT CHANGE:

@@ -24,16 +24,16 @@ REPO = Path(__file__).resolve().parents[2]
 
 class RepoContractsTest(unittest.TestCase):
     def test_every_relative_link_resolves(self):
-        self.assertEqual(_check_links(), [])
+        self.assertEqual(_check_links(REPO), [])
 
     def test_every_skill_is_well_formed(self):
-        self.assertEqual(_check_skills(), [])
+        self.assertEqual(_check_skills(REPO), [])
 
     def test_every_doc_is_discoverable_from_agents_md(self):
-        self.assertEqual(_check_discoverability(), [])
+        self.assertEqual(_check_discoverability(REPO), [])
 
     def test_always_loaded_files_are_within_the_ceiling(self):
-        self.assertEqual(_check_sizes().hard, [])
+        self.assertEqual(_check_sizes(REPO).hard, [])
 
     def test_the_scaffold_example_matches_the_tool(self):
         """tools/ is canonical; the scaffold copy is generated from it."""
