@@ -42,6 +42,26 @@ class Comment:
 
 
 @dataclass(frozen=True)
+class Check:
+    """One entry in a PR's statusCheckRollup: a check run, or an older status
+    context. They report completion in different fields."""
+
+    kind: str
+    status: str | None
+    state: str | None
+
+    @classmethod
+    def from_json(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the rollup node is the wire format; converting it is this function's whole job
+        return cls(node.get("__typename") or "", node.get("status"), node.get("state"))
+
+    @property
+    def finished(self) -> bool:
+        if self.kind == "StatusContext":
+            return self.state not in (None, "PENDING", "EXPECTED")
+        return self.status == "COMPLETED"
+
+
+@dataclass(frozen=True)
 class Thread:
     id: str
     path: str
@@ -188,16 +208,19 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
     # are none configured for this repo.
     grace = 90
     while time.monotonic() < deadline:
-        out = _gh("pr", "checks", str(pr), "--repo", repo, "--json", "name,state")
+        # `gh pr checks` has no --json in the gh this runs against (2.46); the
+        # rollup on the PR is the same data in a shape every gh 2.x serves.
+        out = _gh("pr", "view", str(pr), "--repo", repo, "--json", "statusCheckRollup")
         try:
-            checks = json.loads(out.stdout or "[]")
+            rollup = json.loads(out.stdout or "{}").get("statusCheckRollup") or []
+            checks = [Check.from_json(node) for node in rollup]
         except json.JSONDecodeError as exc:
             print("warning: could not read the checks (%s); listing what has posted" % exc,
                   file=sys.stderr)
             return
         if not checks:
             if out.returncode != 0:
-                print("warning: `gh pr checks` failed (%s); listing what has posted"
+                print("warning: `gh pr view` failed (%s); listing what has posted"
                       % (out.stderr.strip() or out.returncode), file=sys.stderr)
                 return
             # A push creates the check runs a moment later. Waiting a short while
@@ -207,10 +230,7 @@ def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
                 continue
             print("warning: no checks reported; listing what has posted", file=sys.stderr)
             return
-        # Name the finished states rather than testing for PENDING: QUEUED and
-        # IN_PROGRESS are both "not yet", and neither says PENDING.
-        finished = {"SUCCESS", "FAILURE", "SKIPPED", "CANCELLED", "NEUTRAL"}
-        if all(c["state"] in finished for c in checks):
+        if all(check.finished for check in checks):
             return
         time.sleep(15)
     print("warning: the review had not finished; listing what has posted", file=sys.stderr)

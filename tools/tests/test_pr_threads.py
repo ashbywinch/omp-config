@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from pr_threads import Comment, Thread, unanswered  # noqa: E402
+from pr_threads import Check, Comment, Thread, unanswered  # noqa: E402
 
 
 def thread(*authors, resolved=False):
@@ -21,6 +21,24 @@ def thread(*authors, resolved=False):
         resolved=resolved,
         comments=tuple(Comment(author=a, body=f"from {a}") for a in authors),
     )
+
+
+class FinishedTest(unittest.TestCase):
+    """A check run carries `status`; a status context carries `state`. Reading
+    one field for both made the wait loop wait for a value that never appears."""
+
+    def check(self, **node):
+        return Check.from_json(node).finished
+
+    def test_a_completed_check_run_is_finished(self):
+        self.assertTrue(self.check(__typename="CheckRun", status="COMPLETED", conclusion="SUCCESS"))
+
+    def test_a_running_check_run_is_not_finished(self):
+        self.assertFalse(self.check(__typename="CheckRun", status="IN_PROGRESS", conclusion=None))
+
+    def test_a_status_context_is_finished_once_it_is_not_pending(self):
+        self.assertTrue(self.check(__typename="StatusContext", state="SUCCESS"))
+        self.assertFalse(self.check(__typename="StatusContext", state="PENDING"))
 
 
 class CommentTest(unittest.TestCase):
