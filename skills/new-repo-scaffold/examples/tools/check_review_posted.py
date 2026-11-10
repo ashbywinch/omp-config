@@ -240,9 +240,9 @@ class _Comment:
     def from_json(cls, node: "Mapping[str, Any]") -> "_Comment":
         """Read one comment off the wire. The mapping is the API's shape."""
         return cls(
-            node.get("body", ""),
-            node.get("created_at", ""),
-            node.get("updated_at", ""),
+            node.get("body") or "",
+            node.get("created_at") or "",
+            node.get("updated_at") or "",
             (node.get("user") or {}).get("type", ""),
         )
 
