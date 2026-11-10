@@ -5,7 +5,7 @@
 # no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
 # (docs links + lucidlint gate + skill well-formedness).
 
-.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test check-python
+.PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test venv
 
 # Home may be unset or wrong when run from a daemon/bare env; resolve it.
 H := $(if $(HOME),$(HOME),$(shell getent passwd $$(id -u) | cut -d: -f6))
@@ -103,9 +103,10 @@ uninstall:
 # itself. Pinned to a release tag — never main (house rule).
 LUCIDLINT_DIR ?= .tools/lucidlint
 
-PY_VERSION := 3.14
+PY_VERSION := $(shell cat .python-version)
 VENV := .venv
 PYTHON := $(VENV)/bin/python
+PYTHON_STAMP := $(VENV)/.python-version
 LUCIDLINT_PIN ?= v0.7.1
 
 install-lucidlint:
@@ -124,22 +125,22 @@ install-lucidlint:
 # intentionally does not exist inside this exempt repo. The key is file-level:
 # any NEW unresolved path in that file shares it — review its links by hand
 # when editing. Everything else must keep passing clean.
-test: install-lucidlint check-python
+test: install-lucidlint $(PYTHON_STAMP)
 	@$(PYTHON) -m unittest discover -s tools/tests
 	@$(MAKE) -C $(LUCIDLINT_DIR) lucidlint REPO=../.. BASELINE=../../lucidlint.json || \
 	  (echo "lucidlint gate failed" && exit 1)
 
-# The tests run on this interpreter and no other: uv builds the venv from
-# PY_VERSION, check-python fails when the venv disagrees, and the suite fails
-# when ci.yml pins a different version.
-$(PYTHON):
+# The venv carries the version it was built from, so moving the pin — or a venv
+# left by hand — rebuilds it rather than running the suite on the old
+# interpreter. uv reads .python-version itself; naming it here is for the error
+# message below.
+$(PYTHON_STAMP): .python-version
 	@command -v uv >/dev/null 2>&1 || (echo "uv is required: it provisions $(VENV) with Python $(PY_VERSION)" && exit 1)
+	rm -rf $(VENV)
 	uv venv --python $(PY_VERSION) $(VENV)
+	@cp .python-version $(PYTHON_STAMP)
 
-# A venv built earlier — or by hand — can be a different minor, and the rule
-# above only creates one when the file is missing.
-check-python: $(PYTHON)
-	@$(PYTHON) -c 'import sys; want = "$(PY_VERSION)"; have = "%d.%d" % sys.version_info[:2]; sys.exit(0 if have == want else "$(VENV) runs Python %s, not %s: delete $(VENV) and run make test — uv rebuilds it" % (have, want))'
+venv: $(PYTHON_STAMP)
 
 .PHONY: sync-examples
 sync-examples:
