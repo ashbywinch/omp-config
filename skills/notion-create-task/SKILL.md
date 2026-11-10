@@ -17,14 +17,18 @@ Create a properly structured Task that is immediately executable.
 
 ## The write gate, for tasks
 
-The rule is APPEND_SYSTEM.md "External Writes" — for a task it means the
-**words**, not the plan:
+APPEND_SYSTEM.md "External Writes" applies to a task like any other external
+record. Before creating one:
 
-- **The words are the title, the desired outcome and the property values.**
-  Show those — not the intended steps, not a list of tasks — and wait for a yes
-  before the page exists.
-- **State the provenance with the words**: which epic, which evidence, and which
-  approval covers the task. A task you cannot source is a task you do not create.
+- **Show the fields and their values, in prose**: the title, the desired outcome
+  (the body text), the parent epic, and every property you set — status,
+  priority, dependencies.
+- **Say what justifies it**: the epic it serves, and the sentence in that epic
+  or in the conversation that asks for the task.
+- **Wait for a yes to those values before the page exists.** A yes to the plan,
+  to the epic, or to "add some tasks" is not a yes to these fields.
+- **If you cannot name the epic and the sentence that asks for the task, ask**
+  before creating it — do not create it and fill those in afterwards.
 
 ## Process
 
