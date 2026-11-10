@@ -168,6 +168,9 @@ query($id: ID!, $cursor: String) {
             nodes, page_info = payload["nodes"], payload["pageInfo"]
         except (KeyError, TypeError):
             sys.exit(f"cannot read PR {pr} in {self.repo}: it does not exist, or this token cannot see it")
+        if nodes is None or page_info is None:
+            # A null array is "this token cannot see them", not "there are none".
+            sys.exit(f"cannot see every review thread on PR {pr} — refusing a partial list")
 
         threads: list[Thread] = []
         for node in nodes:
