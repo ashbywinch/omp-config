@@ -43,6 +43,7 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 | Locate files or search text | `glob` / `grep` |
 | Edit a doc, skill, or standard | `edit` (surgical) / `write` (create/replace) |
 | Verify the repo self-checks | `make test` |
+| See what a PR still needs answered | `pr-threads <n>` (installed by `make install`) |
 | Ship a skill, rule or append edit | branch + PR (see `skill://update-skills`) |
 
 ## Testing rules
