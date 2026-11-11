@@ -43,7 +43,8 @@ description: Diagnose a down or unhealthy Paseo daemon — OOM kills, relay/E2EE
   JSONL RPC stream. Daemon log then shows `Ignoring invalid OMP RPC frame` with
   `"line":"ok{\"type\":\"ready\",...}"` and `Timed out waiting for OMP to become ready` on
   `fetch_agent_timeline_request` / `send_agent_message_request`. Any wrapper around a provider
-  CLI MUST keep stdout clean for the protocol (redirect every helper command to `/dev/null`).
+  CLI MUST keep stdout clean for the protocol: send each helper command's stdout to
+  `/dev/null` and leave its stderr alone.
 
 ## Client churn, MCP accumulation and config edits
 
