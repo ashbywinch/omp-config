@@ -8,12 +8,9 @@ links in prose must be scanned. The inversion (scanning fenced content,
 dropping prose) would silently validate the wrong text.
 """
 
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from check_docs_links import _outside_fences  # noqa: E402
+from tools.check_docs_links import _outside_fences
 
 
 def spans_of(text: str) -> list[str]:

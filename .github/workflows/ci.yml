@@ -24,4 +24,8 @@ jobs:
       # make test provisions the lucidlint bundle itself (test depends on
       # install-lucidlint) — dev and CI run the identical entry point.
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
       - run: make test

@@ -81,12 +81,11 @@ month, and the chain rides the next member automatically, in either direction,
 for as long as it lasts. There is no reordering step and no order to maintain:
 a fixed order self-corrects through cooldown.
 
-**Never delete or drop an exhausted member to get a green gate.** That is how
-the Go-to-Go fallback was lost on 2026-10-27: a maxed account was removed as a
-provider-side error, leaving one subscription wearing a chain's shape, and a
-half-month of traffic silently moved to per-token billing. An exhausted
-subscription is the half of the allowance that carries the traffic when the
-other one runs out.
+**Never delete or drop an exhausted member to get a green gate.** Removing it
+leaves one subscription wearing a chain's shape, and the traffic the other
+carried moves to per-token billing — which looks like a working chain until the
+bill. An exhausted subscription is the half of the allowance that carries the
+traffic when the other one runs out.
 
 ## Chain members that fail report their provider error
 

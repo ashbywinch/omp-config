@@ -9,12 +9,10 @@ fails on a name that has no `skills/<name>/SKILL.md` here.
 """
 
 import re
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from check_docs_links import _doc_files, _outside_fences  # noqa: E402
+from tools.check_docs_links import _doc_files, _outside_fences
 
 REPO = Path(__file__).resolve().parents[2]
 SKILL_REF_RE = re.compile(r"skill://([a-z0-9][a-z0-9_-]*)")
@@ -79,7 +77,7 @@ class ThisRepoTest(unittest.TestCase):
     def test_every_skill_reference_resolves_here(self):
         known = {p.parent.name for p in (REPO / "skills").glob("*/SKILL.md")}
         broken: list[str] = []
-        for md in _doc_files():
+        for md in _doc_files(REPO):
             for name in missing_refs(skill_ref_names(md.read_text(encoding="utf-8")), known):
                 broken.append(f"{md.relative_to(REPO)}: skill://{name}")
         self.assertEqual(broken, [], "references to skills that are not in this repo")
