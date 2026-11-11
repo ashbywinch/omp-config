@@ -56,7 +56,8 @@ Hard rules:
 - NEVER use browser helpers that read markup or evaluate page code (html,
   text, attr, count, evaluate, run, --dump-dom).
 - You may locate a visible control by its visible label and interact with
-  it. You may not enumerate or read the page.
+  it. Read only what a screenshot renders — never enumerate the page's
+  controls or read its underlying structure.
 - Screenshots are your only evidence. Every observation and every claim
   about state must trace to a screenshot (or text visibly rendered in one).
 - Before doing anything else, take a screenshot and describe what you see.
