@@ -124,6 +124,5 @@ the story. The same rule, with its canonical ✗/✓ pair, is
 - [ ] No rule set ships larger than ~half a dozen rules
 - [ ] No two rules overlap
 - [ ] No target named ambiguously — nothing is "the old one"
-- [ ] No dated anecdote or quoted past failure anywhere in the prompt text
-      ("2026-08-15: the model used to…"), in a comment beside it, or in the
-      doc that describes it
+- [ ] No dated anecdote or quoted past failure in the prompt text, in a
+      comment beside it, or in the doc that describes it
