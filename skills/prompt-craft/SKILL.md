@@ -105,10 +105,9 @@ shape rather than follow the rule. Write the rule and its constraint; delete
 the story. The same rule, with its canonical ✗/✓ pair, is
 `docs/writing-documentation.md` § "No history lessons".
 
-- ✗ "The last import matched the wrong person, so check the evidence before
-  matching."
-- ✓ "Match a person only to an event the record attests, even when the archive
-  says nothing about them."
+- ✗ "An import last week matched the wrong person, and the record stayed wrong
+  until someone noticed."
+- ✓ "Match a person only to an event the record attests."
 
 ## When the instruction is for a skill or a rule
 
