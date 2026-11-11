@@ -71,8 +71,8 @@ that answers with empty messages is not working.
 ## The chain exists to spend two allowances in turn
 
 The chain's shape is a requirement, not a preference: every subscription the
-user pays for sits in `model_list`, always. `config.current.yaml`'s header
-states the intent and the current allowance state — read it before editing.
+user pays for sits in `model_list`, always. Which member has spent its
+allowance is `test.sh`'s output, not a value kept anywhere.
 
 A subscription that has spent its monthly allowance answers 429 with a
 Retry-After measured in days. `test.sh` reports that member **EXHAUSTED** and
