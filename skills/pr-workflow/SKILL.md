@@ -346,10 +346,18 @@ git push origin <branch>
 
 After push, checks trigger again automatically (if configured). Wait for completion, then:
 
-1. Re-read the review comments — the persistent review will be updated
-2. Confirm the specific finding you fixed is no longer reported
-3. Check for ANY new findings that may have been uncovered
-4. Repeat until the review reports "No security concerns" and "No major issues/detected"
+1. **Wait for the review of this head, then ask what still needs an answer.**
+   `pr-threads --wait <pr>` blocks until the reviewer has finished for the
+   current head, then lists every thread it prints as UNANSWERED — including one
+   you replied to earlier that the reviewer followed up on. A push starts a new
+   review, so reading the threads before it lands reports a clean PR that is
+   about to have findings; and a non-zero exit means the PR is not ready to
+   report, however green the checks are.
+2. Re-read the review comments — the persistent review will be updated
+3. Confirm the specific finding you fixed is no longer reported
+4. Check for ANY new findings that may have been uncovered
+5. Repeat until `pr-threads` prints nothing and the review reports "No security
+   concerns" and "No major issues/detected"
 
 ### 12. Know When to Stop
 
@@ -404,6 +412,9 @@ The sections above are the how-to; these are the one-line reminders.
   rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
+- **Calling a push done without re-reading the threads** — a green check says
+  nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
+  adds findings a round at a time, and the unread one is the one that mattered.
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
 - **Resolving review threads yourself** — never; resolution is the reviewer's
