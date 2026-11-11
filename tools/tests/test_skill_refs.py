@@ -9,12 +9,10 @@ fails on a name that has no `skills/<name>/SKILL.md` here.
 """
 
 import re
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from check_docs_links import _doc_files, _outside_fences  # noqa: E402
+from tools.check_docs_links import _doc_files, _outside_fences
 
 REPO = Path(__file__).resolve().parents[2]
 SKILL_REF_RE = re.compile(r"skill://([a-z0-9][a-z0-9_-]*)")

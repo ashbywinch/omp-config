@@ -15,14 +15,11 @@ fail the gate because the skip comment was not counted as coverage.
 import contextlib
 import io
 import os
-import sys
 import unittest
 import urllib.error
-from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import check_review_posted  # noqa: E402  (sys.path bootstrap must precede the import)
+from tools import check_review_posted
 
 
 def _covers(comments, sha, head_at):

@@ -7,12 +7,10 @@ test below fails on a non-empty list. This is the gate — `make test` runs the
 unittest suite, so a contract that stops being true stops the build.
 """
 
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from check_docs_links import (  # noqa: E402
+from tools.check_docs_links import (
     _check_discoverability,
     _check_links,
     _check_skills,
