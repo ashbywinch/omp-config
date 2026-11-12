@@ -1,6 +1,6 @@
 # Adding an AI provider to the gateway
 
-Goal: wire a new provider (BYOK) into a Cloudflare dynamic route with the least
+Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic route with the least
 trial-and-error. These lessons are empirical — they exist so a future agent does
 not re-derive them.
 
