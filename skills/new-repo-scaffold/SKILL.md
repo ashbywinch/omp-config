@@ -151,6 +151,7 @@ All code reads LLM provider config from `OPENAI_BASE_URL` + `OPENAI_API_KEY` at 
   - Never switch code-executing workflows to `pull_request_target` to recover those secrets; that trigger is only safe for the automerge job, which never checks out or executes PR code.
   - The automerge example's comments carry the full trigger/permissions reasoning.
 
+
 ### 7. Repo creation & branch protection
 
 None of the surveyed repos have protection enforceable from the tree — it's a GitHub setting. The scaffold must create the repo and apply it:
@@ -218,6 +219,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
 - [ ] dependabot configured per the 'Dependency updates are automated, with a human boundary' rule in standards/coding-standards.md — grouping and auto-merge as in the examples
 - [ ] Branch workflow: never commit to main, PRs required, protected main
+- [ ] PR auto-merge wired: example copied, both repo settings on, one approval + checks (private: `merge-when-approved.yml`)
 - [ ] Git hooks run the fast checks — lint, typecheck, secrets scan (gitleaks) — installed by `make setup`; never the full test suite
 - [ ] End-to-end green: `make setup && make lint && make test` locally and CI green on push
 - [ ] Repo created via `gh repo create --source --push --private`; branch protection applied after first CI run (PR + status check required)
