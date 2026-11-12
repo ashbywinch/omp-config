@@ -15,6 +15,21 @@ Create a properly structured Task that is immediately executable.
 - Epic exists in Notion (the task's parent)
 - Tasks Database ID: `20d3122e-1a13-813a-9231-e7e086b2b86f`
 
+## The write gate, for tasks
+
+APPEND_SYSTEM.md "External Writes" applies to a task like any other external
+record. Before creating one:
+
+- **Show the fields and their values, in prose**: the title, the desired outcome
+  (the body text), the parent epic, and every property you set — status,
+  priority, dependencies.
+- **Say what justifies it**: the epic it serves, and the sentence in that epic
+  or in the conversation that asks for the task.
+- **Wait for a yes to those values before the page exists.** A yes to the plan,
+  to the epic, or to "add some tasks" is not a yes to these fields.
+- **If you cannot name the epic and the sentence that asks for the task, ask**
+  before creating it — do not create it and fill those in afterwards.
+
 ## Process
 
 ### 1. Epic Context Analysis

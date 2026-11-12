@@ -64,6 +64,25 @@ the guard.
 cannot hide behind a working fallback, and it asserts real content — a chain
 that answers with empty messages is not working.
 
+## The chain exists to spend two allowances in turn
+
+The chain's shape is a requirement, not a preference: every subscription the
+user pays for sits in `model_list`, always. Which member has spent its
+allowance is `test.sh`'s output, not a value kept anywhere.
+
+A subscription that has spent its monthly allowance answers 429 with a
+Retry-After measured in days. `test.sh` reports that member **EXHAUSTED** and
+does not fail the gate on it — it is the designed state for half of every
+month, and the chain rides the next member automatically, in either direction,
+for as long as it lasts. There is no reordering step and no order to maintain:
+a fixed order self-corrects through cooldown.
+
+**Never delete or drop an exhausted member to get a green gate.** Removing it
+leaves one subscription wearing a chain's shape, and the traffic the other
+carried moves to per-token billing — which looks like a working chain until the
+bill. An exhausted subscription is the half of the allowance that carries the
+traffic when the other one runs out.
+
 ## Chain members that fail report their provider error
 
 A chain member is one model in `model_list` that the alias can fall through to:
@@ -71,14 +90,24 @@ the head first, then `fallbacks` in order. `test.sh` probes each member alone
 with fallbacks disabled and prints the failing member's HTTP status, error type
 and message, plus which members ride instead.
 
-Report that error as printed. A member failing on exhausted credit, a billing
-gate, or "model disabled" is not classified here: whether it needs a fix or is
-an acceptable fallback is the operator's decision. Pass the printed errors to
-the user verbatim and wait for their call before any live-side command.
+Report that error as printed. A member failing on a provider-side error — a
+4xx/5xx, an auth or billing rejection, a data-policy or region gate, "model
+disabled", empty content — **is not classified here: whether it needs a fix, a
+different member, or a paid route is the operator's decision.** Pass the printed
+errors to the user verbatim and wait for their call before any live-side
+command. Never reach for a fix just to get the gate green: swapping in a member
+that bills per token, or any change that moves traffic onto a paid endpoint, can
+cost the user real money without their knowledge. A chain that quietly papered
+over a failure looks exactly like one that works — until the bill.
+
+The one pre-classified case is `EXHAUSTED`: spent allowance changes nothing
+about the chain and is never the operator's problem to solve. Everything else
+the gate calls `FAIL` is theirs to decide.
 
 `--yes` is the tool-level acknowledgment — it never bypasses the probe. The
-routes to a passing gate are a provider-side fix or reshaping the chain
-(drop/swap the failing member).
+routes to a passing gate are a provider-side fix, or a reshape the operator has
+approved. Reshaping is never something to do unasked: never delete an exhausted
+member, and never swap in a paid route to turn red green.
 
 ## Rollback first
 
@@ -89,21 +118,35 @@ names.
 - `swap.sh rollback` re-links GREEN and restarts. It reverts a soak
   (`live = BLUE`); in every other state it restarts onto the chain already
   live, so it changes nothing.
-- `promote --yes` makes GREEN the live chain and saves the outgoing chain to
-  `config.green.yaml.prev`. `swap.sh promote` prints the one-step undo, so run
-  it without `--yes` and state that output before promoting.
-- With `live = BLUE`, run `snapshot-live.sh` before anything else: it prints the
-  timestamped backup and the exact restore lines. State that output plus the
-  Cloudflare fallback (`~/.omp/agent/config.yml` →
-  `modelRoles.default: cloudflare-gateway/dynamic/fallback2`) before `test`,
-  `activate --yes`, or `promote --yes`. State every path as the full filesystem
-  path the tool printed — never `swap.sh`, `skill://...`, or `~` shorthand.
-  Never state a recovery that leaves the live head unrestored.
-- Never run `promote --yes` before stating that recovery and receiving the
-  user's acknowledgment.
-- At steady state the dry run (`swap.sh activate` without `--yes`) prints the
-  rollback lines (full paths): copy them exactly, never retype or shorten, then
-  wait for acknowledgment before `test` or `activate --yes`.
+- `swap.sh rollback-script` prints the pasteable recovery block for whatever
+  state the system is in — before or after any operation. It takes no
+  arguments, switches nothing, and works when this agent is not running.
+
+### The recovery block, and the pin that proves it was shown
+
+`activate` and `promote` do nothing on their own: they print the recovery block
+and a pin, and refuse `--yes` until it is re-run with that pin. The pin is a
+hash of the exact block printed for the current state, so it cannot be guessed,
+carried over from a different state, or produced without the block first being
+printed.
+
+- Run the command bare, then hand the user **the whole block verbatim** — the
+  `# ====` lines included, every absolute path as printed, nothing retyped,
+  shortened, or paraphrased into prose. It must be a script they can paste when
+  this session is gone, so it is never a description of what a command would do.
+- Wait for their sign-off, then re-run as `swap.sh <command> --yes <pin>`, where
+  `<pin>` is the hash on the block's last line ("Sign-off pin for this state").
+  The pin is positional after `--yes`, not a flag.
+- A refused pin means the state moved: print the new block, do not force it.
+
+The block restores the bytes that were serving before the operation, so it is
+correct in every state without reasoning about which side is live. Pair it with
+the Cloudflare fallback (`~/.omp/agent/config.yml` →
+`modelRoles.default: cloudflare-gateway/dynamic/fallback2`) for the case where
+LiteLLM itself is unreachable. State every path as the full filesystem path the
+tool printed — never `swap.sh`, `skill://...`, or `~` shorthand. Never state a
+recovery that leaves the live head unrestored.
+
 - Never stage and activate in one turn: edit, gate, report, wait.
 
 ## Traps
@@ -140,9 +183,10 @@ against a live daemon.
 
 ## Diagnostics
 
-- Provider-side errors (`DataPolicyError`, `MonthlyLimitError`, region and
-  billing gates) are fixed on the provider side, not in this chain's config;
-  while they persist they block every live-side command (`Chain members that
-  fail report their provider error`). Provider configuration for these routes
-  is in `skill://cloudflare-ai-gateway`.
+- Provider-side errors (`DataPolicyError`, region and billing gates) are fixed
+  on the provider side, not in this chain's config; while they persist they
+  block every live-side command (`Chain members that fail report their provider
+  error`). A spent monthly allowance (`MonthlyLimitError`, `GoUsageLimitError`)
+  is the exception: it is EXHAUSTED, not a failure, and blocks nothing. Provider
+  configuration for these routes is in `skill://cloudflare-ai-gateway`.
 - Keys live in `~/.paseo/litellm/env`; never print them.

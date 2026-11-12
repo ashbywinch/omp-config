@@ -7,12 +7,10 @@ test below fails on a non-empty list. This is the gate — `make test` runs the
 unittest suite, so a contract that stops being true stops the build.
 """
 
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from check_docs_links import (  # noqa: E402
+from tools.check_docs_links import (
     _check_discoverability,
     _check_links,
     _check_skills,
@@ -24,16 +22,16 @@ REPO = Path(__file__).resolve().parents[2]
 
 class RepoContractsTest(unittest.TestCase):
     def test_every_relative_link_resolves(self):
-        self.assertEqual(_check_links(), [])
+        self.assertEqual(_check_links(REPO), [])
 
     def test_every_skill_is_well_formed(self):
-        self.assertEqual(_check_skills(), [])
+        self.assertEqual(_check_skills(REPO), [])
 
     def test_every_doc_is_discoverable_from_agents_md(self):
-        self.assertEqual(_check_discoverability(), [])
+        self.assertEqual(_check_discoverability(REPO), [])
 
     def test_always_loaded_files_are_within_the_ceiling(self):
-        self.assertEqual(_check_sizes().hard, [])
+        self.assertEqual(_check_sizes(REPO).hard, [])
 
     def test_the_scaffold_example_matches_the_tool(self):
         """tools/ is canonical; the scaffold copy is generated from it."""

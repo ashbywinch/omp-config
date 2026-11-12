@@ -37,6 +37,17 @@ from the entry point of AGENTS.md. Skills are exempt from the reachability
 rule — a harness discovers them through its own mechanism (rationale and
 scope in docs/documentation-structure.md).
 
+## Project-specific content lives in the project
+
+The conventions repo's `skills/` hold **reusable procedures** — a task an
+agent performs in any repository. Content that applies to one project only
+(that repo's endpoints, batch IDs, layout details, app-specific commands)
+belongs in that project's own docs, linked from there — never in a
+conventions-repo skill. A skill written for one app is a project-specific
+skill: split the generic procedure (which stays in the conventions repo,
+as its own skill) from the project specifics (which move to the project's
+repo).
+
 ## AGENTS.md is a bootloader, not an operating system
 
 AGENTS.md loads everything else and gets out of the way. It holds the quick
@@ -159,6 +170,11 @@ fact and decision.
   *act on* — a skill, a rule, a task prompt — see `skill://prompt-craft`.)
 - **Commands over prose.** `make test` beats "run the test suite to verify
   everything works".
+- **Write each rule so a reader can act on it**: an imperative ("search the
+  record before creating a row") or a normative statement ("a row must always
+  name exactly one file"). A sentence that only reports what happens — "two rows
+  for one file split the record" — leaves the reader to infer the rule, so give
+  it as the reason if it earns a reason. A metaphor cannot be acted on.
 - **Tables over prose.** A rule per row beats a paragraph per rule, when a
   fact has consistent fields.
 - **Canonical ✗/✓ examples over exhaustive enumeration.** One right/wrong
