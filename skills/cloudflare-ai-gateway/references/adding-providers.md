@@ -69,7 +69,7 @@ isolation before touching a route.
 - **200-with-error-body bypasses the cascade** — a plan-provider pathology.
   Standard pay-per-token APIs return real status codes, which is one more
   reason the routes only carry them. Do not add a provider that returns
-  errors as HTTP 200 to a route: the cascade will not fire.
+  errors as HTTP 200 to a route. The cascade will not fire.
 - Failed intermediate nodes are NOT logged separately — logs show only the
   final serving provider. A missing log entry does not mean "not attempted".
 
