@@ -88,6 +88,8 @@ Gateway settings are source-of-truth in Cloudflare — query them, don't hardcod
 
 ### Dynamic routes
 
+A dynamic route is a named route the gateway evaluates per request: it walks
+its model nodes in order, and the first that answers serves the request.
 Routes, providers, model names, and timeouts are configured in Dashboard → AI → AI Gateway → `{gateway}` → Dynamic Routing. Query the current state via the admin API (see `skill://cloudflare-ai-gateway-analytics` for auth):
 
 ```bash

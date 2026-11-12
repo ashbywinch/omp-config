@@ -1,7 +1,8 @@
 # Adding an AI provider to the gateway
 
 Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic
-route.
+route — a named route the gateway evaluates per request to choose among its
+model nodes.
 
 ## The one constraint that decides everything
 
