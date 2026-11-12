@@ -141,7 +141,7 @@ gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs \
   | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'{s[\"name\"]}: {s[\"status\"]}') for j in d['jobs'] for s in j['steps']]"
 ```
 
-If the AI review is still running after 10+ minutes with no step-level progress for 5+ minutes, something may actually be stuck — but investigate before cancelling.
+If the AI review is still running after 10+ minutes with no step-level progress for 5+ minutes, something may actually be stuck. Investigate before cancelling.
 
 **Read the logs from the REST endpoint, not the CLI.** `gh run view <run-id>
 --log` prints nothing at all for some runs — re-runs, and jobs that failed
@@ -402,10 +402,9 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
-- **`gh run view --log` printing nothing** — the logs exist. The CLI returns
-  empty for re-runs and for jobs that failed inside a step; fetch the REST zip
-  instead (§5). Concluding "no logs" from an empty `gh` call is how a traceable
-  failure becomes an unexplained one.
+- **`gh run view --log` printing nothing** — fetch the REST zip instead (§5).
+  Concluding "no logs" from an empty `gh` call is how a traceable failure becomes
+  an unexplained one.
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
   read the full body (§8).
