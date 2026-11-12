@@ -45,7 +45,7 @@ It does not run dynamic routes — no conditional, no fallback. Use it to valida
 5. **Test the provider-specific endpoint** with the real model name in the
    body: `.../{gateway}/custom-{slug}/<path>`. This isolates key/base/model
    from route construction. Success here + failure in the route = the
-   forced-path constraint, not your config.
+   forced-path constraint above, not your config.
 6. **Read the gateway log** (`GET .../logs`). `byok` says whether the key
    attached. The `path` field is the client's remainder, not proof of the
    upstream URL, so a logged 200 does not show which path the provider served.

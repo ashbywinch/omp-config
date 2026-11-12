@@ -107,7 +107,7 @@ Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Use
 
 Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically. The API path needs Secrets Store Write plus a pre-created secret. Use the dashboard unless you hold that scope.
 
-#### Route topology (every provider serves the standard path)
+#### Route topology
 
 Two routes serve traffic: `fallback2` (text) and `image` (vision). Their
 members, model ids, timeouts and retries are the live configuration. Read them
@@ -124,7 +124,7 @@ rollback step.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 
-**Cloudflare-side retries are disabled** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
+**Disable Cloudflare-side retries** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
 
 
 ### cf-aig-* headers
