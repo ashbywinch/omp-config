@@ -100,8 +100,8 @@ Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug
 
 #### Route topology (all providers standard-path)
 
-The forced-path constraint is an onboarding criterion, not an engineering
-problem. A provider whose endpoint differs is not added to a route.
+Which providers may join a route, and why, is in
+`references/adding-providers.md`.
 
 - `fallback2` (text): openrouter `meta/muse-spark-1.3-contributor`
   ($0.10/$0.20 per M) → openrouter `deepseek/deepseek-v4-flash` →
@@ -110,7 +110,8 @@ problem. A provider whose endpoint differs is not added to a route.
 
 The z.ai Coding Plan and OpenCode Zen serve local harness traffic directly
 through LiteLLM (`skill://litellm-gateway`), which has no forced path.
-Route changes are versioned. Redeploy an older `version_id` to roll back.
+Route changes are versioned; `references/adding-providers.md` has the
+rollback step.
 
 ## Timeouts and retries
 
