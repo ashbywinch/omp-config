@@ -146,4 +146,5 @@ uv-sync:
 .PHONY: sync-examples
 sync-examples:
 	cp tools/check_review_posted.py skills/new-repo-scaffold/examples/tools/check_review_posted.py
+	cp tools/check-merge-markers.sh skills/new-repo-scaffold/examples/tools/check-merge-markers.sh
 	@echo "Synced — tools/ is canonical, the scaffold example is generated."

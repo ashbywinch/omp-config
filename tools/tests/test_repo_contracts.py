@@ -7,6 +7,7 @@ test below fails on a non-empty list. This is the gate — `make test` runs the
 unittest suite, so a contract that stops being true stops the build.
 """
 
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -33,15 +34,23 @@ class RepoContractsTest(unittest.TestCase):
     def test_always_loaded_files_are_within_the_ceiling(self):
         self.assertEqual(_check_sizes(REPO).hard, [])
 
-    def test_the_scaffold_example_matches_the_tool(self):
-        """tools/ is canonical; the scaffold copy is generated from it."""
-        canonical = REPO / "tools" / "check_review_posted.py"
-        example = REPO / "skills/new-repo-scaffold/examples/tools/check_review_posted.py"
-        self.assertEqual(
-            canonical.read_text(encoding="utf-8"),
-            example.read_text(encoding="utf-8"),
-            "check_review_posted twins diverged — run 'make sync-examples' (tools/ is canonical)",
-        )
+    def test_no_tracked_file_carries_merge_markers(self):
+        """A marker that reached a commit is a merge stopped halfway: the file
+        is wrong, and nothing else reads it."""
+        result = subprocess.run([str(REPO / "tools" / "check-merge-markers.sh")],
+                                capture_output=True, text=True, cwd=REPO)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_the_scaffold_examples_match_their_tools(self):
+        """tools/ is canonical; the scaffold copies are generated from it."""
+        for name in ("check_review_posted.py", "check-merge-markers.sh"):
+            canonical = REPO / "tools" / name
+            example = REPO / "skills/new-repo-scaffold/examples/tools" / name
+            self.assertEqual(
+                canonical.read_text(encoding="utf-8"),
+                example.read_text(encoding="utf-8"),
+                f"{name} twins diverged — run 'make sync-examples' (tools/ is canonical)",
+            )
 
 
 if __name__ == "__main__":
