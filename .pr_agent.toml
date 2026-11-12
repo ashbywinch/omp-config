@@ -48,5 +48,8 @@ push_commands = ["/review", "/improve"]
 extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"omp-config\"}"}'
 
 [pr_code_suggestions]
+extra_instructions = """
+Documentation is reviewed like code. For each markdown file in the diff, propose a concrete replacement line when it breaks docs/writing-documentation.md: a sentence over 30 words; a fact and a command in one sentence; a history lesson (a date, "we confirmed", "proven", "the former X is gone"); a fact stated twice; an undefined acronym. Anchor every suggestion to the line it replaces.
+"""
 persistent_comment = true
 commitable_code_suggestions = true  # inline mode: the summarized table comment is never published (pr_code_suggestions.py:139); posting failures degrade to verified one-line comments, never a table
