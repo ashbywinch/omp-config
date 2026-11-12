@@ -143,8 +143,8 @@ The proxy exists for two reasons:
 
 1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged
    by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}`. Without the proxy, every request
-   would show as coming from "unknown". (The purpose field no longer
-   selects a route branch — routes are unconditional cascades.)
+   would show as coming from "unknown". (The purpose field does not
+   select a route branch — routes are unconditional cascades.)
 
 2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml`. The proxy covers local OMP sessions.
 

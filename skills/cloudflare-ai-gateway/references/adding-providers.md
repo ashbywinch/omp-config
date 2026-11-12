@@ -27,23 +27,26 @@ isolation before touching a route.
 
 ## Validation sequence (cheapest first)
 
-1. **Probe the provider directly** (curl, no auth) — the response tells you
+1. **Probe the provider directly** (curl, no auth). The response tells you
    whether the path exists. Auth errors (`401`, or a body like
    `{"error":{"code":"1001",...}}`) mean the path is real and behind an auth
    gate; nginx/Spring `404` means the path does not exist. Caveat: auth gates
    often answer ANY path under their prefix — a 401 does not prove the exact
    route exists.
-2. **Create the custom provider**: `POST /ai-gateway/custom-providers`
+2. **Probe again with the real key** and a model id from the catalog. A path
+   that answers anonymously can still reject the key — an unauthorised key
+   surfaces here, before the provider exists.
+3. **Create the custom provider**: `POST /ai-gateway/custom-providers`
    `{name, slug, base_url}`.
-3. **Add the BYOK key** via the dashboard Provider Keys (secret contract and
+4. **Add the BYOK key** via the dashboard Provider Keys (secret contract and
    dashboard-vs-API choice live in the Provider keys section of `SKILL.md`).
-4. **Test the provider-specific endpoint** with the real model name in the
+5. **Test the provider-specific endpoint** with the real model name in the
    body: `.../{gateway}/custom-{slug}/<path>`. This isolates key/base/model
    from route construction. Success here + failure in the route = the
    forced-path constraint, not your config.
-5. **Read the gateway log** (`GET .../logs`): `path` = the exact upstream path
-   the gateway used; `byok` = whether the key attached. Log `path` is the
-   client remainder, not proof of the final upstream URL.
+6. **Read the gateway log** (`GET .../logs`). The `path` field is the exact
+   upstream path the gateway used; `byok` says whether the key attached. Log
+   `path` is the client remainder, not proof of the final upstream URL.
 
 ## Route mechanics
 
@@ -64,7 +67,8 @@ isolation before touching a route.
 - A model node's `fallback` output fires on non-2xx status or timeout.
 - **200-with-error-body bypasses the cascade** — a plan-provider pathology.
   Standard pay-per-token APIs return real status codes, which is one more
-  reason the routes only carry them.
+  reason the routes only carry them. Do not add a provider that returns
+  errors as HTTP 200 to a route: the cascade will not fire.
 - Failed intermediate nodes are NOT logged separately — logs show only the
   final serving provider. A missing log entry does not mean "not attempted".
 
@@ -104,7 +108,7 @@ route traffic; keep the plan for local traffic.
   Quota and permission errors: `{"code":1001,"msg":...,"success":false}` (HTTP
   200 on some paths). A service-side path miss: `{"code":500,"msg":"404
   NOT_FOUND"}`. Spring-shaped errors carry `{"timestamp":...,"path":...}`.
-  Read that `path` as context-relative — it is not the upstream path.
+  Read that `path` as context-relative. It is not the upstream path.
 - The Coding Plan is restricted to officially supported tools (Pi included);
   unsupported-tool traffic risks throttling, then account ban after 3
   violations. Requests should carry the harness identity the provider expects.
