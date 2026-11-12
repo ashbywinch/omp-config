@@ -7,7 +7,7 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 Routes AI API calls for remote clients (PR-Agent — the automated PR review bot — evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer. The current routes and their members are under "Route topology" below.
 
-The text default for omp (the agent harness) and Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively. Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. Per-repo analytics tagging via local proxy.
+The text default for omp (the agent harness) and Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively. Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. The local proxy handles per-repo analytics tagging.
 
 ## Architecture
 
@@ -100,9 +100,8 @@ Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug
 
 #### Route topology (all providers standard-path)
 
-Every provider on a route serves at the forced `/v1/chat/completions` path.
-That is an onboarding criterion, not an engineering problem. A provider whose
-endpoint differs is not added to a route.
+The forced-path constraint is an onboarding criterion, not an engineering
+problem. A provider whose endpoint differs is not added to a route.
 
 - `fallback2` (text): openrouter `meta/muse-spark-1.3-contributor`
   ($0.10/$0.20 per M) → openrouter `deepseek/deepseek-v4-flash` →
