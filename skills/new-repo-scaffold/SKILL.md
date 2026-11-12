@@ -81,7 +81,7 @@ Rules:
 - CI fails below a hard floor and tracks a higher goal: books_to_anki uses `irongut/CodeCoverageSummary` with `thresholds: '80 90'`, `fail_below_min: true`, posting a sticky PR comment via `marocchino/sticky-pull-request-comment`; side-by-side uses `slavcodev/coverage-monitor-action` on clover.xml.
 - `htmlcov/`, `.coverage`, `coverage.xml` are gitignored; reports are generated on demand.
 
-### 3b. The repo tests itself: docs links + architecture layers
+### 3b. The repo tests itself: docs links, merge markers, architecture layers
 
 Every repo carries tests that guard the repo's own invariants — the docs
 stay coherent and the architecture layers (as currently imagined) don't
@@ -96,6 +96,11 @@ layer test worthless, so follow the skill, not any repo's existing test):
   anchors (`#…`), and template variables; strip `#fragment` before
   resolving. One regex, one test, no deps — a doc renamed without its links
   updated fails CI instead of 404ing for a reader.
+- **A committed conflict marker is a failure.** `tools/check-merge-markers.sh`
+  fails when any tracked file still carries a `<<<<<<<` or `>>>>>>>` line —
+  the file is a merge someone stopped halfway, git still applies the patterns
+  inside it, and nothing else reads it. The layer Makefiles run it from
+  `check` and `test`.
 - **Architecture layers are enforced, not hoped.** Define the current
   layering (e.g. `dag/` may only depend on itself; the HTTP layer may not
   import the sheets module directly) and assert it in a test: Python repos
@@ -208,7 +213,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules — **bootloader not OS: only 100%-relevant content, and every doc reachable from it**
 - [ ] `docs/` standards copied from omp-config in full — coding-standards.md, testing-standards.md, ux-standards.md (from omp-config's `standards/`), writing-documentation.md, documentation-structure.md (from omp-config's `docs/`)
 - [ ] Required doc set present (per docs/documentation-structure.md): `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` (or `docs/PLAN/`) with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies; every doc discoverable from AGENTS.md
-- [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern) and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
+- [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern), the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`), and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
 - [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
 - [ ] dependabot configured per the 'Dependency updates are automated, with a human boundary' rule in standards/coding-standards.md — grouping and auto-merge as in the examples
@@ -247,7 +252,7 @@ Run in order; the checklist below is the final gate, not documentation.
 - [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` (clippy -D warnings — human-readable output feeds GitHub's built-in matcher for inline annotations)
 - [ ] Raw hooks: pre-commit (make lint-check + gitleaks) + pre-push (make check), watch scope `*.rs Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml`
 - [ ] `#[allow(...)]` carries a reason comment (no blanket `#![allow]`); newtypes over primitives (units in the type name, Money never bare float)
-- [ ] Repo self-checks: std-only `#[test]`s for docs links and for architecture layers (forbidden `use` paths — exact paths, never the vacuous glob form)
+- [ ] Repo self-checks: std-only `#[test]`s for docs links and for architecture layers (forbidden `use` paths — exact paths, never the vacuous glob form), and the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`)
 - [ ] Cargo.lock committed (reproducible builds); fast-moving crates pinned with a comment why
 - [ ] `docs/coding-standards.md` carries the "Rust conventions" section (materialized from the language layer — the bot reads only `repo_context_files`)
 
