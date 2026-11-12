@@ -58,8 +58,9 @@ resume test is for iteration, not a replacement for the gate.
 - The checkpoint is a dev aid. It must never let the gate pass on a partial
   build; the end-to-end test still asserts that every unit succeeded.
 - A resume test with no checkpoint skips; it does not fail the suite.
-- Use the same user bot, persona, and config as the full eval, defined once and
-  shared. A different user in the resume test exercises a different scenario.
+- Use the same simulated user (user bot), persona, and model config as the
+  full eval, defined once and shared. A different user in the resume test
+  exercises a different scenario.
 - Resume one unit at a time when a unit takes minutes. N units do not fit in
   one budget just because the full eval eventually did.
 - If the checkpoint is missing because the failure predates it, extract the
@@ -67,3 +68,10 @@ resume test is for iteration, not a replacement for the gate.
   otherwise add the checkpoint and take one full run to seed it.
 - Fix the cause, then re-run the smallest phase that proves it. Run the full
   eval only when the small ones are green.
+
+## Placement
+
+This skill describes the pattern. The concrete checkpoint path, test target,
+and env-var names are repo-specific: put them in that repo's testing docs, and
+reference this skill for the principle.
+
