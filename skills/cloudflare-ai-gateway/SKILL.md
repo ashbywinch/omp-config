@@ -103,10 +103,9 @@ Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug
 Which providers may join a route, and why, is in
 `references/adding-providers.md`.
 
-- `fallback2` (text): openrouter `meta/muse-spark-1.3-contributor`
-  ($0.10/$0.20 per M) → openrouter `deepseek/deepseek-v4-flash` →
-  deepseek direct `deepseek-v4-flash`
-- `image` (vision): openrouter `z-ai/glm-4.6v`
+Two routes serve traffic: `fallback2` (text) and `image` (vision). Their
+members, model ids, timeouts and retries are the live configuration — read
+them from the routes API above. This file does not restate them.
 
 The z.ai Coding Plan and OpenCode Zen serve local harness traffic directly
 through LiteLLM (`skill://litellm-gateway`), which has no forced path.
@@ -120,6 +119,8 @@ rollback step.
 **Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". The model node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
+
+**Cloudflare-side retries are disabled** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
 
 
 ### cf-aig-* headers
@@ -140,9 +141,9 @@ The local proxy adds these headers to every request. PR-Agent in GitHub Actions 
 The proxy exists for two reasons:
 
 1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged
-   by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}`. Without the proxy, every request
-   would show as coming from "unknown". (The purpose field does not
-   select a route branch — routes are unconditional cascades.)
+   by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","repo":"<name>"}`. Without the proxy, every request would show as
+   coming from "unknown". `source` names the caller (`agent`, `review`); routes
+   are unconditional, so no tag selects one.
 
 2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml`. The proxy covers local OMP sessions.
 
@@ -158,7 +159,7 @@ The proxy is NOT needed for:
 A Bun script (`cf-proxy.ts`) running as a systemd user service. It:
 1. Receives requests from OMP on `localhost:9123`
 2. Reads the repo name (tagged by `omp-yolo.sh`)
-3. Adds `cf-aig-metadata: {"source":"agent","purpose":"harness","repo":"<name>"}` header
+3. Adds `cf-aig-metadata: {"source":"agent","repo":"<name>"}` header
 4. Adds timeout/retry headers (values from `cf-aig-request-timeout` config)
 5. Forwards to Cloudflare
 

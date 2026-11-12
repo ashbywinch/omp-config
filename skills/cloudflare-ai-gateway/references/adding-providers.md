@@ -20,11 +20,11 @@ API path segments like /v1" (the gateway appends the path itself).
   selection criterion, not an engineering problem. Pick a provider that serves
   at the forced path. A provider that does not can still be reached outside the
   gateway — the LiteLLM local chain calls them natively.
+- A Worker shim is not a bridge. Workers have CPU and runtime limits that a
+  streamed LLM response exceeds, so the shim dies mid-answer.
 The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`)
 appends everything after the slug to base_url, so it has full path control.
-It does not run dynamic routes — no conditional, no fallback. Use it to
-validate a provider in
-isolation before touching a route.
+It does not run dynamic routes — no conditional, no fallback. Use it to validate a provider in isolation before touching a route.
 
 ## Validation sequence (cheapest first)
 
