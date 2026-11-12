@@ -41,8 +41,6 @@ The text default for omp/Paseo agents runs through the LiteLLM local chain (`ski
                  dynamic routes (see below)
 ```
 
-Route names and their members are under "Route topology" below.
-
 ### Two env vars — single source of truth
 
 The convention is `OPENAI_BASE_URL` + `OPENAI_API_KEY`. PR-Agent is an exception: it reads `OPENAI_KEY` (the OpenAI Python SDK env var, not the litellm one). The workflow env sets `OPENAI_KEY` for PR-Agent; all other clients use `OPENAI_API_KEY`.
@@ -102,9 +100,9 @@ Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug
 
 #### Route topology (all providers standard-path)
 
-Every provider on a route must serve at the forced `/v1/chat/completions`
-path — it is an onboarding criterion, not an engineering problem. A
-provider whose endpoint differs is not added to a route.
+Every provider on a route serves at the forced `/v1/chat/completions` path.
+That is an onboarding criterion, not an engineering problem. A provider whose
+endpoint differs is not added to a route.
 
 - `fallback2` (text): openrouter `meta/muse-spark-1.3-contributor`
   ($0.10/$0.20 per M) → openrouter `deepseek/deepseek-v4-flash` →

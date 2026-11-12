@@ -76,7 +76,7 @@ isolation before touching a route.
 ## Cache
 
 The gateway caches responses (`cache_ttl` on the gateway). A ~9ms response
-that echoes an earlier prompt is a cache hit — cache-bust tests with a random
+that echoes an earlier prompt is a cache hit. Cache-bust tests with a random
 token in the prompt.
 
 ## Non-standard-path providers (z.ai Coding Plan, OpenCode Zen)
