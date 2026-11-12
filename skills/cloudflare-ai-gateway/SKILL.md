@@ -5,7 +5,11 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 # Cloudflare AI Gateway
 
-Routes AI API calls for remote clients (PR-Agent, evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer. `fallback2` (text): Muse Spark 1.3 contributor (OpenRouter) → DeepSeek V4 Flash (OpenRouter) → DeepSeek direct. `image` (vision): z-ai/glm-4.6v (OpenRouter). The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively; Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. Per-repo analytics tagging via local proxy.
+Routes AI API calls for remote clients (PR-Agent, evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer.
+
+`fallback2` (text): Muse Spark 1.3 contributor (OpenRouter) → DeepSeek V4 Flash (OpenRouter) → DeepSeek direct. `image` (vision): z-ai/glm-4.6v (OpenRouter).
+
+The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively. Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. Per-repo analytics tagging via local proxy.
 
 ## Architecture
 
@@ -118,7 +122,7 @@ roll back (versions preceding 2026-09-06 are the shim-era cascades).
 
 ### What we know
 
-**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". We observed a 504 at 31s when the timeout was 30s. Current route values are visible via the routes API (see Cloudflare Dashboard section above) — don't hardcode them here.
+**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". The model node fails at the timeout, so leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above) — don't hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). We confirmed the gateway recognizes it (14s test returned 200).
 
