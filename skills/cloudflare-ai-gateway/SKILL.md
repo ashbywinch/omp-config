@@ -120,7 +120,7 @@ rollback step.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 
-**Cloudflare-side retries are disabled** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
+**Cloudflare-side retries are disabled** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
 
 
 ### cf-aig-* headers
