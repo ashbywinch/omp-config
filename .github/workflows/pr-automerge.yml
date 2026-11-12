@@ -1,7 +1,7 @@
 name: PR auto-merge (reusable)
 
 # One copy of the arming and behind-branch refresh for every client repo. A
-# caller keeps a ten-line workflow:
+# caller keeps a short workflow:
 #
 #   on:
 #     pull_request:
@@ -9,18 +9,32 @@ name: PR auto-merge (reusable)
 #       types: [submitted]
 #     push:
 #       branches: [main]
+#     schedule:
+#       - cron: '*/15 * * * *'
 #     workflow_dispatch:
 #   jobs:
 #     automerge:
 #       permissions:
-#         contents: write
-#         pull-requests: write
-#       uses: ashbywinch/omp-config/.github/workflows/pr-automerge.yml@v0.2.6
+#         contents: read
+#       uses: ashbywinch/omp-config/.github/workflows/pr-automerge.yml@v0.2.7
+#       with:
+#         app_id: ${{ vars.OMP_APP_ID }}
+#       secrets:
+#         app_private_key: ${{ secrets.OMP_APP_PRIVATE_KEY }}
+#
+# Why the App token: GitHub does not run workflows for events caused by
+# GITHUB_TOKEN. An update-branch made with GITHUB_TOKEN leaves the PR head with
+# no checks, and an auto-merge push to main fires no workflows. The App token
+# makes both events real. The App needs Contents: write and Pull requests:
+# write, and must be installed on the repo.
 #
 # The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled,
 # and a ruleset that requires one approving review plus the CI checks. This
 # workflow only sets the flag and refreshes stale branches; it never approves
 # or merges directly.
+#
+# The schedule is the fallback for a main merge that produced no event: it
+# refreshes approved/armed PRs that fell behind.
 #
 # Same-repo branches only: a fork PR has no write access to arm it, and should
 # not merge itself anyway.
@@ -28,14 +42,21 @@ name: PR auto-merge (reusable)
 on:
   workflow_call:
     inputs:
+      app_id:
+        description: GitHub App id whose installation token performs the writes.
+        type: string
+        required: true
       merge_method:
         description: merge, squash or rebase.
         type: string
         default: merge
+    secrets:
+      app_private_key:
+        description: PEM private key for the GitHub App.
+        required: true
 
 permissions:
-  contents: write        # update-branch
-  pull-requests: write   # enable auto-merge
+  contents: read
 
 concurrency:
   group: pr-automerge-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
@@ -45,9 +66,14 @@ jobs:
   automerge:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ inputs.app_id }}
+          private-key: ${{ secrets.app_private_key }}
       - name: Arm auto-merge, or refresh approved PRs behind main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           PR: ${{ github.event.pull_request.number || '' }}
@@ -81,7 +107,7 @@ jobs:
               esac
               # A branch behind main blocks the strict status check. BEHIND is
               # mergeable-but-stale; a real conflict reports DIRTY/CONFLICTING
-              # and is not updated here.
+              # and is not updated here. The App token makes the update fire CI.
               state=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)
               echo "merge state: $state"
               if [ "$state" = "BEHIND" ]; then
@@ -93,7 +119,7 @@ jobs:
               fi
               gh pr merge "$PR" --repo "$REPO" --auto --"$MERGE_METHOD"
               ;;
-            push|workflow_dispatch)
+            push|workflow_dispatch|schedule)
               # A main merge produces no event on an open PR, so an approved PR
               # can sit BEHIND forever. Refresh the branches that are ready to
               # land: same-repo, non-draft, approved or already armed.
