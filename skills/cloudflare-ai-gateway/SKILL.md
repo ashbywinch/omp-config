@@ -119,7 +119,7 @@ rollback step.
 
 ### What we know
 
-**Model node timeout** — each model entry on a dynamic route has a single `timeout` property. The docs say "Request timeout in milliseconds". The entry fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
+**Model entry timeout** — each model entry on a dynamic route has a single `timeout` property. The docs say "Request timeout in milliseconds". The entry fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 

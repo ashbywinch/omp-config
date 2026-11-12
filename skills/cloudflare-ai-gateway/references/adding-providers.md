@@ -111,7 +111,8 @@ route traffic.
   200 on some paths). A service-side path miss: `{"code":500,"msg":"404
   NOT_FOUND"}`. Spring-shaped errors carry `{"timestamp":...,"path":...}`.
   Read that `path` as context-relative. It is not the upstream path.
-- The Coding Plan is restricted to officially supported tools (Pi included);
+- The Coding Plan is restricted to officially supported tools (Pi — a coding
+  agent — included);
   unsupported-tool traffic risks throttling, then account ban after 3
   violations. Requests should carry the harness identity the provider expects.
 - Plan quota runs on 5-hour cycles plus a weekly cap; exhaustion returns
