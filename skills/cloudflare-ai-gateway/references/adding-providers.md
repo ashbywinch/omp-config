@@ -1,8 +1,7 @@
 # Adding an AI provider to the gateway
 
 Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic
-route — a named route the gateway evaluates per request, walking its model
-nodes (one provider and model each) until one answers.
+route (`skill://cloudflare-ai-gateway`, "Dynamic routes").
 
 ## The one constraint that decides everything
 
@@ -62,8 +61,9 @@ It does not run dynamic routes — no conditional, no fallback. Use it to valida
   `{"metadata.<key>": {"$eq": "<val>"}}`, outputs `true`/`false`) → `model`
   (`provider`, `model`, `timeout`, `retries`; outputs `success`/`fallback`)
   → `end`.
-- `cf-aig-metadata` takes one JSON object of at most five entries. Every value
-  in it is a string, number or boolean; a nested object is rejected.
+- `cf-aig-metadata`, the header carrying per-request metadata, takes one JSON
+  object of at most five entries. Every value in it is a string, number or
+  boolean; a nested object is rejected.
 
 ## Fail-back semantics (read before trusting a cascade)
 

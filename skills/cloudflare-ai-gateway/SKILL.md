@@ -89,7 +89,8 @@ Gateway settings are source-of-truth in Cloudflare — query them, don't hardcod
 ### Dynamic routes
 
 A dynamic route is a named route the gateway evaluates per request: it walks
-its model nodes in order, and the first that answers serves the request.
+its model nodes — one provider and model each — in order, and the first that
+answers serves the request.
 Routes, providers, model names, and timeouts are configured in Dashboard → AI → AI Gateway → `{gateway}` → Dynamic Routing. Query the current state via the admin API (see `skill://cloudflare-ai-gateway-analytics` for auth):
 
 ```bash
@@ -106,7 +107,7 @@ Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Use
 
 Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically. The API path needs Secrets Store Write plus a pre-created secret. Use the dashboard unless you hold that scope.
 
-#### Route topology (all providers standard-path)
+#### Route topology (every provider serves the standard path)
 
 Two routes serve traffic: `fallback2` (text) and `image` (vision). Their
 members, model ids, timeouts and retries are the live configuration. Read them
@@ -148,7 +149,7 @@ The proxy exists for two reasons:
    coming from "unknown". `source` names the caller (`agent`, `review`); routes
    are unconditional, so no tag selects one.
 
-2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml`. The proxy covers local OMP sessions.
+2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml`. The proxy covers local omp (the agent harness) sessions.
 
 The proxy is NOT needed for:
 - Provider failover (handled by Cloudflare's dynamic route)
