@@ -54,8 +54,8 @@ isolation before touching a route.
   `{"metadata.<key>": {"$eq": "<val>"}}`, outputs `true`/`false`) → `model`
   (`provider`, `model`, `timeout`, `retries`; outputs `success`/`fallback`)
   → `end`.
-- `cf-aig-metadata` values must be strings/numbers/booleans, max 5 entries;
-  objects are rejected.
+- `cf-aig-metadata` takes one JSON object of at most five entries. Every value
+  in it is a string, number or boolean; a nested object is rejected.
 
 ## Fail-back semantics (read before trusting a cascade)
 
