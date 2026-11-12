@@ -144,11 +144,12 @@ The local proxy adds these headers to every request. PR-Agent in GitHub Actions 
 
 The proxy exists for two reasons:
 
-1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged
-   by `omp-yolo.sh`) and injects the per-request metadata header
-   `cf-aig-metadata: {"source":"agent","repo":"<name>"}`. Without the proxy, every request would show as
-   coming from "unknown". `source` names the caller (`agent`, `review`); routes
-   are unconditional, so no tag selects one.
+1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged by
+   `omp-yolo.sh`) and attaches the gateway's per-request metadata header,
+   `cf-aig-metadata`, carrying `{"source":"agent","repo":"<name>"}`. Without
+   the proxy, every request would show as coming from "unknown". `source` names
+   the caller (`agent`, `review`); routes are unconditional, so no tag selects
+   one.
 
 2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml`. The proxy covers local omp (the agent harness) sessions.
 
