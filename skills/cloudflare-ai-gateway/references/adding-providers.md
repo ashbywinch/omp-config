@@ -15,9 +15,10 @@ API path segments like /v1" (the gateway appends the path itself).
   → a route node works directly.
 - Provider path differs (z.ai: `/api/coding/paas/v4/chat/completions`;
   opencode-go: `/zen/go/v1`) → the provider CANNOT be onboarded to a route.
-  This is a selection criterion, not an engineering problem: pick a
-  provider that serves at the forced path, or reach the non-standard one
-  outside the gateway (the LiteLLM local chain calls them natively).
+  This is a selection criterion, not an engineering problem. Pick a
+  provider that serves at the forced path. A provider that does not can
+  still be reached outside the gateway — the LiteLLM local chain calls
+  them natively.
 The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`) appends
 everything after the slug to base_url — full path control — but does NOT run
 dynamic routes (no conditional, no fallback). Use it to validate a provider in

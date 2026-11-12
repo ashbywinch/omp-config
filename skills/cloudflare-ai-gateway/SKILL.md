@@ -97,7 +97,9 @@ Route names are referenced in config as `dynamic/{route-name}`. If a route is re
 
 ### Provider keys
 
-Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers). Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically; the API path needs Secrets Store Write plus a pre-created secret — use the dashboard unless you hold that scope.
+Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers).
+
+Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically. The API path needs Secrets Store Write plus a pre-created secret. Use the dashboard unless you hold that scope.
 
 #### Route topology (all providers standard-path)
 
