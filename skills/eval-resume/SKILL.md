@@ -1,0 +1,69 @@
+---
+name: eval-resume
+description: Resume a long eval from the phase that failed instead of re-running it from the start — checkpoint the typed input at phase boundaries, then re-run only the failing unit
+---
+
+# Eval Resume
+
+A long eval that fails an hour in should cost minutes to iterate on, not
+another hour. The move is not to replay the conversation; it is to checkpoint
+the typed input at a phase boundary. The next phase depends on that input, not
+on how the previous phase produced it.
+
+## Why not replay the transcript
+
+A transcript is text. The harness's state is a call stack plus typed objects:
+the phase that follows a conversation takes the conversation's *result*, not
+its words. Replaying the transcript is brittle and ends up testing the replay.
+Checkpoint the result instead, and start the phase that failed from it. If the
+failure is inside a phase, restart that phase from its input; the conversation
+it runs is fresh, which is what the next run would do anyway.
+
+## When to checkpoint
+
+Add a checkpoint only when all three hold:
+
+- the phase is expensive — minutes, many tokens, or many independent units;
+- its input is a typed object (a spec, a list of cases, a config), not the chat;
+- the phase can run on that input alone.
+
+A single atomic conversation, or an eval whose input is already a fixture, does
+not need one. Do not checkpoint every eval; checkpoint where a failure would
+otherwise force a full rerun.
+
+## What to save
+
+Save the phase's input and the names of its units. Never save the message
+history: the conversation is the previous phase's implementation detail; the
+typed input is the contract between phases.
+
+Write the checkpoint before the assertion that can fail, so a failed run still
+leaves one. Keep it in a scratch or evidence directory, not in the repository.
+
+## How to resume
+
+Add a small test that:
+
+1. reads the checkpoint (path from an env var, with a default);
+2. optionally filters to the failing units (comma-separated env var);
+3. runs only that phase for those units;
+4. collects every failure instead of stopping at the first.
+
+Run it through the project's normal test target, with the same model/API
+environment as the eval. Keep the end-to-end eval unchanged and blocking: the
+resume test is for iteration, not a replacement for the gate.
+
+## Rules
+
+- The checkpoint is a dev aid. It must never let the gate pass on a partial
+  build; the end-to-end test still asserts that every unit succeeded.
+- A resume test with no checkpoint skips; it does not fail the suite.
+- Use the same user bot, persona, and config as the full eval, defined once and
+  shared. A different user in the resume test exercises a different scenario.
+- Resume one unit at a time when a unit takes minutes. N units do not fit in
+  one budget just because the full eval eventually did.
+- If the checkpoint is missing because the failure predates it, extract the
+  typed input from the saved transcript or evidence when it is there;
+  otherwise add the checkpoint and take one full run to seed it.
+- Fix the cause, then re-run the smallest phase that proves it. Run the full
+  eval only when the small ones are green.
