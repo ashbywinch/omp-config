@@ -45,9 +45,9 @@ It does not run dynamic routes — no conditional, no fallback. Use it to valida
    body: `.../{gateway}/custom-{slug}/<path>`. This isolates key/base/model
    from route construction. Success here + failure in the route = the
    forced-path constraint, not your config.
-6. **Read the gateway log** (`GET .../logs`). The `path` field is the exact
-   upstream path the gateway used; `byok` says whether the key attached. Log
-   `path` is the client remainder, not proof of the final upstream URL.
+6. **Read the gateway log** (`GET .../logs`). `byok` says whether the key
+   attached. The `path` field is the client's remainder, not proof of the
+   upstream URL, so a logged 200 does not show which path the provider served.
 
 ## Route mechanics
 
