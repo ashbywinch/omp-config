@@ -19,9 +19,10 @@ API path segments like /v1" (the gateway appends the path itself).
   provider that serves at the forced path. A provider that does not can
   still be reached outside the gateway — the LiteLLM local chain calls
   them natively.
-The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`) appends
-everything after the slug to base_url — full path control — but does NOT run
-dynamic routes (no conditional, no fallback). Use it to validate a provider in
+The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`)
+appends everything after the slug to base_url, so it has full path control.
+It does not run dynamic routes — no conditional, no fallback. Use it to
+validate a provider in
 isolation before touching a route.
 
 ## Validation sequence (cheapest first)
@@ -77,17 +78,17 @@ token in the prompt.
 
 The plans serve at their own paths and cannot join a route. They still have
 value: the LiteLLM local chain (`skill://litellm-gateway`) calls them
-natively — LiteLLM sets the full URL, no forced path. If a plan model is
-also listed on a standard-path aggregator (e.g. OpenRouter carries
-`meta/muse-spark-1.3-contributor`), prefer the aggregator for route traffic
-and keep the plan for local traffic.
+natively — LiteLLM sets the full URL, no forced path. A plan model can also
+be listed on a standard-path aggregator (OpenRouter carries
+`meta/muse-spark-1.3-contributor`, for example). Prefer the aggregator for
+route traffic; keep the plan for local traffic.
 
 ## Model ids and catalog drift (OpenCode Zen Go worked example)
 
 - Custom-provider catalogs may use **bare model ids** (`deepseek-v4-flash`,
   `mimo-v2.5`) — vendor-prefixed ids (`deepseek/deepseek-v4-flash`) are
-  rejected with `Model ... is not supported`. Check the catalog:
-  `GET {base}/v1/models` is public for OpenCode Zen Go.
+  rejected with `Model ... is not supported`. The catalog is public for
+  OpenCode Zen Go: `GET {base}/v1/models`.
 - `DataPolicyError` (OpenCode) = the model requires the workspace opt-in
   (e.g. muse-spark contributors).
 - OpenCode Zen Go errors past the path fix: `MonthlyLimitError` (HTTP 401) —

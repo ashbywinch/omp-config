@@ -37,12 +37,11 @@ The text default for omp/Paseo agents runs through the LiteLLM local chain (`ski
           │  Auth: CLOUDFLARE_AIGATEWAY_TOKEN       │
           └────────────────┬────────────────────────┘
                            │
-              ┌───────────────────┴───────────────────┐
-              ▼                                       ▼
-        fallback2 (text)                       image (vision)
+                           ▼
+                 dynamic routes (see below)
 ```
 
-Route members are listed under "Route topology" below.
+Route names and their members are under "Route topology" below.
 
 ### Two env vars — single source of truth
 
@@ -112,11 +111,9 @@ provider whose endpoint differs is not added to a route.
   deepseek direct `deepseek-v4-flash`
 - `image` (vision): openrouter `z-ai/glm-4.6v`
 
-The former purpose-gating conditional and its path-rewrite Workers are
-gone: the z.ai Coding Plan and OpenCode Zen serve local harness traffic
-directly through LiteLLM (`skill://litellm-gateway`), which has no forced
-path. Route changes are versioned — redeploy an older `version_id` to
-roll back.
+The z.ai Coding Plan and OpenCode Zen serve local harness traffic directly
+through LiteLLM (`skill://litellm-gateway`), which has no forced path.
+Route changes are versioned — redeploy an older `version_id` to roll back.
 
 ## Timeouts and retries
 
