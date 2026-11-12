@@ -1,0 +1,121 @@
+name: PR auto-merge (reusable)
+
+# One copy of the arming and behind-branch refresh for every client repo. A
+# caller keeps a ten-line workflow:
+#
+#   on:
+#     pull_request:
+#     pull_request_review:
+#       types: [submitted]
+#     push:
+#       branches: [main]
+#     workflow_dispatch:
+#   jobs:
+#     automerge:
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#       uses: ashbywinch/omp-config/.github/workflows/pr-automerge.yml@v0.2.6
+#
+# The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled,
+# and a ruleset that requires one approving review plus the CI checks. This
+# workflow only sets the flag and refreshes stale branches; it never approves
+# or merges directly.
+#
+# Same-repo branches only: a fork PR has no write access to arm it, and should
+# not merge itself anyway.
+
+on:
+  workflow_call:
+    inputs:
+      merge_method:
+        description: merge, squash or rebase.
+        type: string
+        default: merge
+
+permissions:
+  contents: write        # update-branch
+  pull-requests: write   # enable auto-merge
+
+concurrency:
+  group: pr-automerge-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Arm auto-merge, or refresh approved PRs behind main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number || '' }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          DRAFT: ${{ github.event.pull_request.draft || false }}
+          MERGE_METHOD: ${{ inputs.merge_method || 'merge' }}
+        run: |
+          set -euo pipefail
+          case "$MERGE_METHOD" in
+            merge|squash|rebase) ;;
+            *) echo "invalid merge_method: $MERGE_METHOD" >&2; exit 1 ;;
+          esac
+
+          case "$EVENT" in
+            pull_request|pull_request_review)
+              if [ "$HEAD_REPO" != "$REPO" ]; then
+                echo "fork PR — not arming"; exit 0
+              fi
+              if [ "$DRAFT" = "true" ]; then
+                echo "draft PR — not arming"; exit 0
+              fi
+              # Idempotent: every push fires this, and an already-armed PR must
+              # not fail the job. `--jq` prints an EMPTY line for a null field.
+              armed=$(gh pr view "$PR" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest')
+              case "$armed" in
+                "" | null) : ;;
+                *)
+                  echo "auto-merge already armed"
+                  exit 0
+                  ;;
+              esac
+              # A branch behind main blocks the strict status check. BEHIND is
+              # mergeable-but-stale; a real conflict reports DIRTY/CONFLICTING
+              # and is not updated here.
+              state=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)
+              echo "merge state: $state"
+              if [ "$state" = "BEHIND" ]; then
+                if ! out=$(gh api -X PUT "repos/$REPO/pulls/$PR/update-branch" 2>&1); then
+                  echo "update-branch failed: $out" >&2
+                  exit 1
+                fi
+                echo "branch updated"
+              fi
+              gh pr merge "$PR" --repo "$REPO" --auto --"$MERGE_METHOD"
+              ;;
+            push|workflow_dispatch)
+              # A main merge produces no event on an open PR, so an approved PR
+              # can sit BEHIND forever. Refresh the branches that are ready to
+              # land: same-repo, non-draft, approved or already armed.
+              owner="${REPO%%/*}"
+              gh pr list --repo "$REPO" --state open --limit 100 \
+                --json number,isDraft,mergeStateStatus,reviewDecision,autoMergeRequest,headRepositoryOwner |
+              jq -r --arg owner "$owner" '
+                .[]
+                | select(.isDraft == false)
+                | select(.mergeStateStatus == "BEHIND")
+                | select(.headRepositoryOwner.login == $owner)
+                | select(.reviewDecision == "APPROVED" or .autoMergeRequest != null)
+                | .number
+              ' |
+              while read -r pr; do
+                [ -n "$pr" ] || continue
+                echo "updating #$pr"
+                gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
+              done
+              ;;
+            *)
+              echo "unsupported event: $EVENT" >&2
+              exit 1
+              ;;
+          esac
