@@ -1,8 +1,7 @@
 # Adding an AI provider to the gateway
 
-Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic route with the least
-trial-and-error. These lessons are empirical — they exist so a future agent does
-not re-derive them.
+Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic
+route.
 
 ## The one constraint that decides everything
 
@@ -20,8 +19,9 @@ API path segments like /v1" (the gateway appends the path itself).
   selection criterion, not an engineering problem. Pick a provider that serves
   at the forced path. A provider that does not can still be reached outside the
   gateway — the LiteLLM local chain calls them natively.
-- A Worker shim is not a bridge. Workers have CPU and runtime limits that a
-  streamed LLM response exceeds, so the shim dies mid-answer.
+- Nothing sits between the gateway and the provider to rewrite a path.
+  Cloudflare Workers cannot hold a streamed LLM answer open, so a path
+  rewrite there is not available either.
 The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`)
 appends everything after the slug to base_url, so it has full path control.
 It does not run dynamic routes — no conditional, no fallback. Use it to validate a provider in isolation before touching a route.
