@@ -1,15 +1,14 @@
 ---
 name: litellm-gateway
-description: LiteLLM proxy for Paseo/OMP — the local failover chain, the blue-green swap procedure, and rollback-first operations
+description: LiteLLM proxy for local model failover — the chain, the blue-green swap procedure, and rollback-first operations
 ---
 
 # LiteLLM gateway
 
 One local endpoint (`http://localhost:4000/v1`) belongs to LiteLLM, the local
-proxy for model failover. Clients (omp — the agent harness — and Paseo agents)
-ask for model `primary` — the alias the chain answers to; the proxy routes
-through the chain and fails over per request. Which clients use it, and what Cloudflare serves instead, is in
-`skill://cloudflare-ai-gateway`.
+proxy for model failover. A client asks for model `primary` — the alias the
+chain answers to; the proxy routes through the chain and fails over per
+request. Which gateway each client uses is in `skill://cloudflare-ai-gateway`.
 
 LiteLLM calls each model at the URL its config gives, so a provider serving at
 its own path is reachable here — z.ai's Coding Plan is the worked example. It
@@ -171,12 +170,12 @@ recovery that leaves the live head unrestored.
 
 ## Clients
 
-- omp/Paseo agents: the `litellm` provider entry and the role pointing at it
-  live in `~/.omp/agent/models.yml` and `~/.omp/agent/config.yml`.
+- Agent clients: the `litellm` provider entry and the role pointing at it live
+  in the client's own config (`~/.omp/agent/models.yml`, `~/.paseo/config.json`).
 - `designer`/`vision` roles and PR-Agent stay on Cloudflare — PR-Agent cannot
   reach localhost.
 
-### Paseo sessions pin their model — restarts never migrate them
+### Sessions pin their model — restarts never migrate them
 
 A session's model lives in `~/.paseo/agents/<worktree>/<agent>.json` and
 overrides the default in `~/.paseo/config.json`.

@@ -69,9 +69,8 @@ It does not run dynamic routes — no conditional, no fallback. Use it to valida
 
 - A model node's `fallback` output fires on non-2xx status or timeout.
 - **200-with-error-body bypasses the cascade** — providers billed by
-  subscription plan do this. Standard pay-per-token APIs return real status
-  codes, which is one more reason the routes only carry them. Do not add a provider that returns
-  errors as HTTP 200 to a route. The cascade will not fire.
+  subscription plan do this. Do not add a provider that returns errors as
+  HTTP 200 to a route. The cascade will not fire.
 - Failed intermediate nodes are NOT logged separately — logs show only the
   final serving provider. A missing log entry does not mean "not attempted".
 
