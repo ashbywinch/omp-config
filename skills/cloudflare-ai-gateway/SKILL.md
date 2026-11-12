@@ -106,8 +106,6 @@ Two routes serve traffic: `fallback2` (text) and `image` (vision). Their
 members, model ids, timeouts and retries are the live configuration. Read them
 from the routes API above.
 
-The z.ai Coding Plan and OpenCode Zen serve local harness traffic directly
-through LiteLLM (`skill://litellm-gateway`), which has no forced path.
 Route changes are versioned; `references/adding-providers.md` has the
 rollback step.
 

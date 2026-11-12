@@ -11,11 +11,10 @@ ask for model `primary`; the proxy routes through the chain and fails over per
 request. Which clients use it, and what Cloudflare serves instead, is in
 `skill://cloudflare-ai-gateway`.
 
-LiteLLM sets each model's full URL, so a provider whose path does not fit
-Cloudflare's forced `/v1/chat/completions` works here — z.ai's Coding Plan is
-the worked example. It is local: PR-Agent, remote apps and evaluations that
-run off this machine use Cloudflare instead, because they cannot reach
-`localhost`.
+LiteLLM calls each model at the URL its config gives, so a provider serving at
+its own path is reachable here — z.ai's Coding Plan is the worked example. It
+is local: PR-Agent (the automated PR review bot), remote apps and evaluations
+use Cloudflare instead, because they cannot reach `localhost`.
 
 ## Where the originals live
 

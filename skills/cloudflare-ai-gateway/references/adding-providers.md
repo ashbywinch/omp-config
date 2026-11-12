@@ -81,12 +81,11 @@ token in the prompt.
 
 ## Non-standard-path providers (z.ai Coding Plan, OpenCode Zen)
 
-The plans serve at their own paths and cannot join a route. They still have
-value: the LiteLLM local chain (`skill://litellm-gateway`) calls them
-natively — LiteLLM sets the full URL, no forced path. A plan model can also
-be listed on a standard-path aggregator (OpenRouter carries
+The plans serve at their own paths and cannot join a route. A plan model can
+also be listed on a standard-path aggregator (OpenRouter carries
 `meta/muse-spark-1.3-contributor`, for example). Prefer the aggregator for
-route traffic; keep the plan for local traffic.
+route traffic. For local traffic, `skill://litellm-gateway` reaches the plan
+directly.
 
 ## Model ids and catalog drift (OpenCode Zen Go worked example)
 
