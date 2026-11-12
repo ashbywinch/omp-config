@@ -13,8 +13,7 @@ request. Which clients use it, and what Cloudflare serves instead, is in
 
 LiteLLM calls each model at the URL its config gives, so a provider serving at
 its own path is reachable here — z.ai's Coding Plan is the worked example. It
-is local: PR-Agent (the automated PR review bot), remote apps and evaluations
-use Cloudflare instead, because they cannot reach `localhost`.
+serves only workloads on this machine.
 
 ## Where the originals live
 
