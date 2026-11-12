@@ -89,7 +89,8 @@ Gateway settings are source-of-truth in Cloudflare — query them, don't hardcod
 ### Dynamic routes
 
 A dynamic route is a named route the gateway evaluates per request: it holds
-model entries in order, and the first that answers serves the request.
+model entries in order, and the first that answers serves the request. An entry
+names a provider and a model, with a timeout and a retry count.
 Routes, providers, model names, and timeouts are configured in Dashboard → AI → AI Gateway → `{gateway}` → Dynamic Routing. Query the current state via the admin API (see `skill://cloudflare-ai-gateway-analytics` for auth):
 
 ```bash
@@ -144,7 +145,8 @@ The local proxy adds these headers to every request. PR-Agent in GitHub Actions 
 The proxy exists for two reasons:
 
 1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged
-   by `omp-yolo.sh`) and injects `cf-aig-metadata: {"source":"agent","repo":"<name>"}`. Without the proxy, every request would show as
+   by `omp-yolo.sh`) and injects the per-request metadata header
+   `cf-aig-metadata: {"source":"agent","repo":"<name>"}`. Without the proxy, every request would show as
    coming from "unknown". `source` names the caller (`agent`, `review`); routes
    are unconditional, so no tag selects one.
 
