@@ -5,9 +5,8 @@ route (`skill://cloudflare-ai-gateway`, "Dynamic routes").
 
 ## The one constraint that decides everything
 
-**A dynamic-route model node** — one provider and model the route can try —
-**calls its provider at the FORCED OpenAI path `{origin}/v1/chat/completions`**;
-the base_url path is not used. Cloudflare
+**A dynamic-route model node calls its provider at the FORCED OpenAI path
+`{origin}/v1/chat/completions`**; the base_url path is not used. Cloudflare
 docs: "base_url should contain only the provider's root domain. Do not include
 API path segments like /v1" (the gateway appends the path itself).
 

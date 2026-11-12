@@ -88,13 +88,13 @@ Gateway settings are source-of-truth in Cloudflare — query them, don't hardcod
 
 ### Dynamic routes
 
-A dynamic route is a named route the gateway evaluates per request: it holds
-model entries in order, and the first that answers serves the request. An entry
-names a provider and a model, with a timeout and a retry count.
+A dynamic route is a named route the gateway evaluates per request: it walks
+its model nodes — one provider and model each, with a timeout and a retry
+count — in order, and the first that answers serves the request.
 Routes, providers, model names, and timeouts are configured in Dashboard → AI → AI Gateway → `{gateway}` → Dynamic Routing. Query the current state via the admin API (see `skill://cloudflare-ai-gateway-analytics` for auth):
 
 ```bash
-# List routes (returns current model entries, providers, timeouts, retries)
+# List routes (returns current model nodes, providers, timeouts, retries)
 curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai-gateway/gateways/$GATEWAY/routes" \
   -H "Authorization: Bearer $CLOUDFLARE_AIGATEWAY_ADMIN_TOKEN"
 ```
@@ -120,16 +120,16 @@ rollback step.
 
 ### What we know
 
-**Model entry timeout** — each model entry on a dynamic route has a single `timeout` property. The docs say "Request timeout in milliseconds". The entry fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
+**Model node timeout** — each model node on a dynamic route has a single `timeout` property. The docs say "Request timeout in milliseconds". The node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 
-**Disable Cloudflare-side retries** (`retries: 0` on the model entries, `cf-aig-max-attempts: 0` on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
+**Disable Cloudflare-side retries** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
 
 
 ### cf-aig-* headers
 
-Per-request headers that override the model entry's settings:
+Per-request headers that override the model node's settings:
 
 | Header | Purpose |
 |---|---|
