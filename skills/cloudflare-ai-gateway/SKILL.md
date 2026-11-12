@@ -104,8 +104,8 @@ Which providers may join a route, and why, is in
 `references/adding-providers.md`.
 
 Two routes serve traffic: `fallback2` (text) and `image` (vision). Their
-members, model ids, timeouts and retries are the live configuration — read
-them from the routes API above. This file does not restate them.
+members, model ids, timeouts and retries are the live configuration. Read them
+from the routes API above.
 
 The z.ai Coding Plan and OpenCode Zen serve local harness traffic directly
 through LiteLLM (`skill://litellm-gateway`), which has no forced path.
