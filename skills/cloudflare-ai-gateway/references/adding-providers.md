@@ -13,8 +13,9 @@ API path segments like /v1" (the gateway appends the path itself).
 
 - Provider serves OpenAI chat completions at exactly `{origin}/v1/chat/completions`
   → a route node works directly.
-- Provider path differs (z.ai: `/api/coding/paas/v4/chat/completions`;
-  opencode-go: `/zen/go/v1`) → the provider CANNOT be onboarded to a route.
+- Provider path differs (z.ai — the GLM Coding Plan provider:
+  `/api/coding/paas/v4/chat/completions`; opencode-go — the OpenCode Zen Go
+  gateway: `/zen/go/v1`) → the provider CANNOT be onboarded to a route.
   This is a selection criterion, not an engineering problem. Pick a
   provider that serves at the forced path. A provider that does not can
   still be reached outside the gateway — the LiteLLM local chain calls

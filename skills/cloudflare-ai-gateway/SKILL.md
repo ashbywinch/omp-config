@@ -5,7 +5,7 @@ description: Cloudflare AI Gateway configuration for Paseo/OMP — setup, proxy 
 
 # Cloudflare AI Gateway
 
-Routes AI API calls for remote clients (PR-Agent, evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer. The current routes and their members are under "Route topology" below.
+Routes AI API calls for remote clients (PR-Agent — the automated PR review bot — evals, apps) through Cloudflare AI Gateway. Every provider on a route serves at the forced `/v1/chat/completions` path — there is no rewriting layer. The current routes and their members are under "Route topology" below.
 
 The text default for omp/Paseo agents runs through the LiteLLM local chain (`skill://litellm-gateway`), which serves the z.ai Coding Plan and OpenCode Zen natively. Cloudflare serves PR-Agent (GitHub Actions cannot reach localhost), vision, and evals/apps, and stays configured as the manual rollback. Per-repo analytics tagging via local proxy.
 
