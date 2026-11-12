@@ -1,8 +1,8 @@
 # Adding an AI provider to the gateway
 
 Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic
-route — a named route the gateway evaluates per request to choose among its
-model nodes.
+route — a named route the gateway evaluates per request, walking its model
+nodes (one provider and model each) until one answers.
 
 ## The one constraint that decides everything
 
@@ -19,7 +19,8 @@ API path segments like /v1" (the gateway appends the path itself).
 - A provider whose path differs cannot be onboarded to a route. This is a
   selection criterion, not an engineering problem. Pick a provider that serves
   at the forced path. A provider that does not can still be reached outside the
-  gateway — the LiteLLM local chain calls them natively.
+  gateway: an aggregator for route traffic, or `skill://litellm-gateway`
+  locally.
 - Nothing sits between the gateway and the provider to rewrite a path.
   Cloudflare Workers cannot hold a streamed LLM answer open, so a path
   rewrite there is not available either.
@@ -67,9 +68,9 @@ It does not run dynamic routes — no conditional, no fallback. Use it to valida
 ## Fail-back semantics (read before trusting a cascade)
 
 - A model node's `fallback` output fires on non-2xx status or timeout.
-- **200-with-error-body bypasses the cascade** — a plan-provider pathology.
-  Standard pay-per-token APIs return real status codes, which is one more
-  reason the routes only carry them. Do not add a provider that returns
+- **200-with-error-body bypasses the cascade** — providers billed by
+  subscription plan do this. Standard pay-per-token APIs return real status
+  codes, which is one more reason the routes only carry them. Do not add a provider that returns
   errors as HTTP 200 to a route. The cascade will not fire.
 - Failed intermediate nodes are NOT logged separately — logs show only the
   final serving provider. A missing log entry does not mean "not attempted".
@@ -85,8 +86,7 @@ token in the prompt.
 The plans serve at their own paths and cannot join a route. A plan model can
 also be listed on a standard-path aggregator (OpenRouter carries
 `meta/muse-spark-1.3-contributor`, for example). Prefer the aggregator for
-route traffic. For local traffic, `skill://litellm-gateway` reaches the plan
-directly.
+route traffic.
 
 ## Model ids and catalog drift (OpenCode Zen Go worked example)
 

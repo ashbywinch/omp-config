@@ -12,8 +12,8 @@ carry is decided by the forced-path constraint in
 under "Route topology" below.
 
 Local harness traffic has its own chain (`skill://litellm-gateway`); vision
-goes to Cloudflare. The gateway also stays configured as the manual rollback,
-and the local proxy handles per-repo analytics tagging.
+goes to Cloudflare. The gateway also stays configured as the manual rollback.
+The local proxy handles per-repo analytics tagging.
 
 ## Architecture
 
