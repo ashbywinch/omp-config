@@ -60,8 +60,7 @@ isolation before touching a route.
 
 ## Fail-back semantics (read before trusting a cascade)
 
-- A model node's `fallback` output fires on non-2xx status or timeout. Proven:
-  z.ai returning 404 → cascade → deepseek served.
+- A model node's `fallback` output fires on non-2xx status or timeout.
 - **200-with-error-body bypasses the cascade** — a plan-provider pathology.
   Standard pay-per-token APIs return real status codes, which is one more
   reason the routes only carry them.

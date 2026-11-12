@@ -39,10 +39,10 @@ The text default for omp/Paseo agents runs through the LiteLLM local chain (`ski
                            │
               ┌───────────────────┴───────────────────┐
               ▼                                       ▼
-   fallback2 (text): Muse Spark 1.3 →       image (vision):
-   DeepSeek V4 Flash (OpenRouter) →         z-ai/glm-4.6v
-   DeepSeek direct                          (OpenRouter)
+        fallback2 (text)                       image (vision)
 ```
+
+Route members are listed under "Route topology" below.
 
 ### Two env vars — single source of truth
 
@@ -122,7 +122,7 @@ roll back.
 
 ### What we know
 
-**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". The model node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above) — don't hardcode them here.
+**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". The model node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 
@@ -149,7 +149,7 @@ The proxy exists for two reasons:
    would show as coming from "unknown". (The purpose field no longer
    selects a route branch — routes are unconditional cascades.)
 
-2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml` (which we confirmed works). The proxy covers local OMP sessions.
+2. **Timeout/retry header injection** — the proxy adds `cf-aig-request-timeout`, `cf-aig-max-attempts`, and `cf-aig-backoff` headers to every forwarded request. The PR-Agent in GitHub Actions needs these headers set via `[litellm] extra_headers` in `.pr_agent.toml`. The proxy covers local OMP sessions.
 
 The proxy is NOT needed for:
 - Provider failover (handled by Cloudflare's dynamic route)
