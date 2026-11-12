@@ -116,13 +116,14 @@ The former purpose-gating conditional and its path-rewrite Workers are
 gone: the z.ai Coding Plan and OpenCode Zen serve local harness traffic
 directly through LiteLLM (`skill://litellm-gateway`), which has no forced
 path. Route changes are versioned — redeploy an older `version_id` to
-roll back (versions preceding 2026-09-06 are the shim-era cascades).
+roll back. The earliest versions are the shim-era cascades and are not a
+fallback: they expect the Workers that no longer exist.
 
 ## Timeouts and retries
 
 ### What we know
 
-**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". The model node fails at the timeout, so leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above) — don't hardcode them here.
+**Model node timeout** — the Cloudflare dynamic route's model node has a single `timeout` property. The docs say "Request timeout in milliseconds". The model node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above) — don't hardcode them here.
 
 **`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). We confirmed the gateway recognizes it (14s test returned 200).
 

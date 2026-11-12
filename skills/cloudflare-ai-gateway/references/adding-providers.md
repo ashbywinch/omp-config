@@ -99,11 +99,11 @@ and keep the plan for local traffic.
 - Coding Plan OpenAI-compatible endpoint:
   `https://api.z.ai/api/coding/paas/v4/chat/completions`. Only `glm-5.3` and
   `glm-5.3-flash` are callable on the plan.
-- Error formats you will see: auth `{"error":{"code":"1001"|"1000",...}}`;
-  `{"code":1001,"msg":...,"success":false}` (HTTP 200 on some paths);
-  `{"code":500,"msg":"404 NOT_FOUND"}` (a path missing inside their service);
-  Spring `{"timestamp":...,"path":"/v1/chat/completions"}` — that `path` is
-  context-relative, not the upstream path; do not misread it.
+- Error formats you will see. Auth errors: `{"error":{"code":"1001"|"1000",...}}`.
+  Quota and permission errors: `{"code":1001,"msg":...,"success":false}` (HTTP
+  200 on some paths). A service-side path miss: `{"code":500,"msg":"404
+  NOT_FOUND"}`. Spring-shaped errors carry `{"timestamp":...,"path":...}`.
+  Read that `path` as context-relative — it is not the upstream path.
 - The Coding Plan is restricted to officially supported tools (Pi included);
   unsupported-tool traffic risks throttling, then account ban after 3
   violations. Requests should carry the harness identity the provider expects.
