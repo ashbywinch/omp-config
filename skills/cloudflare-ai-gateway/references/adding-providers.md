@@ -13,13 +13,13 @@ API path segments like /v1" (the gateway appends the path itself).
 
 - Provider serves OpenAI chat completions at exactly `{origin}/v1/chat/completions`
   → a route node works directly.
-- Provider path differs (z.ai — the GLM Coding Plan provider:
-  `/api/coding/paas/v4/chat/completions`; opencode-go — the OpenCode Zen Go
-  gateway: `/zen/go/v1`) → the provider CANNOT be onboarded to a route.
-  This is a selection criterion, not an engineering problem. Pick a
-  provider that serves at the forced path. A provider that does not can
-  still be reached outside the gateway — the LiteLLM local chain calls
-  them natively.
+- Provider path differs (z.ai — the GLM (General Language Model) Coding Plan
+  provider: `/api/coding/paas/v4/chat/completions`; opencode-go — the OpenCode
+  Zen Go gateway: `/zen/go/v1`).
+- A provider whose path differs cannot be onboarded to a route. This is a
+  selection criterion, not an engineering problem. Pick a provider that serves
+  at the forced path. A provider that does not can still be reached outside the
+  gateway — the LiteLLM local chain calls them natively.
 The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`)
 appends everything after the slug to base_url, so it has full path control.
 It does not run dynamic routes — no conditional, no fallback. Use it to
