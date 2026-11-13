@@ -32,7 +32,13 @@ Language-agnostic by design; per-language toolchain conventions (ruff, eslint, f
   class owns the collection's invariants, the record is the thing itself.
   **No module-level mutable state and no `global`** — put state in a class
   named for the domain concept it represents (`_APIState`,
-  `_GeocodeRateLimit`), never the pattern name (`_MutableState`).
+  `_GeocodeRateLimit`), never the pattern name (`_MutableState`). The same
+  goes for a named measure. A module-level constant lives on the class that
+  owns the work it measures, privately (`ClassName._MEASURE`) unless
+  another module reads it. A helper that operates on that class's data
+  is its method. A pure helper with one reader keeps its measure local to
+  the function. A holder class invented to wrap one number is the ceremony
+  this rule exists to avoid.
 - **Groups that travel together are a type — never repeated parallel
   parameters.** The same set of fields passed to several functions is one
   object: `assess(people, places, themes, items)` repeated across callers is
