@@ -29,7 +29,7 @@ description: |
 A job you want a completion report for is tracked and not detached
 (`skill://background-jobs`). A service the user depends on is supervised and
 detached, with a ready condition. Do not promise a completion report for a
-service; it is meant to keep running.
+service. It is meant to keep running.
 
 ## Project launch specs
 

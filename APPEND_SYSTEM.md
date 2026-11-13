@@ -83,6 +83,6 @@ mystery.
 ## Long-running commands
 
 Use `skill://background-jobs` for any long-running command whose completion
-you intend to report. The one rule worth repeating: never detach it with
-`setsid`, `nohup`, or `&` — the harness notifies you when the command it
-launched exits, not when a detached child exits.
+you intend to report. Never detach it with `setsid`, `nohup`, or `&`. The
+harness notifies you when the command it launched exits, not when a detached
+child exits.
