@@ -25,9 +25,10 @@ API path segments like /v1" (the gateway appends the path itself).
 - Nothing sits between the gateway and the provider to rewrite a path.
   Cloudflare Workers cannot hold a streamed LLM answer open, so a path
   rewrite there is not available either.
-The **provider-specific endpoint** (`.../{gateway}/custom-{slug}/<path>`)
-appends everything after the slug to base_url, so it has full path control.
-It does not run dynamic routes — no conditional, no fallback. Use it to validate a provider in isolation before touching a route.
+The **provider-specific endpoint** — the URL `.../{gateway}/custom-{slug}/<path>`,
+which appends everything after the slug to base_url and so has full path
+control — does not run dynamic routes: no conditional, no fallback. Use it to
+validate a provider in isolation before touching a route.
 
 ## Validation sequence (cheapest first)
 

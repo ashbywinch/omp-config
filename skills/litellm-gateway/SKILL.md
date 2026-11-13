@@ -48,7 +48,7 @@ install, then operate.
 ```
 
 Service: `litellm.service` (systemd --user); `ExecStart` sources `~/.secrets` —
-the single secret store, so there is no `EnvironmentFile` — and serves
+the one file holding the keys, so there is no `EnvironmentFile` — and serves
 `config.current.yaml`.
 
 ## Sides and the live side
