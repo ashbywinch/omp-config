@@ -35,12 +35,10 @@ on:
   # (workflow_dispatch) when that happens.
   check_suite:
     types: [completed]
-  # Actions raises no check_suite event for its own workflows, and a job that
-  # comes from a reusable workflow raises none at all — the PR then sits green
-  # and unmerged until someone clicks. `workflow_run` is the signal that actually
-  # arrives when a check finishes; check_suite stays for other Apps' checks.
-  workflow_run:
-    types: [completed]
+  # No `workflow_run` here: this file is called as a reusable workflow, and a
+  # bare workflow_run trigger with no `workflows:` list makes the whole call
+  # invalid ("does not reference any workflows"). The caller owns that trigger;
+  # this job only has to read the event it is handed.
   status: {}
   workflow_dispatch:
 
