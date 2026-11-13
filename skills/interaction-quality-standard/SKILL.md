@@ -22,7 +22,7 @@ are `followup_ref` and the document link.
 | Title / summary (Notion) | what happened, in one line | the conclusion |
 | Related to Epics | the epic this belongs to | a value stream, or a guess at a future epic |
 | Task | the task carrying an action arising from this row | an unrelated task |
-| Contact | the person or organisation, as the record names them — empty only for a `note`, which has no counterparty | a phone label taken as a fact |
+| Contact | the person or organisation, as the record names them — empty only for a `note`, the channel for something addressed to the record rather than to a person | a phone label taken as a fact |
 | Contact reference | `phone:<number>` where the number resolves on the phone but not in the address book | a number that is in the address book |
 | Contact id | `account:people/<id>` when the counterparty is in Google Contacts; optional — a one-off has none | a name the session invented |
 | From / To | the participants as the source shows them | a guess at who spoke first, or what they meant |
