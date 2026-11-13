@@ -71,6 +71,13 @@ jobs:
         with:
           app-id: ${{ inputs.app_id }}
           private-key: ${{ secrets.app_private_key }}
+          # Least privilege: the installation may cover more repos and
+          # permissions; the token is narrowed to this repo and the two writes
+          # this workflow performs.
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
       - name: Arm auto-merge, or refresh approved PRs behind main
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
