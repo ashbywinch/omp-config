@@ -141,22 +141,19 @@ gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs \
   | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'{s[\"name\"]}: {s[\"status\"]}') for j in d['jobs'] for s in j['steps']]"
 ```
 
-If the AI review is still running after 10+ minutes with no step-level progress for 5+ minutes, something may actually be stuck. Investigate before cancelling.
+**Investigate a stalled review before cancelling it.** A review still running after 10 minutes, with no step-level progress for 5, has something stuck behind it.
 
 **Read the logs from the REST endpoint, not the CLI.** `gh run view <run-id>
 --log` prints nothing at all for some runs — re-runs, and jobs that failed
 inside a step — while the logs exist and are complete. The endpoint that always
-serves them returns a zip:
+serves them returns a zip; fetch and unpack it with
+`skill://pr-workflow/scripts/fetch-run-logs.sh <owner/repo> <run-id>`, then read
+the failing step's file.
 
-```bash
-curl -sL -H "Authorization: token $(gh auth token)" \
-  https://api.github.com/repos/<owner>/<repo>/actions/runs/<run-id>/logs -o logs.zip
-unzip -o -q logs.zip -d logs && ls logs     # then read the failing step's file
-```
-
-An empty `gh` result is not evidence of a missing log, and never a reason to
-conclude "no logs, so I cannot tell why". Say what you found, or fetch the zip
-and read it.
+**Empty CLI output is not a missing log.** An empty `gh` result says nothing
+about whether the log exists. Reporting "no logs, so I cannot tell why" without
+trying the zip endpoint is a finding: say what you found, or fetch the zip and
+read it.
 
 ### 5a. Never resolve someone else's thread
 
