@@ -16,8 +16,8 @@ A transcript is text. The harness's state is a call stack plus typed objects:
 the phase that follows a conversation takes the conversation's *result*, not
 its words. A replay therefore repeats every earlier phase and pays for it
 again. Checkpoint the result instead, and start the phase that failed from it.
-If the failure is inside a phase, restart that phase from its input; the
-conversation it runs is fresh, as the next run's would be.
+If the failure is inside a phase, restart that phase from its input. The
+conversation it runs is then fresh, as the next run's would be.
 
 ## When to checkpoint
 
@@ -34,7 +34,7 @@ otherwise force a full rerun.
 ## What to save
 
 Save the phase's input and the names of its units. Never save the message
-history: the conversation is the previous phase's implementation detail; the
+history. The conversation is the previous phase's implementation detail; the
 typed input is the contract between phases.
 
 Write the checkpoint before the assertion that can fail. A failed run then
