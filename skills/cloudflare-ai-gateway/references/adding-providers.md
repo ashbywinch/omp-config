@@ -1,17 +1,19 @@
 # Adding an AI provider to the gateway
 
-Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare dynamic
-route (`skill://cloudflare-ai-gateway`, "Dynamic routes").
+Goal: wire a new provider (BYOK — bring your own key) into a Cloudflare
+[dynamic route](https://developers.cloudflare.com/ai-gateway/features/routing/dynamic-routing/)
+(`skill://cloudflare-ai-gateway`, "Dynamic routes").
 
 ## The one constraint that decides everything
 
-**A dynamic-route model node calls its provider at the FORCED OpenAI path
-`{origin}/v1/chat/completions`**; the base_url path is not used. Cloudflare
+**A dynamic-route [model node](https://developers.cloudflare.com/ai-gateway/features/routing/dynamic-routing/)
+calls its provider at the FORCED OpenAI path `{origin}/v1/chat/completions`**;
+the base_url path is not used. Cloudflare
 docs: "base_url should contain only the provider's root domain. Do not include
 API path segments like /v1" (the gateway appends the path itself).
 
 - Provider serves OpenAI chat completions at exactly `{origin}/v1/chat/completions`
-  → a route node works directly.
+  → a model node works directly.
 - Provider path differs (z.ai — the GLM (General Language Model) Coding Plan
   provider: `/api/coding/paas/v4/chat/completions`; opencode-go — the OpenCode
   Zen Go gateway: `/zen/go/v1`).

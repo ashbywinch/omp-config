@@ -87,9 +87,10 @@ Gateway settings are source-of-truth in Cloudflare — query them, don't hardcod
 
 ### Dynamic routes
 
-A dynamic route is a named route the gateway evaluates per request. It walks
-its model nodes in order — one provider and model each, with a timeout and a
-retry count — and the first that answers serves the request.
+A [dynamic route](https://developers.cloudflare.com/ai-gateway/features/routing/dynamic-routing/)
+is a named route the gateway evaluates per request. It walks its model nodes in
+order — one provider and model each, with a timeout and a retry count — and the
+first that answers serves the request.
 
 Routes, providers, model names, and timeouts are configured in Dashboard → AI → AI Gateway → `{gateway}` → Dynamic Routing. Query the current state via the admin API (see `skill://cloudflare-ai-gateway-analytics` for auth):
 
@@ -105,7 +106,9 @@ Route names are referenced in config as `dynamic/{route-name}`. If a route is re
 
 Stored in Dashboard → AI → AI Gateway → `{gateway}` → Provider Keys. Uses BYOK (Bring Your Own Key). Provider slugs are visible in the API route listing above (`custom-*` prefix for custom providers).
 
-Adding a key via the dashboard creates the Secrets Store secret `{gateway}_{slug}_{alias}` automatically. The API path needs Secrets Store Write plus a pre-created secret. Use the dashboard unless you hold that scope.
+Adding a key via the dashboard creates the
+[Secrets Store](https://developers.cloudflare.com/secrets-store/) secret
+`{gateway}_{slug}_{alias}` automatically. The API path needs Secrets Store Write plus a pre-created secret. Use the dashboard unless you hold that scope.
 
 #### Route topology
 
@@ -122,14 +125,16 @@ rollback step.
 
 **Model node timeout** — each model node on a dynamic route has a single `timeout` property. The docs say "Request timeout in milliseconds". The node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
 
-**`cf-aig-request-timeout` header** — documented as first-byte timeout ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
+**`cf-aig-request-timeout` header** ([Cloudflare docs](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/)) — the timeout is the time to first byte ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 
-**Disable Cloudflare-side retries** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
+**Disable Cloudflare-side retries** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's
+headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
 
 
 ### cf-aig-* headers
 
-Per-request headers that override the model node's settings:
+Per-request headers that override the model node's settings ([Request
+handling](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/)):
 
 | Header | Purpose |
 |---|---|
@@ -146,7 +151,8 @@ The proxy exists for two reasons:
 
 1. **Per-repo analytics tagging** — the proxy reads the repo name (tagged by
    `omp-yolo.sh`) and attaches the gateway's per-request metadata header,
-   `cf-aig-metadata`, carrying `{"source":"agent","repo":"<name>"}`. Without
+   [`cf-aig-metadata`](https://developers.cloudflare.com/ai-gateway/observability/custom-metadata/),
+   carrying `{"source":"agent","repo":"<name>"}`. Without
    the proxy, every request would show as coming from "unknown". `source` names
    the caller (`agent`, `review`); routes are unconditional, so no tag selects
    one.
