@@ -23,7 +23,8 @@ conversation it runs is then fresh, as the next run's would be.
 
 Add a checkpoint only when all three hold.
 
-- The phase is expensive — minutes, many tokens, or many independent units.
+- The phase is expensive — minutes, many tokens, or many independent units
+  (the cases the phase runs).
 - Its input is a typed object (a spec, a list of cases, a config), not the chat.
 - The phase can run on that input alone.
 
@@ -59,8 +60,8 @@ resume test is for iteration, not a replacement for the gate.
 - The checkpoint is a dev aid. It must never let the gate pass on a partial
   build. The end-to-end test still asserts that every unit succeeded.
 - A resume test with no checkpoint skips; it does not fail the suite.
-- Use the same simulated user, persona, and model config as the full eval,
-  defined once and shared. A different user in the resume test exercises a
+- Use the same simulated user (the bot that plays the user), persona, and
+  model config as the full eval, defined once and shared. A different user in the resume test exercises a
   different scenario.
 - Resume one unit at a time when a unit takes minutes. Several units do not
   fit one time budget just because the full eval eventually did.
