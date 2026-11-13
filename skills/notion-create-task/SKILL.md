@@ -33,12 +33,12 @@ Set these properties:
 - **Status**: Ready
 - **Related to Epics**: Link to parent Epic (relation)
 - **Desired Outcome**: Rich text
-- **Dependencies**: Any prerequisite task IDs
+- **Depends on**: prerequisite task ids, as a relation — the reverse, `Blocking`, is populated by Notion
 - **Related Business Goal**: Epic's strategic objective
 
 ### 4. Validate
 - [ ] Task appears in Epic's Related Tasks view
 - [ ] All required fields populated per `skill://task-quality-standard`
-- [ ] Dependencies explicitly documented
+- [ ] `Depends on` explicitly documented
 - [ ] Success criteria are objective and measurable
 - [ ] Task is immediately executable

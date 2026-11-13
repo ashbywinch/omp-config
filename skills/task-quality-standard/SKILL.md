@@ -19,7 +19,7 @@ something else on Wednesday cannot be completed, scheduled, or chased as one thi
 | Status | select | Draft, Ready, In Progress, Completed or Superseded — defined directly below |
 | Related to Epics (Related Tasks) | relation | Links to the parent Epic |
 | Desired Outcome | rich_text | Specific deliverable, e.g. "Execute [skill/plan] to create [artifact]" |
-| Dependencies | relation | Prerequisite task IDs |
+| Depends on | relation | Prerequisite task IDs (the reverse side, `Blocking`, is Notion's) |
 | Related Business Goal | rich_text | Strategic context from the Epic |
 | Relevant Deadlines | date | Target completion timeline |
 | Scope Boundaries | (in task body) | Explicit inclusions and exclusions |
@@ -83,7 +83,7 @@ it from what was said is how the same error gets made twice.
 - [ ] Parent Epic is linked via "Related to Epics"
 - [ ] Desired Outcome is specific and measurable
 - [ ] Desired Outcome states the purpose the user gave — not one inferred from the title
-- [ ] Dependencies are explicitly documented (or empty if none)
+- [ ] `Depends on` is explicitly documented (or empty if none)
 - [ ] Success criteria are objective, not subjective
 - [ ] When scheduled on the calendar, the event description must include the task's Notion ID
 - [ ] Task is immediately executable without clarification
