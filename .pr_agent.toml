@@ -42,7 +42,12 @@ handle_push_trigger = true
 # Don't skip push synchronize events from bot senders: omp-harness's
 # commits get the same review as human ones.
 push_trigger_ignore_bot_commits = false
-push_commands = ["/review", "/improve"]
+push_commands = ["/review"]
+# Code suggestions are off. /improve is what runs them, and on a large diff it
+# failed with EmptyTruncatedResponseError (finish_reason: length); the guard then
+# failed the whole review for a missing suggestions table. The review and its
+# findings are the part that matters.
+
 
 [litellm]
 extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"omp-config\"}"}'
