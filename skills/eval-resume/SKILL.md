@@ -56,7 +56,7 @@ resume test is for iteration, not a replacement for the gate.
 ## Rules
 
 - The checkpoint is a dev aid. It must never let the gate pass on a partial
-  build; the end-to-end test still asserts that every unit succeeded.
+  build. The end-to-end test still asserts that every unit succeeded.
 - A resume test with no checkpoint skips; it does not fail the suite.
 - Use the same simulated user, persona, and model config as the full eval,
   defined once and shared. A different user in the resume test exercises a
