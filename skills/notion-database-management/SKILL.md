@@ -34,6 +34,9 @@ The general rule is APPEND_SYSTEM.md "External Writes" — apply it to every cre
 | Insights | `20d3122e-1a13-8110-b1c2-fa15ecadde25` |
 | Value Streams | `20d3122e-1a13-81be-8412-e536c02f77d4` |
 | Missions | `20d3122e-1a13-8147-9b53-c6c04bd99926` |
+| Interactions | `39421937-7c0f-48ff-97ff-0be14449ed20` |
+| Documents | `f51c16fa-1f84-4b68-83f3-c1e95f53ea82` |
+| Admin desk | `3a48f026-231b-444a-9131-d0a130979c66` |
 
 ## Query Patterns
 
@@ -140,7 +143,7 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **Moving an item between pages** (e.g. re-parenting an insight or task): write the CHILD side only — the dual sync updates both parents (new parent gains, old parent drops). Verify both parents' child-side arrays after; if one is stale, repair it by re-asserting the child-side link (which re-triggers the sync) — never write the parent array directly.
 
-**Dependencies**: live in the dedicated `Dependencies` relation field on Epics. Value Streams should have one too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
+**Dependencies** live at two levels. Epics: the `Dependencies` relation, for epic-to-epic sequencing. Tasks: `Depends on` (task → task, reverse `Blocking`) and `Depends on epic` (task → epic, reverse `Blocking tasks`) — a task blocked by an epic completion uses the second, never a sentence. Value Streams should have a `Dependencies` relation too — flag it if the schema lacks it. Never store dependencies in Processing Notes; an insight-level dependency surfaces when its epic or task is created.
 
 **Parent links** (`Parent Epic`, `Parent Value Stream` on a child page): single-value, written fresh on the child. The dual-property sync populates the parent's child-side field (`Child Epics` / `Child Value Streams`) automatically — write the child side, verify both sides, never hand-maintain the parent's child field.
 

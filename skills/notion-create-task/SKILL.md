@@ -34,6 +34,7 @@ Set these properties:
 - **Related to Epics**: Link to parent Epic (relation)
 - **Desired Outcome**: Rich text
 - **Depends on**: prerequisite task ids, as a relation — the reverse, `Blocking`, is populated by Notion
+- **Depends on epic**: the epic that must finish first, where the block is the epic itself — the reverse, `Blocking tasks`, is populated by Notion
 - **Related Business Goal**: Epic's strategic objective
 
 ### 4. Validate

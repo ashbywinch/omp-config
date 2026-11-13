@@ -21,7 +21,7 @@ Execute a defined Task systematically with quality gates.
 Read the task page in Notion (see `skill://notion-database-management`). Review deliverables, success criteria, dependencies.
 
 ### 2. Verify Dependencies
-Check each dependency's Status property.
+Check the Status of every `Depends on` target and every `Depends on epic` target. A dependency is met only when its target is Completed, Complete, Done or Superseded; anything else blocks the task.
 
 ### 3. Start Execution
 Update Status to **"In Progress"** via PATCH (see `skill://notion-database-management`).
