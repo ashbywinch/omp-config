@@ -1,14 +1,14 @@
 ---
 name: eval-resume
-description: Resume a long eval from the phase that failed instead of re-running it from the start — checkpoint the typed input at phase boundaries, then re-run only the failing unit
+description: Resume a long evaluation (eval) from the phase that failed — checkpoint the typed input at phase boundaries, then re-run only the failing unit
 ---
 
 # Eval Resume
 
 An eval runs as phases. A phase takes a typed input — a spec, a case list, a
 config — and produces the next one. Checkpoint that input at the phase
-boundary, so a failure costs one phase instead of a full rerun. The next phase
-depends on that input, not on how the previous phase produced it.
+boundary. A failure then costs one phase instead of a full rerun. The next
+phase depends on that input, not on how the previous phase produced it.
 
 ## Why not replay the transcript
 
@@ -37,8 +37,8 @@ Save the phase's input and the names of its units. Never save the message
 history: the conversation is the previous phase's implementation detail; the
 typed input is the contract between phases.
 
-Write the checkpoint before the assertion that can fail, so a failed run still
-leaves one. Keep it in a scratch or evidence directory, not in the repository.
+Write the checkpoint before the assertion that can fail. A failed run then
+still leaves one. Keep it in a scratch or evidence directory, not in the repository.
 
 ## How to resume
 
@@ -50,7 +50,7 @@ Add a small test that:
 4. collects every failure instead of stopping at the first.
 
 Run it through the project's normal test target, with the same model/API
-environment as the eval. Keep the end-to-end eval unchanged and blocking: the
+environment as the eval. Keep the end-to-end eval unchanged and blocking. The
 resume test is for iteration, not a replacement for the gate.
 
 ## Rules
