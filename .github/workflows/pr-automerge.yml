@@ -10,7 +10,7 @@ name: PR auto-merge (reusable)
 #     push:
 #       branches: [main]
 #     schedule:
-#       - cron: '*/15 * * * *'
+#       - cron: '0 * * * *'
 #     workflow_dispatch:
 #   jobs:
 #     automerge:
@@ -33,8 +33,8 @@ name: PR auto-merge (reusable)
 # workflow only sets the flag and refreshes stale branches; it never approves
 # or merges directly.
 #
-# The schedule is the fallback for a main merge that produced no event: it
-# refreshes approved/armed PRs that fell behind.
+# The hourly schedule is the fallback for a main merge that produced no
+# event: it refreshes approved/armed PRs that fell behind.
 #
 # Same-repo branches only: a fork PR has no write access to arm it, and should
 # not merge itself anyway.
@@ -66,6 +66,11 @@ jobs:
   automerge:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve repository name
+        id: repo
+        # GITHUB_REPOSITORY is present on every event, including schedule;
+        # github.event.repository is not guaranteed there.
+        run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
       - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         id: app-token
         with:
@@ -75,7 +80,7 @@ jobs:
           # permissions; the token is narrowed to this repo and the two writes
           # this workflow performs.
           owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
+          repositories: ${{ steps.repo.outputs.name }}
           permission-contents: write
           permission-pull-requests: write
       - name: Arm auto-merge, or refresh approved PRs behind main
