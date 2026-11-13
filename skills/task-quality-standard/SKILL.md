@@ -43,7 +43,7 @@ Never derive a date from the plan:
 
 - "before Friday's meeting" when nothing says it must precede the meeting
 - "Thursday, so it isn't on top of the other thing due Friday" — that is
-  sequencing. Sequencing belongs in the day plan, not in the task
+  sequencing. Sequencing belongs in the plan for the day, not in the task
 - "today, because it sounds urgent"
 - "the end of the week" as a stand-in for having no idea
 
