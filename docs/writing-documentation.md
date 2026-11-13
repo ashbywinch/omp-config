@@ -243,8 +243,10 @@ Write each section by these rules:
   thing when the reader knows it. When they cannot know it, define or
   describe it, or link to where it is defined.
 - **Define terms at first use.** Explain each term in plain words where it
-  first appears, house jargon included. A reader who has not met the word
-  must be able to act on it. Use one name for one thing throughout.
+  first appears, house jargon included, or link to the external documentation
+  that defines it — a product page, an API reference, a standard. A reader who
+  has not met the word must be able to act on it. Use one name for one thing
+  throughout.
 - **Use concrete words.** Write "the `data.db` lock blocks the write",
   not "write protection is enabled".
 - **Use the simplest word.** Write "start" not "initiate"; write "end" not
@@ -295,7 +297,7 @@ Canonical pairs:
 - [ ] The section's first sentence states the answer
 - [ ] The heading names what the section gives the reader
 - [ ] Each sentence says one thing, in the active voice
-- [ ] Every term is defined in plain words at first use
+- [ ] Every term is defined in plain words at first use, or links to the external documentation that defines it
 - [ ] No sentence over 30 words
 - [ ] No sentence starts with "There is" or "There are"
 - [ ] No weasel words (enable, leverage, robust, seamless, transparent)
