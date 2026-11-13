@@ -70,7 +70,7 @@ Rules:
 - `concurrency` group per ref with `cancel-in-progress: true` — every active repo does this.
 - **Pipeline logic is make-only**: never inline `pip install`/`npm test` logic into the workflow — anything deciding what ships or what the run concludes (build, test, lint, the coverage gate) lives behind a make target; tool bootstrap and result plumbing (checkout, `setup-*`, `upload-artifact`, coverage reporting/commenting actions) may be workflow steps. Every action pins to a commit SHA with its version as a trailing comment — never the mutable tag.
 - **Tag releases `vMAJOR.MINOR.PATCH`** (major, minor, patch). Name the
-  repo's version sources in the README's "Versioning" section, and build each
+  repo's version sources in the README's "Versioning" section. Build each
   release from its tag's own tree. Compute the increment by
   `rules/semver-release.md` — never ask.
 - **System binaries come from a make target, never the environment.** A tool that needs a system binary (tesseract, ImageMagick, …) gets it installed by a make target into the project's gitignored `.tools/` (via a single no-`sudo` package manager chosen once by the scaffold) — never assumed preinstalled on the runner or a dev machine, and never an ad-hoc `ci.yml` step (per the make/CI rule above); a machine that cannot install them fails loudly at that step, not mid-suite.

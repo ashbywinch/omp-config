@@ -24,7 +24,7 @@ bundles or wheels from the tag.
    - **Bug fixes only** bump **PATCH**.
    Precedence is strict: a breaking change beats any feature (MAJOR), a
    feature beats fix-only (MINOR), and only then does PATCH apply. The
-   increment is a classification of the diff, never a question for the user.
+   increment is a classification of the diff.
 3. Find the repo's version sources. The README's "Versioning" section names
    them — commonly `pyproject.toml` plus the Rust crate, pinned equal by a
    test. The command-line interface (CLI) and the LSP (the editor language
@@ -42,4 +42,5 @@ bundles or wheels from the tag.
 - Never hardcode the version in code or docs. Derive it from the version
   sources. Keep examples version-less (`<version>` placeholders).
 - Never bump only one source. A pyproject/Cargo mismatch is a broken wheel.
-- Ask the user which number to use — compute it from the diff classification.
+- Never ask the user which number to use. Compute it from the diff
+  classification.
