@@ -1,7 +1,9 @@
 # Caller for the house PR auto-merge. Copy this file into a repo, then:
-#   gh api -X PATCH repos/<owner>/<name> \
-#     -F allow_auto_merge=true -F delete_branch_on_merge=true
-#   and require one approving review plus the CI checks in the main ruleset.
+#   gh variable set OMP_APP_ID --repo <owner>/<name> --body <app-id>
+#   gh secret set OMP_APP_PRIVATE_KEY --repo <owner>/<name> < app-private-key.pem
+# The App needs Contents: write and Pull requests: write, and must be installed
+# on the repo. Set allow_auto_merge and delete_branch_on_merge, and require one
+# approving review plus the CI checks in the main ruleset.
 # Private repo without GitHub Pro: use merge-when-approved.yml instead.
 # The reusable workflow never approves or merges directly.
 name: PR auto-merge
@@ -13,11 +15,16 @@ on:
     types: [submitted]
   push:
     branches: [main]
+  schedule:
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
   automerge:
     permissions:
-      contents: write
-      pull-requests: write
-    uses: ashbywinch/omp-config/.github/workflows/pr-automerge.yml@v0.2.6
+      contents: read
+    uses: ashbywinch/omp-config/.github/workflows/pr-automerge.yml@v0.2.7
+    with:
+      app_id: ${{ vars.OMP_APP_ID }}
+    secrets:
+      app_private_key: ${{ secrets.OMP_APP_PRIVATE_KEY }}
