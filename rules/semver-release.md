@@ -1,5 +1,5 @@
 ---
-description: House releases are semver (vMAJOR.MINOR.PATCH); before any version bump, classify the changes since the last tag and compute the increment yourself — never ask the user which number.
+description: Compute a release's semver increment (vMAJOR.MINOR.PATCH) from the changes since the last tag — classify the diff, bump every version source, never ask which number.
 ---
 
 # Semver Releases — compute the increment, don't ask
