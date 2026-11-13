@@ -3,4 +3,4 @@
 # The suite is milliseconds; lucidlint and the rest stay in `make test` + CI.
 set -e
 cd "$(git rev-parse --show-toplevel)"
-python3 -m unittest discover -s tools/tests
+make -s uv-sync test-unit

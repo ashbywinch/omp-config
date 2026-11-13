@@ -75,7 +75,6 @@ def _pyrefly_binary() -> str:
 
 
 # Extra args passed to every pyrefly invocation.
-PYREFLY_BASE_ARGS = (_pyrefly_binary(), "check", "--output-format", "json")
 
 
 def error_key(e: Diagnostic) -> DiagnosticKey:
@@ -89,7 +88,7 @@ def error_key(e: Diagnostic) -> DiagnosticKey:
 def current_errors(extra_args: list[str]) -> list[Diagnostic]:
     """Run pyrefly (no baseline) and return the full error list."""
     proc = subprocess.run(
-        list(PYREFLY_BASE_ARGS) + extra_args,
+        [_pyrefly_binary(), "check", "--output-format", "json"] + extra_args,
         capture_output=True,
         text=True,
     )

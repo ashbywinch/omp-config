@@ -21,7 +21,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: help setup deps install-hooks check lint lint-check lint-github typecheck format test coverage dist clean
+.PHONY: help setup deps install-hooks check lint lint-check lint-github typecheck format test coverage dist clean merge-markers
 
 # CHANGE: tool paths. rustup reads rust-toolchain.toml automatically and
 # installs the pinned toolchain + components on first cargo use.
@@ -64,9 +64,9 @@ install-hooks:
 # The exact gate a push must pass — run identically by CI and the pre-push
 # hook (single source of truth; no test run — too slow for a hook, and CI's
 # `make test` already includes these).
-check: deps lint-check typecheck
+check: deps lint-check typecheck merge-markers
 
-test: deps lint-check typecheck
+test: deps lint-check typecheck merge-markers
 	$(CARGO) test
 
 coverage: deps
@@ -74,6 +74,11 @@ coverage: deps
 	@echo "${GREEN}✓ cobertura.xml written — CI gate: fail below floor, track the goal${NC}"
 
 lint: deps lint-check
+
+# A conflict marker that reached a commit is a merge stopped halfway: the file
+# is wrong, and nothing else reads it.
+merge-markers: deps
+	@tools/check-merge-markers.sh
 
 lint-check: deps  # Shared with the pre-commit hook — single source of truth for the lint scope
 	$(CARGO) fmt -- --check

@@ -23,7 +23,8 @@ Core patterns for Notion operations via `ntn`. Domain skills reference this for 
 The general rule is APPEND_SYSTEM.md "External Writes" — apply it to every create, PATCH, delete, and relation change in every database. Notion-specific additions:
 
 - **Create and link are separate approvals.** Routing an insight into a new epic needs (1) approval to create the epic, then (2) approval of the link. A creation approval never authorizes the link.
-- **Every write needs enumerating, including Status updates.** A "mark as processed"-style PATCH is a write like any other and belongs in the approved list.
+- **Every write needs enumerating, including Status updates.** A "mark as processed"-style PATCH is a write like any other and belongs in the approved list. Properties change only through `notion-write.sh`, which snapshots before patching; `--revert` restores that snapshot — never hand-roll a property PATCH.
+- **Never trash or archive a page as part of a workflow.** A trashed page is invisible to every later reader, and removing it is the user's decision. Edit the page in place instead; if it must go, say so and let the user remove it.
 
 ## Database IDs
 
@@ -135,7 +136,7 @@ ntn api v1/data_sources/<DATA_SOURCE_ID> | jq '.properties | keys'
 
 **Multi-value appends on dual pairs are child-side writes.** For a dual-pair relation (insight↔epic, insight↔VS, task↔epic, epic↔epic, epic↔VS, VS↔VS), write the CHILD side and let the parent array sync — never patch the parent side. A child-side PATCH on a multi-valued child field must contain the full desired array (a single-ID write drops the child's other links). Read-modify-write applies only to relations with no child-side field (e.g. an epic's `Dependencies`): read the page first, build the full array (existing IDs + new ID(s)), PATCH with the complete array. **NEVER PATCH with only the new ID** — a relation PATCH replaces the whole array, so a single-ID write silently drops every existing link.
 
-**Read at write time, never from a snapshot.** Read the live page (`ntn api v1/pages/<PAGE_ID>`) immediately before each PATCH — never a session-start or shared `/tmp` file, which is stale the moment another session writes.
+**Read at write time, never from a stale copy.** Read the live page immediately before each PATCH — never a session-start copy; snapshot files are for reverting, never for the current value.
 
 **Never silence a relation write.** No `> /dev/null`: re-read the page after the PATCH and confirm the array length is exactly existing + new.
 

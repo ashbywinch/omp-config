@@ -16,7 +16,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: help setup deps uv-sync install-hooks run test test-e2e check lint lint-check lint-github typecheck typecheck-update-baseline format coverage clean
+.PHONY: help setup deps uv-sync install-hooks run test test-e2e check lint lint-check lint-github typecheck typecheck-update-baseline format coverage clean merge-markers
 
 # CHANGE: tool paths. uv is the package manager (installs itself if missing).
 PYTHON := .venv/bin/python
@@ -49,7 +49,8 @@ setup: deps install-hooks
 deps: uv-sync
 
 uv-sync:
-	@$(UV) --version >/dev/null 2>&1 || curl -LsSf https://astral.sh/uv/install.sh | sh
+	@$(UV) --version >/dev/null 2>&1 || \
+	  (echo "uv is not installed: see https://docs.astral.sh/uv/getting-started/installation/ — CI installs it with astral-sh/setup-uv"; exit 1)
 	@$(UV) sync
 
 install-hooks:
@@ -69,9 +70,9 @@ run: setup
 # The exact gate a push must pass — run identically by CI and the pre-push
 # hook (single source of truth; no test run — too slow for a hook, and CI's
 # `make test` already includes these).
-check: deps lint-check typecheck
+check: deps lint-check typecheck merge-markers
 
-test: deps lint-check typecheck
+test: deps lint-check typecheck merge-markers
 	@$(PYTEST) tests/ -q --tb=short
 
 test-e2e: deps lint-check
@@ -85,6 +86,11 @@ coverage: deps
 	@echo "${GREEN}Coverage report: htmlcov/index.html${NC}"
 
 lint: deps lint-check
+
+# A conflict marker that reached a commit is a merge stopped halfway: the file
+# is wrong, and nothing else reads it.
+merge-markers: deps
+	@tools/check-merge-markers.sh
 
 lint-check: deps  # Shared with the pre-commit hook — single source of truth for the lint scope
 	@$(RUFF) check <pkg>/ tests/
