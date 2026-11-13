@@ -5,19 +5,19 @@ description: Resume a long eval from the phase that failed instead of re-running
 
 # Eval Resume
 
-A long eval that fails an hour in should cost minutes to iterate on, not
-another hour. The move is not to replay the conversation; it is to checkpoint
-the typed input at a phase boundary. The next phase depends on that input, not
-on how the previous phase produced it.
+An eval runs as phases. A phase takes a typed input — a spec, a case list, a
+config — and produces the next one. Checkpoint that input at the phase
+boundary, so a failure costs one phase instead of a full rerun. The next phase
+depends on that input, not on how the previous phase produced it.
 
 ## Why not replay the transcript
 
 A transcript is text. The harness's state is a call stack plus typed objects:
 the phase that follows a conversation takes the conversation's *result*, not
-its words. Replaying the transcript is brittle and ends up testing the replay.
-Checkpoint the result instead, and start the phase that failed from it. If the
-failure is inside a phase, restart that phase from its input; the conversation
-it runs is fresh, which is what the next run would do anyway.
+its words. A replay therefore repeats every earlier phase and pays for it
+again. Checkpoint the result instead, and start the phase that failed from it.
+If the failure is inside a phase, restart that phase from its input; the
+conversation it runs is fresh, as the next run's would be.
 
 ## When to checkpoint
 
@@ -61,11 +61,11 @@ resume test is for iteration, not a replacement for the gate.
 - Use the same simulated user (user bot), persona, and model config as the
   full eval, defined once and shared. A different user in the resume test
   exercises a different scenario.
-- Resume one unit at a time when a unit takes minutes. N units do not fit in
-  one budget just because the full eval eventually did.
-- If the checkpoint is missing because the failure predates it, extract the
-  typed input from the saved transcript or evidence when it is there;
-  otherwise add the checkpoint and take one full run to seed it.
+- Resume one unit at a time when a unit takes minutes. N units do not fit one
+  time budget just because the full eval eventually did.
+- When the checkpoint is missing, extract the typed input from the saved
+  transcript or evidence if it is there. With no evidence, add the checkpoint
+  and take one full run to seed it.
 - Fix the cause, then re-run the smallest phase that proves it. Run the full
   eval only when the small ones are green.
 
