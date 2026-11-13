@@ -13,8 +13,6 @@ description: |
 
 Use when asked to start a new project repository ("shell repo", "scaffold a repo", "set up a new project"). Deliver a working skeleton — build, lint, test, coverage, CI, docs, git hygiene — never an empty `git init`.
 
-Practices below were distilled from the repos under `~/Documents/code` (surveyed 2026-08): books_to_anki, chat-workflow, energy_envelope, houses (Python); side-by-side, houses/frontend, kilocode (TS/JS); cv (LaTeX); spark-local-env (docker-compose).
-
 ## Two layers
 
 1. **General layer** — applies to every new repo regardless of language. Non-negotiable.
@@ -34,7 +32,7 @@ Targets (template `help` lists them; meaning fixed by the standard):
 - `setup` idempotent toolchain+deps+hooks · `lint` static checks · `test` suite gated by lint · `coverage` XML for CI · `format` auto-fix · `clean` removes only `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data · `run`/`stop` dev servers (service repos) · `dist` build artifacts (CI uploads).
 
 Deviating from the template is allowed only where the rules say so:
-- **Never change the shell pin** (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — make's default `/bin/sh` is dash on Debian/Ubuntu and the CI runners; dash has no `pipefail`, so a bash-ism recipe passes on macOS and dies in CI with "Illegal option -o pipefail" (houses 2026-08: PRs #56/#57 CI failures). Pin the shell once; never add `set -o pipefail` inside individual recipes.
+- **Never change the shell pin** (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`). Make's default `/bin/sh` is dash on Debian/Ubuntu and the CI runners, and dash has no `pipefail`. A bash-ism recipe therefore passes on macOS and dies in CI with "Illegal option -o pipefail". Pin the shell once; never add `set -o pipefail` inside individual recipes.
 - **`deps` never depends on `install-hooks`** — a hook that calls `make check` would re-copy/refuse the very hook file (the pre-push deadlock). Check targets depend on `deps` (uv sync), and `install-hooks` depends on nothing check-related.
 - **`check` = `lint-check typecheck`** — the single gate CI and the pre-push hook both run; same command, no drift. No test run in the hook (too slow; CI's `make test` includes the checks).
 - **Tool paths as variables** at top (`PYTHON := .venv/bin/python`, `RUFF := .venv/bin/ruff`).
@@ -85,10 +83,10 @@ Rules:
 
 Every repo carries tests that guard the repo's own invariants — the docs
 stay coherent and the architecture layers (as currently imagined) don't
-erode. The docs-links pattern ships in houses (`tests/unit/test_docs_links.py`);
-the architecture-layer test uses archunitpython — pattern semantics are
-`skill://archunitpython-glob-rules` (the vacuous-pass trap made the ./-style
-layer test worthless, so follow the skill, not any repo's existing test):
+erode. The docs-links pattern ships in houses (`tests/unit/test_docs_links.py`).
+The architecture-layer test uses archunitpython; its pattern semantics are in
+`skill://archunitpython-glob-rules`. An ./ -style layer pattern passes
+vacuously. Follow the skill rather than another repo's test:
 
 - **Broken doc links are a test failure.** A small runner scans `AGENTS.md`
   + `docs/**/*.md` for markdown links, resolves the relative ones, and fails
@@ -190,9 +188,9 @@ Run in order; the checklist below is the final gate, not documentation.
 
 1. **Fresh-clone smoke test** — the single most valuable check. Clone the new repo into a temp dir and run `make setup && make lint && make test` there. This simulates exactly what every future clone and CI run experiences; it fails if anything depends on scaffold-session state (venv, cwd, env, uncommitted files).
 2. **Coverage and clean loop** — `make coverage` (emits `coverage.xml` for the CI gate), then `make clean`, then re-run `make test` — proves the clean target doesn't break the loop.
-3. **Hooks actually fire** — `make install-hooks` copies the raw hooks; stage a lint-breaking change and confirm the pre-commit hook blocks the commit (or run `.git/hooks/pre-commit` directly on the staged changes). Then prove gitleaks with a REALISTIC key: plain `sk-` + 24 chars matches no default rule (empirically passes); use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes. Confirm pre-push fires on the pushed range: a push that touches only docs skips; a push touching `.py` runs `make check`.
+3. **Hooks actually fire** — `make install-hooks` copies the raw hooks; stage a lint-breaking change and confirm the pre-commit hook blocks the commit (or run `.git/hooks/pre-commit` directly on the staged changes). Then prove gitleaks with a REALISTIC key. Plain `sk-` + 24 chars matches no default rule. Use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes. Confirm pre-push fires on the pushed range. A push that touches only docs skips; a push touching `.py` runs `make check`.
 4. **Gitignore honesty** — after setup, `git status --porcelain` is empty: `.venv/`, `.env`, caches, and agent state never appear.
-5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute. Local fresh-clone smoke ≠ CI: the same make recipe passed locally (and in a local clone) but failed on the GitHub runner — budget one CI debug iteration (print `--version`, `--help`, raw exit codes) when standing up a new repo.
+5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute. Budget one CI debug iteration when standing up a new repo. A recipe that passes locally — and in a fresh clone — can still fail on the runner. Print `--version`, `--help`, and raw exit codes before changing the recipe.
 6. **Walk the checklist** — every box checked against the actual repo, not from memory.
 
 ## Checklist
