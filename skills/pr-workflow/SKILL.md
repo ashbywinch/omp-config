@@ -141,12 +141,19 @@ gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs \
   | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'{s[\"name\"]}: {s[\"status\"]}') for j in d['jobs'] for s in j['steps']]"
 ```
 
-If the AI review is still running after 10+ minutes with no step-level progress for 5+ minutes, something may actually be stuck — but investigate before cancelling:
+**Investigate a stalled review before cancelling it.** A review still running after 10 minutes, with no step-level progress for 5, has something stuck behind it.
 
-```bash
-# Try to peek at partial logs (may not be available until run completes)
-gh run view <run-id> --log 2>&1 | head -30
-```
+**Read the logs from the GitHub API endpoint, not the CLI.** `gh run view <run-id>
+--log` prints nothing at all for some runs — re-runs, and jobs that failed
+inside a step — while the logs exist and are complete. The endpoint that always
+serves them returns a zip. Fetch and unpack it with
+`skill://pr-workflow/scripts/fetch-run-logs.sh <owner/repo> <run-id>`. Then read
+the failing step's file.
+
+**Never report "no logs" while the zip endpoint is untried.** An empty `gh`
+result says nothing about whether a log exists, so that report is a finding.
+Fetch the zip with `skill://pr-workflow/scripts/fetch-run-logs.sh` and read it,
+or state what you found.
 
 ### 5a. Never resolve someone else's thread
 
@@ -392,6 +399,7 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
+- **Fetch the REST zip when `gh run view --log` prints nothing** (§5).
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
   read the full body (§8).
