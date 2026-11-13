@@ -143,7 +143,7 @@ gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs \
 
 **Investigate a stalled review before cancelling it.** A review still running after 10 minutes, with no step-level progress for 5, has something stuck behind it.
 
-**Read the logs from the REST endpoint, not the CLI.** `gh run view <run-id>
+**Read the logs from the GitHub API endpoint, not the CLI.** `gh run view <run-id>
 --log` prints nothing at all for some runs — re-runs, and jobs that failed
 inside a step — while the logs exist and are complete. The endpoint that always
 serves them returns a zip. Fetch and unpack it with

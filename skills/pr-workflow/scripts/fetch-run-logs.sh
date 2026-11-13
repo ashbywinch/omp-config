@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fetch one workflow run's logs from the REST endpoint and unpack them.
+# Fetch one workflow run's logs from the GitHub API endpoint and unpack them.
 #
 #   fetch-run-logs.sh <owner/repo> <run-id> [output-dir]
 #
