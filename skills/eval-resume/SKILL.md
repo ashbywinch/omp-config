@@ -5,10 +5,13 @@ description: Resume a long evaluation (eval) from the phase that failed — chec
 
 # Eval Resume
 
-An eval (evaluation) runs as phases. A phase takes a typed input — a spec, a case list, a
-config — and produces the next one. Checkpoint that input at the phase
-boundary. A failure then costs one phase instead of a full rerun. The next
-phase depends on that input, not on how the previous phase produced it.
+An eval (evaluation) is an automated test that runs a model over many inputs.
+Some of our evals run as phases. A phase takes a typed input — a spec, a case
+list, a config — and produces the next one.
+
+Checkpoint that input at the phase boundary. A failure then costs one phase
+instead of a full rerun. The next phase depends on that input, not on how the
+previous phase produced it.
 
 ## Why not replay the transcript
 
