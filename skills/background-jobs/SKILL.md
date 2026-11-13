@@ -9,6 +9,11 @@ The harness notifies you when the command **it launched** exits. It does not
 notify you when a child you detached exits. That distinction is the whole
 skill.
 
+The shell tool's instructions say: “Background commands return immediately,
+and you will be notified when they complete.” That promise is for the command
+the harness launched; it does not extend to a child you detached. The rest of
+this skill is how to keep that promise.
+
 ## Launch a job you want to report on
 
 Run the real command as the background command:
