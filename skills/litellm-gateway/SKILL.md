@@ -1,14 +1,18 @@
 ---
 name: litellm-gateway
-description: LiteLLM proxy for Paseo/OMP — the local failover chain, the blue-green swap procedure, and rollback-first operations
+description: LiteLLM proxy for local model failover — the chain, the blue-green swap procedure, and rollback-first operations
 ---
 
-# LiteLLM Gateway
+# LiteLLM gateway
 
-One local endpoint (`http://localhost:4000/v1`) owns the model failover chain:
-clients (omp, Paseo agents) ask for model `primary`, LiteLLM routes through the
-chain and fails over per request. The text default runs through this proxy;
-Cloudflare AI Gateway stays configured as the manual rollback.
+One local endpoint (`http://localhost:4000/v1`) belongs to LiteLLM, the local
+proxy for model failover. A client asks for model `primary` — the alias the
+chain answers to; the proxy routes through the chain and fails over per
+request. Which gateway each client uses is in `skill://cloudflare-ai-gateway`.
+
+LiteLLM calls each model at the URL its config gives, so a provider serving at
+its own path is reachable here — z.ai's Coding Plan is the worked example. It
+serves only workloads on this machine.
 
 ## Where the originals live
 
@@ -39,13 +43,13 @@ install, then operate.
                           error/consequence output on FAIL
   snapshot-live.sh        the pre-switch snapshot — prints a timestamped backup
                           of the live side and the exact restore lines
-  env                     the API keys (600; never print them)
   .gate-state             the last gate outcome keyed to blue's content hash —
                           status withholds activate/promote while it is FAIL
 ```
 
-Service: `litellm.service` (systemd --user), serving `config.current.yaml` with
-`EnvironmentFile` = `env`.
+Service: `litellm.service` (systemd --user); `ExecStart` sources `~/.secrets` —
+the one file holding the keys, so there is no `EnvironmentFile` — and serves
+`config.current.yaml`.
 
 ## Sides and the live side
 
@@ -166,12 +170,12 @@ recovery that leaves the live head unrestored.
 
 ## Clients
 
-- omp/Paseo agents: the `litellm` provider entry and the role pointing at it
-  live in `~/.omp/agent/models.yml` and `~/.omp/agent/config.yml`.
+- Agent clients: the `litellm` provider entry and the role pointing at it live
+  in the client's own config (`~/.omp/agent/models.yml`, `~/.paseo/config.json`).
 - `designer`/`vision` roles and PR-Agent stay on Cloudflare — PR-Agent cannot
   reach localhost.
 
-### Paseo sessions pin their model — restarts never migrate them
+### Sessions pin their model — restarts never migrate them
 
 A session's model lives in `~/.paseo/agents/<worktree>/<agent>.json` and
 overrides the default in `~/.paseo/config.json`.
