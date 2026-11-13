@@ -72,6 +72,6 @@ resume test is for iteration, not a replacement for the gate.
 ## Placement
 
 This skill describes the pattern. The concrete checkpoint path, test target,
-and env-var names are repo-specific: put them in that repo's testing docs, and
+and env-var names are repo-specific. Put them in that repo's testing docs, and
 reference this skill for the principle.
 
