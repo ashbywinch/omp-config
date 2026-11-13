@@ -146,14 +146,14 @@ gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs \
 **Read the logs from the REST endpoint, not the CLI.** `gh run view <run-id>
 --log` prints nothing at all for some runs — re-runs, and jobs that failed
 inside a step — while the logs exist and are complete. The endpoint that always
-serves them returns a zip; fetch and unpack it with
-`skill://pr-workflow/scripts/fetch-run-logs.sh <owner/repo> <run-id>`, then read
+serves them returns a zip. Fetch and unpack it with
+`skill://pr-workflow/scripts/fetch-run-logs.sh <owner/repo> <run-id>`. Then read
 the failing step's file.
 
-**Empty CLI output is not a missing log.** An empty `gh` result says nothing
-about whether the log exists. Reporting "no logs, so I cannot tell why" without
-trying the zip endpoint is a finding: say what you found, or fetch the zip and
-read it.
+**Never report "no logs" while the zip endpoint is untried.** An empty `gh`
+result says nothing about whether a log exists, so that report is a finding.
+Fetch the zip with `skill://pr-workflow/scripts/fetch-run-logs.sh` and read it,
+or state what you found.
 
 ### 5a. Never resolve someone else's thread
 
