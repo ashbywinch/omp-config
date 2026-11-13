@@ -1,5 +1,5 @@
 ---
-description: Compute a release's semver increment (vMAJOR.MINOR.PATCH) from the changes since the last tag — classify the diff, bump every version source, never ask which number.
+description: Compute a release's semver increment (vMAJOR.MINOR.PATCH) from the changes since the last tag. Classify the diff, bump every version source, and never ask which number.
 ---
 
 # Semver Releases — compute the increment, don't ask
@@ -39,7 +39,7 @@ bundles or wheels from the tag.
 
 ## Never
 
-- Hardcode the version in code or docs — derive it from the version sources,
-  and keep examples version-less (`<version>` placeholders).
-- Bump only one source (a pyproject/Cargo mismatch is a broken wheel).
+- Never hardcode the version in code or docs. Derive it from the version
+  sources. Keep examples version-less (`<version>` placeholders).
+- Never bump only one source. A pyproject/Cargo mismatch is a broken wheel.
 - Ask the user which number to use — compute it from the diff classification.
