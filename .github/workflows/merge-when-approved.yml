@@ -35,6 +35,12 @@ on:
   # (workflow_dispatch) when that happens.
   check_suite:
     types: [completed]
+  # Actions raises no check_suite event for its own workflows, and a job that
+  # comes from a reusable workflow raises none at all — the PR then sits green
+  # and unmerged until someone clicks. `workflow_run` is the signal that actually
+  # arrives when a check finishes; check_suite stays for other Apps' checks.
+  workflow_run:
+    types: [completed]
   status: {}
   workflow_dispatch:
 
@@ -55,8 +61,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || '' }}
-          SHA: ${{ github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
+          PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || github.event.workflow_run.pull_requests[0].number || '' }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
           MERGE_METHOD: ${{ inputs.merge_method || 'merge' }}
         run: |
           set -euo pipefail
