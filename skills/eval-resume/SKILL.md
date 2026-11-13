@@ -5,7 +5,7 @@ description: Resume a long evaluation (eval) from the phase that failed — chec
 
 # Eval Resume
 
-An eval runs as phases. A phase takes a typed input — a spec, a case list, a
+An eval (evaluation) runs as phases. A phase takes a typed input — a spec, a case list, a
 config — and produces the next one. Checkpoint that input at the phase
 boundary. A failure then costs one phase instead of a full rerun. The next
 phase depends on that input, not on how the previous phase produced it.
@@ -73,6 +73,6 @@ resume test is for iteration, not a replacement for the gate.
 ## Placement
 
 This skill describes the pattern. The concrete checkpoint path, test target,
-and env-var names are repo-specific. Put them in that repo's testing docs, and
+and environment variable names are repo-specific. Put them in that repo's testing docs, and
 reference this skill for the principle.
 
