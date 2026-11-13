@@ -15,9 +15,9 @@ bundles or wheels from the tag.
    # The expansion drops the range argument entirely when LAST is empty
    # (plain `git log --oneline`); with LAST set it is one quoted argument.
 2. `git log ${LAST:+"$LAST..HEAD"} --oneline` — classify every change:
-   - A **breaking** change is a removed or changed CLI/API contract, a
-     scan-schema or wire-format change, or a behavior a caller relies on that
-     flips. A changed default that alters a command's output is an example.
+   - A **breaking** change is a removed or changed command-line or HTTP
+     interface contract, a scan-schema or wire-format change, or a behavior a
+     caller relies on that flips. A changed default that alters a command's output is an example.
      Bump **MAJOR**.
    - A backwards-compatible **feature** — a new rule, fix kind, option, or
      command — bumps **MINOR**.
