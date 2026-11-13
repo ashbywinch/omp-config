@@ -12,9 +12,8 @@ bundles or wheels from the tag.
 
 1. `LAST=$(git tag --merged HEAD --sort=-v:refname | head -1)` — the current
    published version. Empty means the first release ever.
-   # The expansion drops the range argument entirely when LAST is empty
-   # (plain `git log --oneline`); with LAST set it is one quoted argument.
-2. `git log ${LAST:+"$LAST..HEAD"} --oneline` — classify every change:
+2. `git log ${LAST:+"$LAST..HEAD"} --oneline` — the expansion drops the range
+   entirely when `LAST` is empty. Classify every change:
    - A **breaking** change is a removed or changed command-line or HTTP
      interface contract, a scan-schema or wire-format change, or a behavior a
      caller relies on that flips. A changed default that alters a command's output is an example.
