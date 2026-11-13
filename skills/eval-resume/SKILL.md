@@ -21,11 +21,11 @@ conversation it runs is then fresh, as the next run's would be.
 
 ## When to checkpoint
 
-Add a checkpoint only when all three hold:
+Add a checkpoint only when all three hold.
 
-- the phase is expensive — minutes, many tokens, or many independent units;
-- its input is a typed object (a spec, a list of cases, a config), not the chat;
-- the phase can run on that input alone.
+- The phase is expensive — minutes, many tokens, or many independent units.
+- Its input is a typed object (a spec, a list of cases, a config), not the chat.
+- The phase can run on that input alone.
 
 A single atomic conversation, or an eval whose input is already a fixture, does
 not need one. Do not checkpoint every eval; checkpoint where a failure would
@@ -42,15 +42,16 @@ still leaves one. Keep it in a scratch or evidence directory, not in the reposit
 
 ## How to resume
 
-Add a small test that:
+Add a small test. The test:
 
-1. reads the checkpoint (path from an env var, with a default);
-2. optionally filters to the failing units (comma-separated env var);
+1. reads the checkpoint (path from an environment variable, with a default);
+2. optionally filters to the failing units (comma-separated environment
+   variable);
 3. runs only that phase for those units;
 4. collects every failure instead of stopping at the first.
 
-Run it through the project's normal test target, with the same model/API
-environment as the eval. Keep the end-to-end eval unchanged and blocking. The
+Run it through the project's normal test target, with the same model and
+provider settings as the eval. Keep the end-to-end eval unchanged and blocking. The
 resume test is for iteration, not a replacement for the gate.
 
 ## Rules
