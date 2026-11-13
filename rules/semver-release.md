@@ -5,31 +5,31 @@ description: House releases are semver (vMAJOR.MINOR.PATCH); before any version 
 # Semver Releases — compute the increment, don't ask
 
 Every house repo versions with [Semantic Versioning](https://semver.org/):
-`vMAJOR.MINOR.PATCH` tags; the repo's release workflow builds and publishes
-the bundles/wheels from the tag.
+`vMAJOR.MINOR.PATCH` tags. The repo's release workflow builds and publishes the
+bundles or wheels from the tag.
 
 ## Compute the increment yourself
 
 1. `LAST=$(git tag --merged HEAD --sort=-v:refname | head -1)` — the current
-   published version; empty means the first release ever.
+   published version. Empty means the first release ever.
    # The expansion drops the range argument entirely when LAST is empty
    # (plain `git log --oneline`); with LAST set it is one quoted argument.
 2. `git log ${LAST:+"$LAST..HEAD"} --oneline` — classify every change:
-   - any **breaking** change — a removed or changed CLI/API contract, a scan-
-     schema or wire-format change, a behavior a caller relies on that flips
-     (e.g., a changed default that alters a command's output) → bump **MAJOR**.
-   - a backwards-compatible **feature** (a new rule, fix kind, option, or
-     command) → bump **MINOR**.
-   - **bug fixes only** → bump **PATCH**.
-   Precedence is strict: a breaking change beats any feature (MAJOR); a
-   feature beats fix-only (MINOR); only then does PATCH apply. The
-   increment is a classification of the diff, never a question for the
-   user.
-3. Find the repo's version sources — the README's "Versioning" section names
-   them (common shape: `pyproject.toml` + the Rust crate, pinned equal by a
-   test; the CLI and the LSP derive their reported version from those, never
-   a hardcoded literal). Bump ALL of them to the same number.
-4. Run the repo's full battery (its `make test` + self-check), commit the
+   - A **breaking** change is a removed or changed CLI/API contract, a
+     scan-schema or wire-format change, or a behavior a caller relies on that
+     flips. A changed default that alters a command's output is an example.
+     Bump **MAJOR**.
+   - A backwards-compatible **feature** — a new rule, fix kind, option, or
+     command — bumps **MINOR**.
+   - **Bug fixes only** bump **PATCH**.
+   Precedence is strict: a breaking change beats any feature (MAJOR), a
+   feature beats fix-only (MINOR), and only then does PATCH apply. The
+   increment is a classification of the diff, never a question for the user.
+3. Find the repo's version sources. The README's "Versioning" section names
+   them — commonly `pyproject.toml` plus the Rust crate, pinned equal by a
+   test. The CLI and the LSP (the editor language server) report the version
+   from those, never a hardcoded literal. Bump all of them to the same number.
+4. Run the repo's full battery: its `make test` and self-check. Commit the
    bump, tag `git tag -a vX.Y.Z -m "..."`, then push the branch **and** the
    tag: `git push origin <branch> && git push origin vX.Y.Z`. A tag pushed on
    its own leaves the bump commit local, so the next release computes its range
