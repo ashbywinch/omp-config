@@ -79,3 +79,10 @@ Re-run the per-file check (`lsp diagnostics` on that file, or the
 project's linter on it) BEFORE the next edit or the gate. A transient
 bad state caught now is a one-line fix; caught at the gate it is a
 mystery.
+
+## Long-running commands
+
+Use `skill://background-jobs` for any long-running command whose completion
+you intend to report. The one rule worth repeating: never detach it with
+`setsid`, `nohup`, or `&` — the harness notifies you when the command it
+launched exits, not when a detached child exits.
