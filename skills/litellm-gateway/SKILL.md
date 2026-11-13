@@ -6,7 +6,7 @@ description: LiteLLM proxy for local model failover — the chain, the blue-gree
 # LiteLLM gateway
 
 One local endpoint (`http://localhost:4000/v1`) belongs to LiteLLM, the local
-proxy for model failover. A client asks for model `primary` — the alias the
+proxy that fails a request over to the next model when one errors. A client asks for model `primary` — the alias the
 chain answers to; the proxy routes through the chain and fails over per
 request. Which gateway each client uses is in `skill://cloudflare-ai-gateway`.
 
