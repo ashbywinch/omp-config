@@ -28,7 +28,7 @@ bundles or wheels from the tag.
 3. Find the repo's version sources. The README's "Versioning" section names
    them — commonly `pyproject.toml` plus the Rust crate, pinned equal by a
    test. The command-line interface (CLI) and the LSP (the editor language
-   server) report the version from those, never a hardcoded literal. Bump all of them to the same number.
+   server) report the version from those. Bump all of them to the same number.
 4. Run the repo's full battery: its `make test` and self-check. Commit the
    bump, tag `git tag -a vX.Y.Z -m "..."`, then push the branch **and** the
    tag: `git push origin <branch> && git push origin vX.Y.Z`. A tag pushed on
