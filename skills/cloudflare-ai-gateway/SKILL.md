@@ -125,23 +125,23 @@ rollback step.
 
 **Model node timeout** — each model node on a dynamic route has a single `timeout` property. The docs say "Request timeout in milliseconds". The node fails at the timeout. Leave headroom over the slowest model's answer. Current route values are visible via the routes API (see Cloudflare Dashboard section above). Do not hardcode them here.
 
-**`cf-aig-request-timeout` header** ([Cloudflare docs](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/)) — the timeout is the time to first byte ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
+**The [`cf-aig-request-timeout`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) header** — the timeout is the time to first byte ("If the first part of the response arrives within this window, the gateway will wait"). The gateway recognises it: a first byte inside the window keeps the request open.
 
-**Disable Cloudflare-side retries** (`retries: 0` on the model nodes, `cf-aig-max-attempts: 0` on the proxy's
-headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
+**Disable Cloudflare-side retries** (`retries: 0` on the model nodes,
+[`cf-aig-max-attempts`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/): 0 on the proxy's headers). The gateway retries every error class alike — 402, 401 and 400 as readily as 429 or 503. The client owns retries: a review that timed out will fail again on the same diff at the same cost, so a gateway retry only spends tokens.
 
 
 ### cf-aig-* headers
 
-Per-request headers that override the model node's settings ([Request
-handling](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/)):
+Per-request headers that override the model node's settings
+([Cloudflare docs](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/)):
 
 | Header | Purpose |
 |---|---|
-| `cf-aig-request-timeout` | Upstream timeout in ms. **First-byte timeout** (docs: "If the first part of the response arrives within this window, the gateway will wait"). |
-| `cf-aig-max-attempts` | Max retries (0-5) |
-| `cf-aig-retry-delay` | Delay between retries (ms, max 5000) |
-| `cf-aig-backoff` | `constant`, `linear`, or `exponential` |
+| [`cf-aig-request-timeout`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Upstream timeout in ms. **First-byte timeout** (docs: "If the first part of the response arrives within this window, the gateway will wait"). |
+| [`cf-aig-max-attempts`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Max retries (0-5) |
+| [`cf-aig-retry-delay`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Delay between retries (ms, max 5000) |
+| [`cf-aig-backoff`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | `constant`, `linear`, or `exponential` |
 
 The local proxy adds these headers to every request. PR-Agent in GitHub Actions needs them sent via `[litellm] extra_headers` in `.pr_agent.toml` — as a JSON **string**: the handler runs `json.loads(get_settings().litellm.extra_headers)`, so an inline TOML table fails every call with "the JSON object must be str, bytes or bytearray, not DynaBox". The working block lives in the sample: `skill://new-repo-scaffold/examples/.pr_agent.toml` (the `[litellm]` section).
 

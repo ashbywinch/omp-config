@@ -25,9 +25,10 @@ API path segments like /v1" (the gateway appends the path itself).
 - Nothing sits between the gateway and the provider to rewrite a path.
   Cloudflare Workers cannot hold a streamed LLM answer open, so a path
   rewrite there is not available either.
-The **provider-specific endpoint** — the URL `.../{gateway}/custom-{slug}/<path>`,
-which appends everything after the slug to base_url and so has full path
-control — does not run dynamic routes: no conditional, no fallback. Use it to
+The **provider-specific endpoint** — Cloudflare's
+[provider-native URL](https://developers.cloudflare.com/ai-gateway/usage/) `.../{gateway}/custom-{slug}/<path>`, which appends
+everything after the slug to base_url and so has full path control — does not
+run dynamic routes: no conditional, no fallback. Use it to
 validate a provider in isolation before touching a route.
 
 ## Validation sequence (cheapest first)
@@ -41,7 +42,7 @@ validate a provider in isolation before touching a route.
 2. **Probe again with the real key** and a model id from the catalog. A path
    that answers anonymously can still reject the key — an unauthorised key
    surfaces here, before the provider exists.
-3. **Create the custom provider**: `POST /ai-gateway/custom-providers`
+3. **Create the [custom provider](https://developers.cloudflare.com/ai-gateway/configuration/bring-your-own-keys/)**: `POST /ai-gateway/custom-providers`
    `{name, slug, base_url}`.
 4. **Add the BYOK key** via the dashboard Provider Keys (secret contract and
    dashboard-vs-API choice live in the Provider keys section of `SKILL.md`).
