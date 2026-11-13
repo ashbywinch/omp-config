@@ -58,11 +58,11 @@ resume test is for iteration, not a replacement for the gate.
 - The checkpoint is a dev aid. It must never let the gate pass on a partial
   build; the end-to-end test still asserts that every unit succeeded.
 - A resume test with no checkpoint skips; it does not fail the suite.
-- Use the same simulated user (user bot), persona, and model config as the
-  full eval, defined once and shared. A different user in the resume test
-  exercises a different scenario.
-- Resume one unit at a time when a unit takes minutes. N units do not fit one
-  time budget just because the full eval eventually did.
+- Use the same simulated user, persona, and model config as the full eval,
+  defined once and shared. A different user in the resume test exercises a
+  different scenario.
+- Resume one unit at a time when a unit takes minutes. Several units do not
+  fit one time budget just because the full eval eventually did.
 - When the checkpoint is missing, extract the typed input from the saved
   transcript or evidence if it is there. With no evidence, add the checkpoint
   and take one full run to seed it.
