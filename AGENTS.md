@@ -44,6 +44,7 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 | Locate files or search text | `glob` / `grep` |
 | Edit a doc, skill, or standard | `edit` (surgical) / `write` (create/replace) |
 | Verify the repo self-checks | `make test` |
+| See what a PR still needs answered | `pr-threads <n>` (installed by `make install`) |
 | Ship a skill, rule or append edit | branch + PR (see `skill://update-skills`) |
 
 ## Testing rules
@@ -64,8 +65,8 @@ Read the relevant doc before changing behavior. **Before writing or editing any 
 - **Auto-merge is armed on every PR in this repo.** `.github/workflows/automerge.yml`
   sets the flag at open and again when a review is submitted; the approving review
   the ruleset demands, the checks and resolved threads are the only remaining gates.
-  Never copy that workflow into `skills/new-repo-scaffold/` or into another repo —
-  it serves this repo's policy, not a house procedure.
+  The local workflow serves this repo and is not copied; other repos call the
+  reusable `.github/workflows/pr-automerge.yml` with a pinned tag.
 - Agent commits are authored `omp-harness[bot]` (the git shim enforces it) —
   never the user's identity. Mechanics: the `Agent git auth` row above.
 - An edit to a skill, rule or append file is live the moment it is saved — the

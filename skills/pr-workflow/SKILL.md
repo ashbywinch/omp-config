@@ -141,12 +141,19 @@ gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs \
   | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'{s[\"name\"]}: {s[\"status\"]}') for j in d['jobs'] for s in j['steps']]"
 ```
 
-If the AI review is still running after 10+ minutes with no step-level progress for 5+ minutes, something may actually be stuck — but investigate before cancelling:
+**Investigate a stalled review before cancelling it.** A review still running after 10 minutes, with no step-level progress for 5, has something stuck behind it.
 
-```bash
-# Try to peek at partial logs (may not be available until run completes)
-gh run view <run-id> --log 2>&1 | head -30
-```
+**Read the logs from the GitHub API endpoint, not the CLI.** `gh run view <run-id>
+--log` prints nothing at all for some runs — re-runs, and jobs that failed
+inside a step — while the logs exist and are complete. The endpoint that always
+serves them returns a zip. Fetch and unpack it with
+`skill://pr-workflow/scripts/fetch-run-logs.sh <owner/repo> <run-id>`. Then read
+the failing step's file.
+
+**Never report "no logs" while the zip endpoint is untried.** An empty `gh`
+result says nothing about whether a log exists, so that report is a finding.
+Fetch the zip with `skill://pr-workflow/scripts/fetch-run-logs.sh` and read it,
+or state what you found.
 
 ### 5a. Never resolve someone else's thread
 
@@ -346,10 +353,18 @@ git push origin <branch>
 
 After push, checks trigger again automatically (if configured). Wait for completion, then:
 
-1. Re-read the review comments — the persistent review will be updated
-2. Confirm the specific finding you fixed is no longer reported
-3. Check for ANY new findings that may have been uncovered
-4. Repeat until the review reports "No security concerns" and "No major issues/detected"
+1. **Wait for the review of this head, then ask what still needs an answer.**
+   `pr-threads --wait <pr>` blocks until the reviewer has finished for the
+   current head, then lists every thread it prints as UNANSWERED — including one
+   you replied to earlier that the reviewer followed up on. A push starts a new
+   review, so reading the threads before it lands reports a clean PR that is
+   about to have findings; and a non-zero exit means the PR is not ready to
+   report, however green the checks are.
+2. Re-read the review comments — the persistent review will be updated
+3. Confirm the specific finding you fixed is no longer reported
+4. Check for ANY new findings that may have been uncovered
+5. Repeat until `pr-threads` prints nothing and the review reports "No security
+   concerns" and "No major issues/detected"
 
 ### 12. Know When to Stop
 
@@ -384,6 +399,7 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
+- **Fetch the REST zip when `gh run view --log` prints nothing** (§5).
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
   read the full body (§8).
@@ -404,6 +420,9 @@ The sections above are the how-to; these are the one-line reminders.
   rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
+- **Calling a push done without re-reading the threads** — a green check says
+  nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
+  adds findings a round at a time, and the unread one is the one that mattered.
 - **Pushing while a review is in flight** — wait-read-fix-push, one push
   per pass (§5b).
 - **Resolving review threads yourself** — never; resolution is the reviewer's
