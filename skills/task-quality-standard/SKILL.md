@@ -103,6 +103,13 @@ snapshotted it: `notion-write.sh --revert` restores the exact value that was
 there before the write (see `skill://notion-database-management`). Reconstructing
 it from what was said is how the same error gets made twice.
 
+## One action per step
+
+Each step names the exact thing to do and the exact place to do it: the form
+URL, the email address, or the phone number. Do not give a page to read and a
+number as alternatives. That makes the user work out which route you meant.
+One route per step.
+
 ## Validation Checklist
 
 - [ ] Title is action-oriented ("Verb + Object")

@@ -52,6 +52,8 @@ Process insight items one by one, not in batch. For each item: present the routi
 ### Read the Full Item Before Proposing
 Always fetch and read the complete item — Content, Context, Summary, and Source fields — before suggesting a routing. Items routinely contain multiple distinct tasks, hidden context, or self-located routing hints ("this is about epic X"); proposing from a truncated preview produces wrong destinations. When the note names a destination, verify it exists in Notion before proposing it.
 
+Show the item verbatim — Summary, Content, Context and Source — then the write list. A paraphrase is not the item, and the user cannot approve words they have not seen.
+
 ## Process
 
 ### 1. Fetch Unprocessed Insights
