@@ -23,8 +23,10 @@
 #   the image defaults run (model gpt-5.6, api_base api.openai.com) and the
 #   model call dies with "Incorrect API key". Missing pin, not the key, is
 #   the first thing to check when that error shows.
-# - Pin the action to a real release SHA (see houses' workflow) — @latest
-#   does not resolve. `the-pr-agent/pr-agent@<pinned-sha>`.
+# - The image is the org's fork build (upstream release + patches), not
+#   `the-pr-agent/pr-agent`: the upstream action pulls a prebuilt image and
+#   would run upstream's code. ashbywinch/pr-agent's `image` workflow
+#   republishes ghcr.io/ashbywinch/pr-agent:github_action weekly.
 # - The `if:` on the job: dependabot bumps are mechanical and covered by
 #   build-and-test; the AI review adds noise and its ticket-compliance step
 #   chokes on dependabot descriptions (no ticket ref). Skip the whole job.
@@ -51,7 +53,11 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: the-pr-agent/pr-agent@b249e568e0c0fb6c674ace55fe95d02f62f8f3b3   # pin a real release SHA — @latest does not resolve
+      # The house review image: upstream's release plus the org's patches
+      # (currently the malformed-prediction repair). Built and republished
+      # weekly by ashbywinch/pr-agent's `image` workflow; the tag moves only
+      # when that build succeeds.
+      - uses: docker://ghcr.io/ashbywinch/pr-agent:github_action
         id: pr-agent
         env:
           # Cloudflare AI Gateway: routes OpenCode -> DeepSeek fallback.
