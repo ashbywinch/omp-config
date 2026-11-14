@@ -26,7 +26,9 @@ review bot — so its decisions must be concrete enough to review against.
 - **Flow specs** (an import flow, a contribution flow — whatever flows
   the domain has) — a specific flow's
   end-to-end rules: invariants, seams, review gates. The TECH-SPEC points
-  at them; it does not restate them.
+  at them; it does not restate them. In a skill-run system, the skills are
+  the flow specs; the TECH-SPEC names them, records the data model and the
+  architecture, and points at them — it never restates their procedure.
 - **Conventions docs** (UI, CHAT-UX, coding-standards) — visual and
   interaction conventions; the normative rules.
 - **Working logs** (a decisions log, a fixes/lessons log) — never
@@ -99,6 +101,9 @@ standards are the enforceables; the flow specs are the per-flow detail.
 
 - **Restating the PRD** — the spec holds mechanics, not requirements; a
   requirement repeated in the spec drifts out of sync with the PRD.
+- **Restating the procedure** — a spec that describes what the code does step
+  by step is the flow spec, not the spec; in a skill-run system the skills hold
+  it. Name the skills and point at them.
 - **A stack that fights the defaults** — a hand-rolled HTTP server, an
   invented framework, a verb-named module. The defaults exist because
   they were converged on; depart with a recorded reason.
