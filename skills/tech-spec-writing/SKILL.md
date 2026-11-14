@@ -26,9 +26,10 @@ review bot — so its decisions must be concrete enough to review against.
 - **Flow specs** (an import flow, a contribution flow — whatever flows
   the domain has) — a specific flow's
   end-to-end rules: invariants, seams, review gates. The TECH-SPEC points
-  at them; it does not restate them. In a skill-run system, the skills are
-  the flow specs. The TECH-SPEC names them, records the data model and the
-  architecture, and points at them. It never restates their procedure.
+  at them; it does not restate them. Where the product is run by skills — the
+  procedures the agent follows — the skills are the flow specs. The TECH-SPEC
+  names them, records the data model and the architecture, and points at them.
+  It never restates their procedure.
 - **Conventions docs** (UI, CHAT-UX, coding-standards) — visual and
   interaction conventions; the normative rules.
 - **Working logs** (a decisions log, a fixes/lessons log) — never
