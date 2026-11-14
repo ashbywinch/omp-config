@@ -93,12 +93,14 @@ The spec's machine rules land in the repo's `docs/coding-standards.md`
 and the conventions docs, so the review bot (which reads only
 `repo_context_files`) enforces them — a rule that stays only in the
 TECH-SPEC is invisible to review. The TECH-SPEC is the reasoning; the
-standards are the enforceables; the flow specs are the per-flow detail.
+standards are the enforceables; the code and the skills are the detail.
 
 ## Common pitfalls
 
 - **Restating the PRD** — the spec holds mechanics, not requirements; a
   requirement repeated in the spec drifts out of sync with the PRD.
+- **Restating the implementation** — a spec that describes what the code or the
+  skills do step by step is repeating the implementation, not specifying it.
 - **A stack that fights the defaults** — a hand-rolled HTTP server, an
   invented framework, a verb-named module. The defaults exist because
   they were converged on; depart with a recorded reason.
