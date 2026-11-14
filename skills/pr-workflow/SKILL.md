@@ -366,6 +366,39 @@ After push, checks trigger again automatically (if configured). Wait for complet
 5. Repeat until `pr-threads` prints nothing and the review reports "No security
    concerns" and "No major issues/detected"
 
+### 11b. The reviewer sees the diff, not the design
+
+The AI reviewer has the changed lines and a summary. It does not have the
+codebase's history, the reason the shape is what it is, or the constraint that
+forced it. So a comment can be wrong, and two rounds can contradict each other —
+flagging a line, then flagging its fix for the opposite property.
+
+Neither a wrong comment nor a contradiction is noise. Both are evidence that the
+code surprised a careful reader, and the surprise is the finding even when the
+proposed cause is not. Ask what would make someone holding only this diff ask
+that question twice:
+
+- Is a fact being inferred here that the code already knows? A walk searching its
+  own body for a node it is standing on; a handler re-deriving the request's
+  phase; a caller re-parsing what it was handed.
+- Is a concept missing — a name, a type, a boundary — so each use reconstructs
+  it?
+- Or is the comment simply wrong? Then the code is fine, and the reply says why
+  with the test or source line that settles it.
+
+Then act once: fix the smell if there is one, or refute with evidence and leave
+the code. Do not churn the implementation to satisfy a sequence of objections. A
+reviewer that rejects a change and then its reversal is describing two weaknesses
+of one design, not asking for a third version. Nor dismiss a comment because a
+bot wrote it. The bot stands in for a reader with less context than you, and that
+is exactly the reader the code has to work for.
+
+One instance, to show the shape: identity versus span comparison for "is this
+the node the function returns". Round one rejected the address, round two
+rejected the span. The question was neither — the walk was standing on the
+`return` and searching the body for it, so passing the statement kind down
+removed both objections at once.
+
 ### 12. Know When to Stop
 
 The AI may keep finding new issues on each round (especially compliance nits). Stop iterating when:
@@ -420,6 +453,13 @@ The sections above are the how-to; these are the one-line reminders.
   rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
+- **Treating a bot comment as a verdict** — the reviewer holds the diff, not the
+  design. A wrong comment, or two that contradict, points at a smell it could not
+  name. Fix the smell or refute it with evidence; never churn the code to satisfy
+  the sequence (§11b).
+- **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
+  the model's own output, not your diff; re-run the job once and report it only
+  if it recurs.
 - **Calling a push done without re-reading the threads** — a green check says
   nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
   adds findings a round at a time, and the unread one is the one that mattered.
