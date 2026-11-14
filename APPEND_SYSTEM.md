@@ -13,7 +13,7 @@ Write only after the user says yes to those words. Nothing else counts as a yes:
 - approval of an earlier version, if the words have changed since.
 
 If several records belong together, show them as one list and take one yes. Use
-the question tool for the yes: it puts the options in front of the user and
+the question tool for the yes. It puts the options in front of the user and
 records the answer, instead of burying the question in prose. If you cannot tell
 whether a surface is external, treat it as external. Nothing
 enforces this: it is a rule you follow, not a check that will catch you.
