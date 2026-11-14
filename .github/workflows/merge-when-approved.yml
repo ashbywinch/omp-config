@@ -8,6 +8,12 @@ name: Merge when approved
 # thread resolution has to come from whoever raised the thread. This job only
 # removes the last click.
 #
+# The checks are read without this job's own check run. A reusable workflow's
+# job appears in the PR's status rollup as `merge / merge`, so a gate that reads
+# the rollup is waiting on itself: it reports PENDING for the whole fifteen
+# minutes it waits, then gives up, and the PR sits green and unmerged. The read
+# below drops the check run whose details_url points at this run.
+#
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
 
@@ -43,9 +49,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  checks: read
+  contents: write       # update-branch, merge
+  pull-requests: write  # read the PR, merge it
+  checks: read          # the PR's check runs
+  statuses: read        # the legacy commit statuses, where a repo uses those
 
 jobs:
   merge:
@@ -87,16 +94,49 @@ jobs:
                     reviewDecision
                     mergeStateStatus
                     headRepository { nameWithOwner }
-                    commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
                   }
                 }
               }' -F owner="${REPO%/*}" -F repo="${REPO#*/}" -F pr="$pr" \
               --jq '.data.repository.pullRequest
                     | [(.reviewDecision // "NONE"),
                        .mergeStateStatus,
-                       (.commits.nodes[0].commit.statusCheckRollup.state // "PENDING"),
                        (.headRepository.nameWithOwner // "")]
                     | @tsv'
+          }
+
+          # The checks, read without this job's own check run. The rollup cannot
+          # be used: this job is in it, so it stays PENDING for as long as the job
+          # waits, and the wait is for SUCCESS. The check run whose details_url
+          # points at this run is dropped; everything else counts as before, and
+          # a legacy commit status still counts when a repo uses those.
+          #
+          # Only the latest run of each check name counts. A job with
+          # `cancel-in-progress` leaves a cancelled run behind on the same commit
+          # every time it is superseded, and counting those blocks the merge on
+          # work that was replaced by a green run.
+          read_checks() {
+            local sha runs legacy
+            sha=$(gh api "repos/$REPO/pulls/$pr" --jq '.head.sha') || return 1
+            runs=$(gh api --paginate "repos/$REPO/commits/$sha/check-runs?per_page=100" \
+              | jq --slurp '.') || return 1
+            legacy=$(gh api "repos/$REPO/commits/$sha/status" \
+              --jq 'if (.statuses | length) == 0 then "SUCCESS"
+                    elif .state == "success" then "SUCCESS"
+                    elif .state == "pending" then "PENDING"
+                    else "FAILURE" end') || return 1
+            printf '%s' "$runs" | jq -r --arg run "$GITHUB_RUN_ID" --arg legacy "$legacy" '
+              [ .[].check_runs[]
+                | select((.details_url // "") | contains("/runs/" + $run + "/") | not) ]
+              | group_by(.name)
+              | map(sort_by(.id) | last) as $c
+              | if ($c | map(select(.conclusion == "failure" or .conclusion == "timed_out"
+                                   or .conclusion == "cancelled" or .conclusion == "action_required"
+                                   or .conclusion == "startup_failure")) | length) > 0 then "FAILURE"
+                elif ($c | map(select(.status != "completed")) | length) > 0 then "PENDING"
+                elif $legacy == "FAILURE" then "FAILURE"
+                elif $legacy == "PENDING" then "PENDING"
+                elif ($c | length) == 0 then "EXPECTED"
+                else "SUCCESS" end'
           }
 
           # Threads are paginated: first:100 reports zero unresolved on a PR with
@@ -137,7 +177,8 @@ jobs:
           # last one to finish is often the review the PR is waiting on. Wait for
           # them rather than deciding on a snapshot.
           for attempt in $(seq 1 15); do
-            read -r decision state checks head_repo < <(read_state)
+            read -r decision state head_repo < <(read_state)
+            checks=$(read_checks) || exit 3
             open_threads=$(count_threads) || exit $?
 
             echo "attempt $attempt — review: $decision | state: $state | checks: $checks | threads: $open_threads | head: $head_repo"
@@ -166,7 +207,8 @@ jobs:
 
           # One last read, after the wait: the loop's last look can be a minute
           # old, and every condition it checked can have changed since.
-          read -r decision state checks head_repo < <(read_state)
+          read -r decision state head_repo < <(read_state)
+          checks=$(read_checks) || exit 3
           open_threads=$(count_threads) || exit $?
           echo "final — review: $decision | state: $state | checks: $checks | threads: $open_threads"
 
