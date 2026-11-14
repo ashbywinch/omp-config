@@ -11,7 +11,11 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
-      - uses: the-pr-agent/pr-agent@v0.41.1   # pin a real release tag — @latest does not resolve
+      # The house review image: upstream's release plus the org's patches
+      # (currently the malformed-prediction repair). Built and republished
+      # weekly by ashbywinch/pr-agent's `image` workflow; the tag moves only
+      # when that build succeeds.
+      - uses: docker://ghcr.io/ashbywinch/pr-agent:github_action
         id: pr-agent
         env:
           # Cloudflare AI Gateway (OpenCode → DeepSeek fallback).
