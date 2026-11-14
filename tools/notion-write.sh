@@ -41,9 +41,9 @@ read_state() {
     || die "could not read property $prop on page $page: $raw"
 }
 
-apply_state() { # $1 = {"type","value"} JSON, sent as {"<property>": {"<type>": <value>}}
+apply_state() { # $1 = {"type","value"} JSON, sent as {"properties": {"<property>": {"<type>": <value>}}}
   local body
-  body=$(jq -cn --arg p "$prop" --argjson s "$1" '{($p): {($s.type): $s.value}}')
+  body=$(jq -cn --arg p "$prop" --argjson s "$1" '{properties: {($p): {($s.type): $s.value}}}')
   printf '%s' "$body" | ntn api "v1/pages/$page" -X PATCH >/dev/null \
     || die "the patch to page $page property $prop failed — the stored value is unchanged"
 }
