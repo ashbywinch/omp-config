@@ -49,9 +49,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  checks: read
+  contents: write       # update-branch, merge
+  pull-requests: write  # read the PR, merge it
+  checks: read          # the PR's check runs
+  statuses: read        # the legacy commit statuses, where a repo uses those
 
 jobs:
   merge:
