@@ -27,8 +27,8 @@ review bot — so its decisions must be concrete enough to review against.
   the domain has) — a specific flow's
   end-to-end rules: invariants, seams, review gates. The TECH-SPEC points
   at them; it does not restate them. In a skill-run system, the skills are
-  the flow specs; the TECH-SPEC names them, records the data model and the
-  architecture, and points at them — it never restates their procedure.
+  the flow specs. The TECH-SPEC names them, records the data model and the
+  architecture, and points at them. It never restates their procedure.
 - **Conventions docs** (UI, CHAT-UX, coding-standards) — visual and
   interaction conventions; the normative rules.
 - **Working logs** (a decisions log, a fixes/lessons log) — never
