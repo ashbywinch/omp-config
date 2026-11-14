@@ -12,8 +12,10 @@ Create PRs and handle the review cycle end-to-end. Works for any repo,
 with or without automated AI code review.
 
 **A PR is not done when it is opened.** Opening it is step 4 of 13. The work
-ends when `pr-threads --wait <n>` prints nothing and every inline comment has a
-reply. Do not end the turn after `gh pr create`.
+ends when the `pr-threads` command (installed with this skill, `make install`)
+reports nothing unanswered — `pr-threads --wait <n>` blocks until the reviewer
+has finished for this head — and every inline comment has a reply. Do not end
+the turn after `gh pr create`.
 
 ## Prerequisites
 
