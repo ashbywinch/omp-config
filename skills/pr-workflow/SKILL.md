@@ -13,7 +13,9 @@ with or without automated AI code review.
 
 **A PR is not done when it is opened.** Opening it is step 4 of 13. The work
 ends when `pr-threads --wait <n>` prints nothing and every inline comment has a
-reply. Do not end the turn after `gh pr create`.
+reply. `pr-threads` is the review-thread tool, installed with this skill by
+`make install`; `--wait` blocks until the reviewer has finished for this head.
+Do not end the turn after `gh pr create`.
 
 ## Prerequisites
 
