@@ -24,6 +24,13 @@ description: |
   options. `make serve` in a plain terminal is the normal foreground dev
   server (Ctrl-C stops it; nothing to configure).
 
+## Jobs versus services
+
+A job you want a completion report for is tracked and not detached
+(`skill://background-jobs`). A service the user depends on is supervised and
+detached, with a ready condition. Do not promise a completion report for a
+service. It is meant to keep running.
+
 ## Project launch specs
 
 Each house project's hub launch spec (application, args, detached flag,

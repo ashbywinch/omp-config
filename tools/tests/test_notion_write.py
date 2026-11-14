@@ -39,7 +39,10 @@ page = state[page_id]
 
 if "-X" in args and args[args.index("-X") + 1] == "PATCH":
     patch = json.load(sys.stdin)
-    for name, body in patch.items():
+    if "properties" not in patch:
+        print("patch body must be wrapped in properties", file=sys.stderr)
+        sys.exit(1)
+    for name, body in patch["properties"].items():
         kind = next(k for k in body if k != "type")
         page["properties"][name][kind] = body[kind]
         page["properties"][name]["type"] = kind
