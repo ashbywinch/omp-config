@@ -387,11 +387,11 @@ that question twice:
   with the test or source line that settles it.
 
 Then act once: fix the smell if there is one, or refute with evidence and leave
-the code. Do not churn the implementation to satisfy a sequence of objections —
-a reviewer that rejects a change and then its reversal is describing two
-weaknesses of one design, not asking for a third version. And do not dismiss a
-comment because a bot wrote it: the bot stands in for a reader with less context
-than you, which is exactly the reader the code has to work for.
+the code. Do not churn the implementation to satisfy a sequence of objections. A
+reviewer that rejects a change and then its reversal is describing two weaknesses
+of one design, not asking for a third version. Nor dismiss a comment because a
+bot wrote it. The bot stands in for a reader with less context than you, and that
+is exactly the reader the code has to work for.
 
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two
@@ -454,9 +454,9 @@ The sections above are the how-to; these are the one-line reminders.
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
 - **Treating a bot comment as a verdict** — the reviewer holds the diff, not the
-  design. A wrong comment, or two that contradict, points at a smell it could
-  not name; fix the smell or refute it with evidence, and never churn the code
-  to satisfy the sequence (§11b).
+  design. A wrong comment, or two that contradict, points at a smell it could not
+  name. Fix the smell or refute it with evidence; never churn the code to satisfy
+  the sequence (§11b).
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
