@@ -103,6 +103,15 @@ snapshotted it: `notion-write.sh --revert` restores the exact value that was
 there before the write (see `skill://notion-database-management`). Reconstructing
 it from what was said is how the same error gets made twice.
 
+## One action per step
+
+A task's body is a sequence of actions, not a reading list. Each step names the
+exact thing to do and the exact place to do it: the form URL, the email address,
+or the phone number. Do not give a page to read and a number as alternatives —
+that makes the user work out which route you meant. If the supplier has an
+online route, give the form; if it has none, give the number and what to ask
+for. One route per step.
+
 ## Validation Checklist
 
 - [ ] Title is action-oriented ("Verb + Object")
