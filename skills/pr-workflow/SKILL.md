@@ -366,35 +366,38 @@ After push, checks trigger again automatically (if configured). Wait for complet
 5. Repeat until `pr-threads` prints nothing and the review reports "No security
    concerns" and "No major issues/detected"
 
-### 11b. A reviewer that objects to a change, then to its reversal
+### 11b. The reviewer sees the diff, not the design
 
-Two rounds flagging opposite properties of the same line is not a vote to stop
-and not a vote to revert. It is evidence that the code answers a question by
-proxy, and the reviewer can name either proxy's weakness:
+The AI reviewer has the changed lines and a summary. It does not have the
+codebase's history, the reason the shape is what it is, or the constraint that
+forced it. So a comment can be wrong, and two rounds can contradict each other —
+flagging a line, then flagging its fix for the opposite property.
 
-- round 1: "comparing node addresses is fragile — a clone would break it";
-- round 2, after switching to source spans: "comparing spans is permissive — two
-  nodes could share one".
+Neither a wrong comment nor a contradiction is noise. Both are evidence that the
+code surprised a careful reader, and the surprise is the finding even when the
+proposed cause is not. Ask what would make someone holding only this diff ask
+that question twice:
 
-Neither comparison was the question. The code was finding out "is this
-expression the one the function returns?" by searching the body for a match,
-when the walk was already standing on the `return`.
+- Is a fact being inferred here that the code already knows? A walk searching its
+  own body for a node it is standing on; a handler re-deriving the request's
+  phase; a caller re-parsing what it was handed.
+- Is a concept missing — a name, a type, a boundary — so each use reconstructs
+  it?
+- Or is the comment simply wrong? Then the code is fine, and the reply says why
+  with the test or source line that settles it.
 
-The exit:
+Then act once: fix the smell if there is one, or refute with evidence and leave
+the code. Do not churn the implementation to satisfy a sequence of objections —
+a reviewer that rejects a change and then its reversal is describing two
+weaknesses of one design, not asking for a third version. And do not dismiss a
+comment because a bot wrote it: the bot stands in for a reader with less context
+than you, which is exactly the reader the code has to work for.
 
-1. Read both objections as one: which fact is the code recovering, and why
-   doesn't it already hold it?
-2. Find the context the caller has — the statement kind, the enclosing scope,
-   the request phase — and pass it down instead of recording a value to compare
-   against later.
-3. Fix the structure once, state the invariant where the comparison used to be,
-   and pin it with the test that fails if the fact regresses.
-4. Reply once, on the earlier thread: what the proxy was, what replaced it, and
-   which test holds it.
-
-Reverting to the first version and declaring both acceptable leaves the smell in
-place; the next refactor re-opens it. This is not the "stylistic preference" case
-in §12 — a contradictory pair is a pointer, not noise.
+One instance, to show the shape: identity versus span comparison for "is this
+the node the function returns". Round one rejected the address, round two
+rejected the span. The question was neither — the walk was standing on the
+`return` and searching the body for it, so passing the statement kind down
+removed both objections at once.
 
 ### 12. Know When to Stop
 
@@ -450,9 +453,10 @@ The sections above are the how-to; these are the one-line reminders.
   rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
-- **A reviewer objecting to a change and then to its reversal** — read the pair
-  as one smell (a fact the code re-derives by comparing), not as a reason to
-  stop or to revert; fix the structure (§11b).
+- **Treating a bot comment as a verdict** — the reviewer holds the diff, not the
+  design. A wrong comment, or two that contradict, points at a smell it could
+  not name; fix the smell or refute it with evidence, and never churn the code
+  to satisfy the sequence (§11b).
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
