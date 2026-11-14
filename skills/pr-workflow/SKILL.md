@@ -366,6 +366,36 @@ After push, checks trigger again automatically (if configured). Wait for complet
 5. Repeat until `pr-threads` prints nothing and the review reports "No security
    concerns" and "No major issues/detected"
 
+### 11b. A reviewer that objects to a change, then to its reversal
+
+Two rounds flagging opposite properties of the same line is not a vote to stop
+and not a vote to revert. It is evidence that the code answers a question by
+proxy, and the reviewer can name either proxy's weakness:
+
+- round 1: "comparing node addresses is fragile — a clone would break it";
+- round 2, after switching to source spans: "comparing spans is permissive — two
+  nodes could share one".
+
+Neither comparison was the question. The code was finding out "is this
+expression the one the function returns?" by searching the body for a match,
+when the walk was already standing on the `return`.
+
+The exit:
+
+1. Read both objections as one: which fact is the code recovering, and why
+   doesn't it already hold it?
+2. Find the context the caller has — the statement kind, the enclosing scope,
+   the request phase — and pass it down instead of recording a value to compare
+   against later.
+3. Fix the structure once, state the invariant where the comparison used to be,
+   and pin it with the test that fails if the fact regresses.
+4. Reply once, on the earlier thread: what the proxy was, what replaced it, and
+   which test holds it.
+
+Reverting to the first version and declaring both acceptable leaves the smell in
+place; the next refactor re-opens it. This is not the "stylistic preference" case
+in §12 — a contradictory pair is a pointer, not noise.
+
 ### 12. Know When to Stop
 
 The AI may keep finding new issues on each round (especially compliance nits). Stop iterating when:
@@ -420,6 +450,12 @@ The sections above are the how-to; these are the one-line reminders.
   rebuild the description half and PATCH the whole body (§4).
 - **Pushing without local lint/tests** — each CI cycle costs minutes; run
   the suite locally first (§10).
+- **A reviewer objecting to a change and then to its reversal** — read the pair
+  as one smell (a fact the code re-derives by comparing), not as a reason to
+  stop or to revert; fix the structure (§11b).
+- **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
+  the model's own output, not your diff; re-run the job once and report it only
+  if it recurs.
 - **Calling a push done without re-reading the threads** — a green check says
   nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
   adds findings a round at a time, and the unread one is the one that mattered.
