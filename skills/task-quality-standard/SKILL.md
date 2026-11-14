@@ -22,8 +22,34 @@ something else on Wednesday cannot be completed, scheduled, or chased as one thi
 | Depends on | relation | Prerequisite task IDs (the reverse side, `Blocking`, is Notion's) |
 | Depends on epic | relation | An epic that must finish first, where the block really is the epic rather than one task |
 | Related Business Goal | rich_text | Strategic context from the Epic |
-| Relevant Deadlines | date | Target completion timeline |
+| Relevant Deadlines | date | When it is actually due. Empty unless something says so. See below |
 | Scope Boundaries | (in task body) | Explicit inclusions and exclusions |
+
+## Due dates are facts, not preferences
+
+**A due date is when the work is due. It is never a date chosen to make the
+schedule look reasonable.**
+
+Set `Relevant Deadlines` only when something outside the conversation says when
+it has to be done. That source can be the person, a letter or booking, a contract
+or statute, a payment, move or appointment. Record the date that source gives,
+and nothing else.
+
+Leave it **empty** when no such source exists. An empty deadline honestly
+describes a task that simply has to be done. A filled one is a promise that will
+be chased, shown on a calendar and treated as missed.
+
+Never derive a date from the plan:
+
+- "before Friday's meeting" when nothing says it must precede the meeting
+- "Thursday, so it isn't on top of the other thing due Friday" — that is
+  sequencing. Sequencing belongs in the plan for the day, not in the task
+- "today, because it sounds urgent"
+- "the end of the week" as a stand-in for having no idea
+
+If a date would be useful and there isn't one, say so in conversation and let the
+user give it. Do not record a date you invented. A task can sit Ready and undated
+indefinitely.
 
 ## Status
 

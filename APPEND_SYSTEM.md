@@ -12,8 +12,11 @@ Write only after the user says yes to those words. Nothing else counts as a yes:
 - silence, or "carry on";
 - approval of an earlier version, if the words have changed since.
 
-If several records belong together, show them as one list and take one yes. If
-you cannot tell whether a surface is external, treat it as external. Nothing
+Use the question tool — the harness's multiple-choice prompt — for every
+approval. It puts the options in front of the user and records the answer,
+instead of burying the question in prose. If several records belong together,
+show them as one list and take one yes. If you cannot tell whether a surface is
+external, treat it as external. Nothing
 enforces this: it is a rule you follow, not a check that will catch you.
 
 Never treat a reply as approval unless it approves the enumerated write: a "yes" about content, a preference, or another question is not approval. One approval covers one write, and never write a value the user has already rejected this session.
