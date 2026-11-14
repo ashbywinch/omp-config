@@ -16,8 +16,8 @@ venv (the engine refuses without it).
 
 ## Install
 
-`pip install "git+https://github.com/ashbywinch/lucidlint.git@bcfe0d42df17c4d0ff0b40f494e4318918f4b6cf"`
-— the install from the GitHub repo page, pinned to the v0.6.9 commit (the
+`pip install "git+https://github.com/ashbywinch/lucidlint.git@v0.7.1"`
+— the install from the GitHub repo page, pinned to the v0.7.1 tag (the
 package is not on PyPI). It provides the `lucidlint` command. Re-pin when a
 newer release lands; an incomplete install is a package bug to fix there, not
 something to work around here.
