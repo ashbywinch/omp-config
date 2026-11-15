@@ -57,21 +57,22 @@ only some agents need belongs in the doc the tree links to, never in
 AGENTS.md itself. Test: is this genuinely relevant to 100% of agents
 working in this repo? If not, it does not belong in the bootloader.
 
-## Rules are expensive context — default to skills
+## Rules are expensive context — put knowledge in skills
 
-A rule (`rules/*.md`) is loaded into EVERY agent's context, every session, in
-every repo that installs it — whether or not the task touches it. That is a
-standing tax on every prompt. The default is therefore a **skill**
-(`skills/<name>/SKILL.md`), loaded only when a task matches its description. The
-agent that needs it gets it at the moment it needs it; everyone else pays
-nothing.
+Every repo loads a rule (`rules/*.md`) into every agent's context, every
+session, whether or not the task touches it. A rule therefore taxes every
+prompt. Put knowledge in a **skill** (`skills/<name>/SKILL.md`). The agent loads
+a skill only when a task matches its description, so the agent that needs it
+gets it and every other agent pays nothing.
 
-A rule earns always-on context only when it applies to **every** session
-regardless of task: universal discipline (test-first, fail-fast) and session
-invariants. Anything task-shaped — "when deploying", "when touching the
-scraper", "when reviewing a user interface change" — is a skill, keyed by a
-description that routes the right task to it. Test: would an agent doing
-unrelated work pay for this content? If yes, it is a skill, not a rule.
+Write a rule only when it applies to **every** session regardless of task:
+universal discipline (test-first, fail-fast) and session invariants. Put
+task-shaped content in a skill, keyed by a description that routes the right
+task to it — "when deploying", "when touching the scraper", "when reviewing a
+user interface change".
+
+**A task-shaped rule is a finding.** Ask of any new rule: would an agent doing
+unrelated work pay for this content? If yes, move it to a skill and link it.
 
 ## Single source of truth — never duplicate
 
