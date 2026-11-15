@@ -27,24 +27,33 @@ Do not end the turn after `gh pr create`.
 
 ## Always give the link
 
-Every PR, issue, commit, run or file you mention is a **link**, with its number
-as the text:
+Every PR, issue, commit, run or file you mention is a **link whose text names
+the kind and the number**:
 
-- `[#9](https://github.com/ashbywinch/inbox/pull/9)` — not `#9`, and not the bare
-  URL either. The number is what a reader recognises; the link is what makes it
-  one click.
-- A commit: `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)`.
-- A run: `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)`.
-- A file outside the repo: its Drive or Notion URL, with the file's name as the
-  text.
+| Thing | Write | Never |
+|---|---|---|
+| A pull request | `[PR#2](https://github.com/<owner>/<repo>/pull/2)` | `#2`, `PR 2`, the bare URL |
+| An issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | `#3`, the bare URL |
+| A commit | `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)` | `a1b2c3d` |
+| A run | `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)` | `4242` |
+| A file outside the repo | `[<file name>](<Drive or Notion URL>)` | its path |
 
-An unlinked `#9` is unfindable to whoever reads the message next — on a phone, in
+This holds on **every surface**, and a summary is not an exception:
+
+- the chat reply — including "five PRs are green, awaiting your approval";
+- the PR description (`pr_description.md`) — see §3 for the one form the
+  ticket extractor forces on a PR number;
+- every review-thread reply.
+
+An unlinked `#2` is unfindable to whoever reads the message next — on a phone, in
 a transcript, hours later. A pasted raw URL is findable but ugly, and it pushes
-the sentence it belongs to off the screen. Link the number; don't spell the URL
+the sentence it belongs to off the screen. Link the number; never spell the URL
 out in prose.
 
-Range links are the exception only when the reader already has the context and
-the thing is genuinely unbounded (a search, a filter).
+**Self-check before you send.** Scan your own text for `#\d+` that sits outside a
+link: each one is the defect this section exists to stop. A list of PR numbers
+in a status line is where it happens most — the numbers are known, the links
+were not looked up.
 
 ## Part 1: Create the PR
 
@@ -85,14 +94,23 @@ Create a `pr_description.md` with:
 - **Risk areas** — what to pay attention to in review
 - **Testing** — what was verified and how
 
-**Never reference issue/PR numbers (`#N`) in the description unless you
-mean a real linked ticket.** PR-Agent's ticket-compliance step latches
-onto any `#N` in the body and tries to fetch it as an issue — a bare
-mention like "see #51" where #51 is a PR (or an issue that can't be
-fetched) crashes the review job with `Error extracting tickets` /
-`'NoneType' object has no attribute 'get'` (observed 2026-08-08, houses:
-a PR body saying "crashed the run on #51" killed pr-agent's review of
-that very PR). Say "the earlier dependabot PR" instead of "#51".
+**A PR number takes the `#`-free form in the description.** The rule above
+still holds — the number is linked, never bare — but PR-Agent's
+ticket-compliance step reads any `#N` in the body as a TICKET and tries to fetch
+it as an issue. A PR number written `#51` crashes the review job with
+`Error extracting tickets` / `'NoneType' object has no attribute 'get'`
+(observed 2026-08-08, houses: a PR body saying "crashed the run on #51" killed
+pr-agent's review of that very PR).
+
+So in a description:
+
+- a pull request: `[PR 51](https://github.com/<owner>/<repo>/pull/51)` — space,
+  no `#`;
+- an issue: `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` — the `#` is
+  right when the thing really is an issue, and the extractor can fetch it;
+- a reference that is neither (a placeholder, a run): name it, don't number it.
+
+Chat and thread replies have no extractor: use `PR#2` there.
 
 ### 4. Create PR
 
@@ -476,9 +494,10 @@ The sections above are the how-to; these are the one-line reminders.
 - **Terse thread replies** (`Fixed` / `No`) — every reply names its
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
-- **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
-  fetches any `#N`; a PR number or unfetchable issue crashes the review
-  with `Error extracting tickets` (§3).
+- **An unlinked PR or issue number** — in chat, in a status summary, in a
+  description, in a reply: link it as `PR#2` or `Issue#3`, never a bare `#2`. A
+  PR number in a *description* takes the `#`-free text `PR 2`, because the ticket
+  extractor reads `#N` as an issue and a PR number crashes the review (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).
