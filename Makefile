@@ -114,7 +114,7 @@ LUCIDLINT_DIR ?= .tools/lucidlint
 # rebuilds it when the pin moves.
 PYTHON := .venv/bin/python
 UV := $(shell command -v uv 2>/dev/null || echo $(HOME)/.local/bin/uv)
-LUCIDLINT_PIN ?= v0.7.1
+LUCIDLINT_PIN ?= v0.8.0
 
 install-lucidlint:
 	@if [ "$$(cat $(LUCIDLINT_DIR)/version.txt 2>/dev/null)" = "$(LUCIDLINT_PIN)" ]; then \
