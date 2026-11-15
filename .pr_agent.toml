@@ -49,7 +49,7 @@ extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0
 
 [pr_code_suggestions]
 extra_instructions = """
-Documentation is reviewed like code. For each markdown file in the diff, propose a concrete replacement line when it breaks docs/writing-documentation.md. The rules it breaks are: a sentence over 30 words; a fact and a command in one sentence; a history lesson (a date, "we confirmed", "proven", "the former X is gone"); a fact stated twice; an undefined acronym. Anchor every suggestion to the line it replaces.
+Documentation is reviewed like code. For each markdown file in the diff, check it against docs/writing-documentation.md. Propose a concrete replacement line for every rule it breaks, and quote the rule you are enforcing. Anchor each suggestion to the line it replaces.
 """
 persistent_comment = true
 commitable_code_suggestions = true  # inline mode: the summarized table comment is never published (pr_code_suggestions.py:139); posting failures degrade to verified one-line comments, never a table
