@@ -57,6 +57,23 @@ only some agents need belongs in the doc the tree links to, never in
 AGENTS.md itself. Test: is this genuinely relevant to 100% of agents
 working in this repo? If not, it does not belong in the bootloader.
 
+## Rules are expensive context — put knowledge in skills
+
+Every repo loads a rule (`rules/*.md`) into every agent's context, every
+session, whether or not the task touches it. A rule therefore taxes every
+prompt. Put knowledge in a **skill** (`skills/<name>/SKILL.md`). The agent loads
+a skill only when a task matches its description, so the agent that needs it
+gets it and every other agent pays nothing.
+
+Write a rule only when it applies to **every** session regardless of task:
+universal discipline (test-first, fail-fast) and session invariants. Put
+task-shaped content in a skill, keyed by a description that routes the right
+task to it — "when deploying", "when touching the scraper", "when reviewing a
+user interface change".
+
+**A task-shaped rule is a finding.** Ask of any new rule: would an agent doing
+unrelated work pay for this content? If yes, move it to a skill and link it.
+
 ## Single source of truth — never duplicate
 
 Each piece of information — whether documentation or code — lives in exactly
