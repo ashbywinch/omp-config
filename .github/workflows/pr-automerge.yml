@@ -28,10 +28,13 @@ name: PR auto-merge (reusable)
 # makes both events real. The App needs Contents: write and Pull requests:
 # write, and must be installed on the repo.
 #
-# The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled,
-# and a ruleset that requires one approving review plus the CI checks. This
-# workflow only sets the flag and refreshes stale branches; it never approves
-# or merges directly.
+# The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled.
+# A ruleset that requires an approving review plus the CI checks is still
+# wanted — it is what holds `main` — but it is NOT the approval gate: this
+# workflow arms only a PR whose head commit carries an approval, and disarms an
+# armed PR as soon as a push moves the head past it. Without that, a PR based on
+# a feature branch (no ruleset) merged itself with a red check (2026-11-15).
+# This workflow never approves or merges directly.
 #
 # The hourly schedule is the fallback for a main merge that produced no
 # event: it refreshes approved/armed PRs that fell behind.
@@ -110,6 +113,33 @@ jobs:
               # Idempotent: every push fires this, and an already-armed PR must
               # not fail the job. `--jq` prints an EMPTY line for a null field.
               armed=$(gh pr view "$PR" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest')
+              # THE APPROVAL GATE LIVES HERE, not only in a ruleset. A ruleset
+              # covers the default branch, and this workflow is called for PRs
+              # into ANY base: a PR stacked on a feature branch had no ruleset,
+              # so it armed, merged itself with a failing check and an unanswered
+              # review thread (the-loft, 2026-11-15). And an approval of an
+              # earlier commit is not an approval of this one — GitHub keeps
+              # REVIEW_REQUIRED's state across pushes unless a ruleset dismisses
+              # stale reviews, so the approval is matched to the head SHA.
+              head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
+              # one line per approval across every page, last wins: `gh api`
+              # applies --jq page by page, so the reduction happens here
+              approved=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+                --jq '.[] | select(.state == "APPROVED") | .commit_id' | tail -n 1)
+              # Strictly the head commit: an approval is of the code that was
+              # read. A push after it — the fix a reviewer asked for, or the
+              # behind-branch update — means nobody has read this head, so the
+              # arm is withdrawn and the reviewer approves again. The cost is a
+              # second click after a base merge; the alternative is an approval
+              # standing for code its author never saw.
+              if [ -z "$approved" ] || [ "$approved" != "$head" ]; then
+                echo "no approval covering the head ($head) — not arming"
+                if [ -n "$armed" ] && [ "$armed" != "null" ]; then
+                  gh pr merge "$PR" --repo "$REPO" --disable-auto
+                  echo "auto-merge disarmed: a commit moved the head past the approval"
+                fi
+                exit 0
+              fi
               case "$armed" in
                 "" | null) : ;;
                 *)
@@ -143,7 +173,7 @@ jobs:
                 | select(.isDraft == false)
                 | select(.mergeStateStatus == "BEHIND")
                 | select(.headRepositoryOwner.login == $owner)
-                | select(.reviewDecision == "APPROVED" or .autoMergeRequest != null)
+                | select(.reviewDecision == "APPROVED")
                 | .number
               ' |
               while read -r pr; do
