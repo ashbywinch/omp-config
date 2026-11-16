@@ -112,6 +112,15 @@ equivalent.
 - Node pinned in CI (`actions/setup-node@v4`, `node-version: 22.x`, `cache: npm`) AND locally via `.nvmrc` containing the same version — local dev must match CI (no repo does this yet; side-by-side/houses pin CI only, kilocode pins bun via `packageManager`). `engines` in package.json is an optional extra.
 - Dev server scheme (vite, houses 2026-08): **plain HTTP by default — do NOT set `server.https`** unless you have a trusted cert. Vite's `server.https` REPLACES http on the port (it doesn't add https): every http bookmark/URL then gets `ERR_EMPTY_RESPONSE` (browser connects, vite doesn't speak HTTP, connection closed). For phone access via a hostname like `*.sslip.io`, keep `server.allowedHosts` for the wildcard and serve plain http — a phone browser in HTTPS-First mode tries https, sees a plain-http server, and falls back to http (the designed behavior); if it hard-fails, that's the browser's "Always use secure connections" setting, not the app. Real trusted HTTPS for the dev box means a reverse proxy (Caddy/nginx), not a self-signed cert in vite.
 - Releases (monorepos): `.changeset` with restricted access, baseBranch main (kilocode).
+- One-shot install: `install: setup tools`, where `tools` provisions anything the repo's own scripts
+  need into gitignored `.tools/` — a pinned-interpreter venv for a maintainer script (secrets,
+  releases), a CLI fetched into `.tools/bin`. Nothing calls the system interpreter; `uv` bootstraps
+  into `.tools/bin` when absent so CI needs no extra step. An ad-hoc environment outside the repo
+  leaves no reproducible command behind.
+- husky must be a declared `devDependencies` entry, not only a `"prepare": "husky"` script: without the
+  dependency npm installs nothing, `core.hooksPath` stays unset, and every push is ungated while the
+  tree looks guarded. Prove it: `git config core.hooksPath` after a clean install, then block a staged
+  lint error.
 - Git hooks: husky pre-commit running lint + typecheck + **gitleaks** (kilocode's pre-push adds a toolchain-version check against `packageManager`). Fast checks only.
 - **Materialization.** These JS/TS conventions — vitest/istanbul, the eslint/oxlint + prettier setup, `strict: true` + `vue-tsc` gate, the Node pin — are appended to the repo's `docs/coding-standards.md` as a "JS/TS conventions" section when scaffolding. The review bot reads only `repo_context_files`; a toolchain rule that stays only in this skill is invisible to review.
 

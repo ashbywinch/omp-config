@@ -24,11 +24,12 @@ Scaffold in this order: Makefile → CI → coverage → git hygiene → entry d
 
 ### 1. Makefile is the single dev entry point
 
-Every dev action goes through `make`; CI runs make targets, never raw tool commands. energy_envelope states the contract explicitly: "CI runs exactly: `make setup && make lint && make test`".
+Every dev action goes through `make`; CI runs make targets, never raw tool commands. energy_envelope states the contract explicitly: "CI runs exactly: `make install && make lint && make test`".
 
 **Template: `skill://scaffold-language-layers/examples/<stack>/Makefile`** — copy it into the new repo, then edit the `CHANGE` points (package name, versions, project targets). Each example file carries a `CHANGE` / `DO NOT CHANGE` comment header — the comments say *what* and *why*; the invariants below say *when* it's OK to deviate. The stack-specific examples (Makefile, pyproject, typechecker config, hooks) live in the language layer's `examples/<stack>/` dir; the general examples (dotfiles, CI, AGENTS.md, review bot) live in `examples/` here. A repo takes the general dir + exactly one stack dir.
 
 Targets (template `help` lists them; meaning fixed by the standard):
+- `install` the one-shot a clone runs and CI's first step: deps, toolchains into `.tools/`, hooks
 - `setup` idempotent toolchain+deps+hooks · `lint` static checks · `test` suite gated by lint · `coverage` XML for CI · `format` auto-fix · `clean` removes only `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data · `run`/`stop` dev servers (service repos) · `dist` build artifacts (CI uploads).
 
 Deviating from the template is allowed only where the rules say so:
