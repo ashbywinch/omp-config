@@ -18,7 +18,7 @@ Use when asked to start a new project repository ("shell repo", "scaffold a repo
 1. **General layer** — applies to every new repo regardless of language. Non-negotiable.
 2. **Language layer** — toolchain specifics per stack (Python: uv/ruff/pytest; JS/TS: npm/vitest/eslint; Rust: cargo/clippy/rustfmt), in `skill://scaffold-language-layers`.
 
-Scaffold in this order: Makefile → CI → coverage → git hygiene → entry docs → repo creation + branch protection. Finish with the checklist.
+Scaffold in this order: Makefile → CI → coverage → git hygiene → entry docs → repo creation + branch protection. Finish with `skill://new-repo-scaffold/CHECKLIST.md`.
 
 ## General layer
 
@@ -189,14 +189,14 @@ Toolchain details per stack materialize into the repo's `docs/coding-standards.m
 
 ## Verification (prove the scaffold works)
 
-Run in order; the checklist below is the final gate, not documentation.
+Run in order; the checklist (`skill://new-repo-scaffold/CHECKLIST.md`) is the final gate, not documentation.
 
 1. **Fresh-clone smoke test** — the single most valuable check. Clone the new repo into a temp dir and run `make setup && make lint && make test` there. This simulates exactly what every future clone and CI run experiences; it fails if anything depends on scaffold-session state (venv, cwd, env, uncommitted files).
 2. **Coverage and clean loop** — `make coverage` (emits `coverage.xml` for the CI gate), then `make clean`, then re-run `make test` — proves the clean target doesn't break the loop.
 3. **Hooks actually fire** — `make install-hooks` copies the raw hooks; stage a lint-breaking change and confirm the pre-commit hook blocks the commit (or run `.git/hooks/pre-commit` directly on the staged changes). Then prove gitleaks with a REALISTIC key. Plain `sk-` + 24 chars matches no default rule. Use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes. Confirm pre-push fires on the pushed range. A push that touches only docs skips; a push touching `.py` runs `make check`.
 4. **Gitignore honesty** — after setup, `git status --porcelain` is empty: `.venv/`, `.env`, caches, and agent state never appear.
 5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute. Budget one CI debug iteration when standing up a new repo. A recipe that passes locally — and in a fresh clone — can still fail on the runner. Print `--version`, `--help`, and raw exit codes before changing the recipe.
-6. **Walk the checklist** — every box checked against the actual repo, not from memory.
+6. **Walk the checklist** — `skill://new-repo-scaffold/CHECKLIST.md`, every box checked against the actual repo, not from memory.
 
 ## Checklist
 
