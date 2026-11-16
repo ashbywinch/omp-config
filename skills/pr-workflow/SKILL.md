@@ -440,16 +440,12 @@ finished. Reporting is a step, not a summary of whatever the last command happen
 2. **A list means every repo, from a command that enumerates them.** Owned repos, then each one's open
    PRs: a hand-picked sample presented as the list is a wrong answer, not a partial one. State the
    count and the repo count so the reader can see the scope.
-3. **Checks have three verdicts, not two.** `success`, `failure`, and `cancelled` — cancelled means a
-   newer run on the same ref superseded this one, so it is neither a pass nor a failure and cannot be
-   reported as either. Re-run it, or describe it as stale; never fold it into "green" and never into
-   "failed".
-4. **The verdict must be for the head you are describing.** A success on an older sha is not evidence
-   for the current one. When a push has just landed, wait for its run rather than quoting the previous
-   one.
-5. **Never resolve a review thread, and never re-run a check to make a gate quiet.** Resolution is the
-   reviewer's verdict. A red check is answered by a fix or a re-run of the same code, never by a new run
-   that hides the failing one.
+3. **Report a cancelled check as stale.** Cancelled means a newer run on the same ref replaced it.
+   Re-run it before judging the head, and call it stale — not green, not failed.
+4. **Quote the run for the commit you are describing.** Wait for that run to finish; a success on an
+   earlier sha says nothing about the current head.
+5. **Reply to every review thread and resolve none.** Only the reviewer resolves. Answer a red check
+   with a fix, or by re-running the same commit.
 
 ## Part 5: Handing the merge to the user
 
