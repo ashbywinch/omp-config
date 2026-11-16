@@ -108,10 +108,14 @@ equivalent.
 Template: `skill://scaffold-language-layers/examples/js/Makefile` — the one-shots, `install-hooks`
 (which fails when husky did not set `core.hooksPath`), `merge-markers`, the `check` composition, and `deps` prerequisites on every check target so `make test` works on a fresh clone.
 
-- npm scripts named to mirror make targets: `dev`, `build`, `preview`, `test`, `coverage`, `lint`, `format` — `make test` maps 1:1 to `npm test`.
-- Test runner: **vitest**, happy-dom or jsdom; coverage provider **istanbul** with reporters `["text", "clover"]` → CI consumes `coverage/clover.xml`.
-- Lint: **ESLint flat config** (`@eslint/js` + `typescript-eslint` + framework plugin, `eslint-config-prettier` LAST so style rules are disabled) — or **oxlint** with `typeAware: true` (kilocode). Prettier separate, defaults.
-- TS: `strict: true`, `noUnusedLocals`/`noUnusedParameters`/`noFallthroughCasesInSwitch`; `vue-tsc -b` type-check gate inside `build` (houses/frontend). Solution-style project references for mixed configs.
+- **Script names, coverage reporters, TS flags and the eslint/prettier ordering are files, not prose:**
+  `skill://scaffold-language-layers/examples/js/` ships `package.json` (scripts mirroring the make
+  targets), `vitest.config.ts` (istanbul + clover + the coverage thresholds), `tsconfig.json` (strict
+  plus the three no-* flags), `eslint.config.js` (prettier last) and `.nvmrc`. Copy them; do not
+  re-derive them from this list.
+- Choose, don't assume: vitest over jest unless the repo already runs jest; oxlint `typeAware: true`
+  only where the repo wants speed over plugin coverage (kilocode); a Vue repo gates types with
+  `vue-tsc -b` inside `build` and uses solution-style project references for mixed configs.
 - Node pinned in CI (`actions/setup-node@v4`, `node-version: 22.x`, `cache: npm`) AND locally via `.nvmrc` containing the same version — local dev must match CI (no repo does this yet; side-by-side/houses pin CI only, kilocode pins bun via `packageManager`). `engines` in package.json is an optional extra.
 - Dev server scheme (vite, houses 2026-08): **plain HTTP by default — do NOT set `server.https`** unless you have a trusted cert. Vite's `server.https` REPLACES http on the port (it doesn't add https): every http bookmark/URL then gets `ERR_EMPTY_RESPONSE` (browser connects, vite doesn't speak HTTP, connection closed). For phone access via a hostname like `*.sslip.io`, keep `server.allowedHosts` for the wildcard and serve plain http — a phone browser in HTTPS-First mode tries https, sees a plain-http server, and falls back to http (the designed behavior); if it hard-fails, that's the browser's "Always use secure connections" setting, not the app. Real trusted HTTPS for the dev box means a reverse proxy (Caddy/nginx), not a self-signed cert in vite.
 - Releases (monorepos): `.changeset` with restricted access, baseBranch main (kilocode).
