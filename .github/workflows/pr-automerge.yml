@@ -61,9 +61,12 @@ on:
 permissions:
   contents: read
 
+# Arming is idempotent and takes seconds, so a newer event must not cancel an in-flight run: the
+# cancelled run is reported by `gh pr checks` as a failure, and if the cancelled one carried the
+# approval the PR is left unarmed with nothing to show why.
 concurrency:
   group: pr-automerge-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   automerge:
