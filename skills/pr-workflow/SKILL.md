@@ -94,21 +94,17 @@ Create a `pr_description.md` with:
 - **Risk areas** — what to pay attention to in review
 - **Testing** — what was verified and how
 
-**A PR number takes the `#`-free form in the description.** The rule above
-still holds: the number is linked, never bare. PR-Agent's ticket-compliance step
-reads any `#N` in the body as a ticket and tries to fetch it as an issue. A PR
-number written `#51` crashes the review job with `Error extracting tickets` /
-`'NoneType' object has no attribute 'get'`.
+**In a PR description, leave the `#` off a pull request number.** This is the one
+exception to the rule above, because PR-Agent reads any `#N` in the body as an
+issue to fetch and a PR number crashes the review.
 
-So in a description:
+| What | Write | Why |
+|---|---|---|
+| Pull request | `[PR 51](https://github.com/<owner>/<repo>/pull/51)` | a `#` here makes the review job fail |
+| Issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | the extractor can fetch it |
+| Anything else | name it, don't number it | a placeholder or a run is not a ticket |
 
-- a pull request: `[PR 51](https://github.com/<owner>/<repo>/pull/51)` — space,
-  no `#`;
-- an issue: `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` — the `#` is
-  right when the thing really is an issue, and the extractor can fetch it;
-- a reference that is neither (a placeholder, a run): name it, don't number it.
-
-Chat and thread replies have no extractor: use `PR#2` there.
+Chat and thread replies have no extractor, so `PR#2` is fine there.
 
 ### 4. Create PR
 
