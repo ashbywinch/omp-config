@@ -105,6 +105,9 @@ equivalent.
 
 ### JS/TS (side-by-side, houses/frontend, kilocode)
 
+Template: `skill://scaffold-language-layers/examples/js/Makefile` — the one-shots, the tools target and
+the `check` composition, with the CHANGE points marked.
+
 - npm scripts named to mirror make targets: `dev`, `build`, `preview`, `test`, `coverage`, `lint`, `format` — `make test` maps 1:1 to `npm test`.
 - Test runner: **vitest**, happy-dom or jsdom; coverage provider **istanbul** with reporters `["text", "clover"]` → CI consumes `coverage/clover.xml`.
 - Lint: **ESLint flat config** (`@eslint/js` + `typescript-eslint` + framework plugin, `eslint-config-prettier` LAST so style rules are disabled) — or **oxlint** with `typeAware: true` (kilocode). Prettier separate, defaults.
