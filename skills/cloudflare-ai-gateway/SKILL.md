@@ -142,6 +142,29 @@ Per-request headers that override the model node's settings
 | [`cf-aig-max-attempts`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Max retries (0-5) |
 | [`cf-aig-retry-delay`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Delay between retries (ms, max 5000) |
 | [`cf-aig-backoff`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | `constant`, `linear`, or `exponential` |
+| `cf-aig-skip-cache` | `true` bypasses the response cache for this request. **A retry must send it** (see below). |
+
+### The cache replays, so a retry must skip it
+
+Cloudflare AI Gateway **caches a completion by request body**. Two consequences,
+both measured on this gateway (2026-11-16):
+
+- **A client retry that re-sends the identical body is not a retry.** The
+  gateway returns the cached answer — same response id, `cf-aig-cache-status:
+  HIT` — so a failure is replayed instead of re-sampled. Three retries of an
+  empty completion came back byte-identical (same 49-character reasoning), and
+  the client could never recover.
+- **An "independent" second measurement is the first one again.** A repeat eval
+  run asked identical questions and got the previous run's ids. `fresh`
+  measurement clients must send `cf-aig-skip-cache: true` on *every* attempt;
+  production may keep the cache for the first attempt only.
+
+`cf-aig-cache-ttl: 0` does **not** bypass it (measured: still `HIT`). The skip
+header is the only lever, and a timeout/retry header does not cover it: the two
+are separate request-handling features.
+
+Check the response's `cf-aig-cache-status` header when an answer looks
+suspiciously fast or suspiciously identical.
 
 The local proxy adds these headers to every request. PR-Agent in GitHub Actions needs them sent via `[litellm] extra_headers` in `.pr_agent.toml` — as a JSON **string**: the handler runs `json.loads(get_settings().litellm.extra_headers)`, so an inline TOML table fails every call with "the JSON object must be str, bytes or bytearray, not DynaBox". The working block lives in the sample: `skill://new-repo-scaffold/examples/.pr_agent.toml` (the `[litellm]` section).
 
