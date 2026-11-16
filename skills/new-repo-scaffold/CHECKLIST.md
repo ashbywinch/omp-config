@@ -22,10 +22,13 @@ from memory. General applies to every repo; take exactly one language section.
 - [ ] Required doc set present (per docs/documentation-structure.md): `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` (or `docs/PLAN/`) with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies; every doc discoverable from AGENTS.md
 - [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern), the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`), and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
+- [ ] review workflow placeholders substituted (`{ACCOUNT_ID}/{GATEWAY}`, the secret name) and `push_trigger_ignore_bot_commits = false` in the config branch
 - [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
 - [ ] dependabot configured per the 'Dependency updates are automated, with a human boundary' rule in standards/coding-standards.md — grouping and auto-merge as in the examples
 - [ ] Branch workflow: never commit to main, PRs required, protected main
-- [ ] PR auto-merge wired: example copied, both repo settings on, one approval + checks (private: `merge-when-approved.yml`)
+- [ ] auto-merge armed by workflow on open and on review; gate = one approval + all checks + all conversations resolved
+- [ ] `allow_auto_merge` and `delete_branch_on_merge` set; protection has `required_conversation_resolution`
+- [ ] private + free plan: protection and auto-merge are unavailable — public repo, or the convention-only gate recorded
 - [ ] Git hooks run the fast checks — lint, typecheck, secrets scan (gitleaks) — installed by `make setup`; never the full test suite
 - [ ] End-to-end green: `make setup && make lint && make test` locally and CI green on push
 - [ ] Repo created via `gh repo create --source --push --private`; branch protection applied after first CI run (PR + status check required)

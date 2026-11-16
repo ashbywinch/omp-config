@@ -178,9 +178,25 @@ gh api repos/<owner>/<name>/branches/main/protection -X PUT \
   -F enforce_admins=false
 ```
 
+**Auto-merge is armed on every PR, and the gate is approval, checks and conversations.** Arming is a
+workflow, never a human step: it sets the flag on open and again when a review lands, so a PR merges
+when — and only when — one human approval, every required check, and every review conversation
+resolved are all true. This is implemented differently by visibility:
+
+| Repo | Implementation |
+|---|---|
+| Public (free plan ok) | `allow_auto_merge` + `delete_branch_on_merge`, branch protection with `required_conversation_resolution`, and the reusable `ashbywinch/omp-config/.github/workflows/pr-automerge.yml@<tag>` caller |
+| Private on a free plan | GitHub refuses branch protection and auto-merge outright ("Upgrade to GitHub Pro or make public") — either make the repo public, or record in the repo that the gate is convention-only; do not claim a gate that is not enforced |
+
 Rules:
 - Never push to main; the first commit is `main`, everything after is branches + PRs (rule://session-start).
 - `--private` is the default for personal repos; go public only deliberately.
+- **Substitute the review workflow's placeholders** before the first PR. The example carries
+  `{ACCOUNT_ID}/{GATEWAY}` in `OPENAI_BASE_URL` and `<PROJECT>_API_KEY` in the env block; leaving them
+  produces a 401 `Invalid request path` from the gateway that reads like a bad key.
+- **Bot-authored pushes are not reviewed by default.** Every commit here is bot-authored, so
+  `push_trigger_ignore_bot_commits` must be `false` in the config branch's `.pr_agent.toml`, or the
+  action logs `Skipping synchronize: bot commit detected` and the verify step fails with no output.
 - **Set `<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s). The secret value is the Cloudflare AI Gateway token (`CLOUDFLARE_AIGATEWAY_TOKEN` in the shell environment).
 
 ## Language layers — see `skill://scaffold-language-layers`
