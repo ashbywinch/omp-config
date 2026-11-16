@@ -1,14 +1,19 @@
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
-
 # examples/js/Makefile — copy to the repo root, then work through the CHANGE points.
 #
 # CHANGE: the project name in `help`; add `run`/`stop` for a service or `dist` for build artifacts.
-# CHANGE: the `tools` target — keep it only if one of the repo's own scripts needs a toolchain
-#         (a maintainer script that sets a secret or cuts a release). Delete it and the `install`
-#         dependency on it when nothing does.
-# DO NOT CHANGE: the shell pin, the target meanings, and `check`'s composition. CI and the pre-push
-#               hook both run `check`; editing it in one place only is how the two drift.
+# CHANGE: the `tools` target — keep it only if a script the repo runs needs a toolchain (setting a
+#         secret, cutting a release). Delete it and `install`'s dependency on it when nothing does.
+#
+# DO NOT CHANGE:
+# - SHELL + .SHELLFLAGS (the shell pin): make's default /bin/sh is dash on Debian/Ubuntu — including
+#   the CI runners — and dash has no `pipefail`, so a bash-ism passes locally and dies in CI.
+# - `deps` never depends on `install-hooks`: a hook that calls `make check` would re-run the very
+#   install that refuses the hook file — the pre-push deadlock.
+# - `check` = deps + lint-check + typecheck + merge-markers, the single gate CI and pre-push both run.
+# - Check targets depend on `deps`: `make test` on a fresh clone must install what it needs, not fail.
+
+SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
 
 NODE := node
 NPM := npm
@@ -20,54 +25,76 @@ TOOLS_BIN ?= .tools/bin
 TOOLS_VENV ?= .tools/venv
 TOOLS_PYTHON := $(TOOLS_VENV)/bin/python
 
-.PHONY: help install setup deps tools lint lint-check typecheck test coverage format clean check
+GREEN := \033[0;32m
+NC := \033[0m
+
+.PHONY: help install setup deps tools install-hooks lint lint-check lint-github typecheck \
+        test coverage format merge-markers clean check
 
 help:
-	@echo "CHANGE: project name"
-	@echo "  make install    one shot: deps, .env, hooks, tools — what a clone and CI both run"
-	@echo "  make setup      dependencies only"
-	@echo "  make lint       report lint findings"
-	@echo "  make typecheck  tsc --noEmit"
-	@echo "  make test       typecheck + tests (the gate)"
-	@echo "  make coverage   tests with a clover report in coverage/"
-	@echo "  make format     rewrite formatting in place"
-	@echo "  make check      lint + typecheck, what pre-push runs"
-	@echo "  make clean      remove provisioned state, never user data"
+	@printf "Available commands:\n"
+	@printf "  ${GREEN}make install${NC}      One shot: deps, .env, hooks, tools — what a clone and CI run\\n"
+	@printf "  ${GREEN}make setup${NC}        Dependencies and hooks\\n"
+	@printf "  ${GREEN}make check${NC}        lint + typecheck + merge-markers — the gate CI and pre-push run\\n"
+	@printf "  ${GREEN}make test${NC}         The gate, then the test suite\\n"
+	@printf "  ${GREEN}make lint${NC}         Report lint findings\\n"
+	@printf "  ${GREEN}make format${NC}       Rewrite formatting in place\\n"
+	@printf "  ${GREEN}make coverage${NC}     Tests with a clover report in coverage/\\n"
+	@printf "  ${GREEN}make clean${NC}        Provisioned state only, never user data\\n"
 
 install: setup tools
-	@echo "Installed. Next: make test."
+	@printf "${GREEN}✓ Installed${NC}\n"
 
-setup: deps
+setup: deps install-hooks
+	@[ -f .env ] || { [ -f .env.example ] && cp .env.example .env; } || true
 
 deps:
 	$(NPM) install
-	@if [ -f .env.example ] && [ ! -f .env ]; then cp .env.example .env; fi
+
+# Hooks must be installed, not merely declared: npm's `prepare` runs husky only when husky is a
+# declared dependency, and a silent no-op leaves every push ungated.
+install-hooks: deps
+	@command -v npx >/dev/null 2>&1 || { echo "npx is missing"; exit 1; }
+	@npx husky >/dev/null 2>&1 || true
+	@git config core.hooksPath >/dev/null 2>&1 || {
+		echo "husky did not set core.hooksPath — is husky in devDependencies?"; exit 1; }
+	@printf "${GREEN}✓ Hooks installed at %s${NC}\n" "$$(git config core.hooksPath)"
 
 tools:
 	@command -v $(UV) >/dev/null 2>&1 || (mkdir -p $(TOOLS_BIN) && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=$(TOOLS_BIN) sh)
 	@test -x $(TOOLS_PYTHON) || ($(UV) venv --python $(PYTHON_VERSION) $(TOOLS_VENV))
 	@$(UV) pip install --quiet --python $(TOOLS_PYTHON) pynacl
 
-lint:
-	$(NPM) run lint
+# A conflict marker that reached a commit is a merge stopped halfway: the file is wrong and nothing
+# else reads it. The script ships in the scaffold's examples/tools/.
+merge-markers: deps
+	@tools/check-merge-markers.sh
 
-lint-check:
-	$(NPM) run lint:check
+# The exact gate a push must pass — run identically by CI and the pre-push hook. No test run: too
+# slow for a hook, and CI's `make test` already includes these.
+check: deps lint-check typecheck merge-markers
 
-typecheck:
-	$(NPM) run typecheck
-
-test: typecheck
+test: check
 	$(NPM) run test
 
-coverage:
+lint: deps lint-check
+
+# Shared with the pre-commit hook — one lint scope for both.
+lint-check: deps
+	$(NPM) run lint:check
+
+# CI only: findings surface as PR annotations.
+lint-github: deps
+	$(NPM) run lint:github
+
+typecheck: deps
+	$(NPM) run typecheck
+
+coverage: deps
 	$(NPM) run coverage
 
-format:
+format: deps
 	$(NPM) run format
 
 clean:
 	rm -rf node_modules coverage .vitest dist .tools
-
-# The single gate CI and the pre-push hook both run: no drift between them.
-check: lint-check typecheck
