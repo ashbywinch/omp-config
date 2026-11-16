@@ -26,7 +26,6 @@ links to.
 | Documentation standard (what good documentation is) | `docs/writing-documentation.md` |
 | Doc folder structure (the required doc set) | `docs/documentation-structure.md` |
 | How the standards deploy to new repos | `docs/standards-deployment.md` |
-| Dictation vocabulary shared across repos | `lexicon/central.lexicon` (installed to `~/.paseo/lexicon.central`; per-repo terms go in that repo's `.lexicon`) |
 | Trigger rules | `rules/*.md` |
 | Release versioning (semver increments) | `rules/semver-release.md` |
 | System prompt append | `APPEND_SYSTEM.md` |
