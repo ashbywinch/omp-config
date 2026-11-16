@@ -95,12 +95,10 @@ Create a `pr_description.md` with:
 - **Testing** — what was verified and how
 
 **A PR number takes the `#`-free form in the description.** The rule above
-still holds — the number is linked, never bare — but PR-Agent's
-ticket-compliance step reads any `#N` in the body as a TICKET and tries to fetch
-it as an issue. A PR number written `#51` crashes the review job with
-`Error extracting tickets` / `'NoneType' object has no attribute 'get'`
-(observed 2026-08-08, houses: a PR body saying "crashed the run on #51" killed
-pr-agent's review of that very PR).
+still holds: the number is linked, never bare. PR-Agent's ticket-compliance step
+reads any `#N` in the body as a ticket and tries to fetch it as an issue. A PR
+number written `#51` crashes the review job with `Error extracting tickets` /
+`'NoneType' object has no attribute 'get'`.
 
 So in a description:
 
