@@ -428,6 +428,25 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ---
 
+## Part 4b: Before you report a PR's state
+
+A PR's state is a claim about someone else's next action, so it is only made after the reviewer has
+finished. Reporting is a step, not a summary of whatever the last command happened to print.
+
+1. **`pr-threads --wait <pr>` for every PR you mention** — not only the one you just pushed. The
+   `--wait` block is what makes the answer current; reading threads earlier reports a clean PR that is
+   about to have findings. In a list, a PR with unanswered threads is **awaiting a reply**, never
+   "ready to approve", however green its checks are.
+2. **A list means every repo, from a command that enumerates them.** Owned repos, then each one's open
+   PRs: a hand-picked sample presented as the list is a wrong answer, not a partial one. State the
+   count and the repo count so the reader can see the scope.
+3. **Report a cancelled check as stale.** Cancelled means a newer run on the same ref replaced it.
+   Re-run it before judging the head, and call it stale — not green, not failed.
+4. **Quote the run for the commit you are describing.** Wait for that run to finish; a success on an
+   earlier sha says nothing about the current head.
+5. **Reply to every review thread and resolve none.** Only the reviewer resolves. Answer a red check
+   with a fix, or by re-running the same commit.
+
 ## Part 5: Handing the merge to the user
 
 ### 13. The PR carries the version bump; merging it is the release
@@ -478,6 +497,9 @@ The sections above are the how-to; these are the one-line reminders.
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
+- **Reporting state before `pr-threads --wait`** — a list, a "ready to approve", a handover: all of
+  them are claims the reviewer has finished. Unanswered threads make the state "awaiting reply" (§4b).
+- **Treating a cancelled check as either verdict** — cancelled means superseded by a newer run (§4b).
 - **Calling a push done without re-reading the threads** — a green check says
   nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
   adds findings a round at a time, and the unread one is the one that mattered.
