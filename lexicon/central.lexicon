@@ -1,0 +1,29 @@
+# Central dictation lexicon.
+#
+# Vocabulary that dictation gets wrong and that is not specific to one repository: names of
+# people, tools and services that appear across projects. Per-project terms live in that
+# repository's `.lexicon`; the two lists are merged at request time with the repo's terms first.
+#
+# Rules:
+#   - One term per line. `#` starts a comment.
+#   - Add a term only after it has been shown to fail without the list and to be fixed with it.
+#     An unnecessary term consumes a slot at the provider's 100-term cap and dilutes the boost
+#     the others receive.
+#   - Plain English words do not belong here: they either already transcribe correctly or, like
+#     `main`, cannot be boosted at all.
+#   - Case is preserved in the output, so write the term the way it should read: `LiteLLM`, not
+#     `litellm`.
+#
+# Consumed by the transcription shim, which reads the installed copy at ~/.paseo/lexicon.central.
+
+Ashby
+Paseo
+LiteLLM
+Vaultwarden
+Tailscale
+sherpa-onnx
+Deepgram
+podman
+restic
+opencode
+omp
