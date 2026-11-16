@@ -106,8 +106,7 @@ equivalent.
 ### JS/TS (side-by-side, houses/frontend, kilocode)
 
 Template: `skill://scaffold-language-layers/examples/js/Makefile` — the one-shots, `install-hooks`
-(which fails when husky did not set `core.hooksPath`), `merge-markers`, `lint-github`, the `check`
-composition, and `deps` prerequisites on every check target so `make test` works on a fresh clone.
+(which fails when husky did not set `core.hooksPath`), `merge-markers`, the `check` composition, and `deps` prerequisites on every check target so `make test` works on a fresh clone.
 
 - npm scripts named to mirror make targets: `dev`, `build`, `preview`, `test`, `coverage`, `lint`, `format` — `make test` maps 1:1 to `npm test`.
 - Test runner: **vitest**, happy-dom or jsdom; coverage provider **istanbul** with reporters `["text", "clover"]` → CI consumes `coverage/clover.xml`.

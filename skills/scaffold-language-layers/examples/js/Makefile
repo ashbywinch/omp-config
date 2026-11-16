@@ -28,7 +28,7 @@ TOOLS_PYTHON := $(TOOLS_VENV)/bin/python
 GREEN := \033[0;32m
 NC := \033[0m
 
-.PHONY: help install setup deps tools install-hooks lint lint-check lint-github typecheck \
+.PHONY: help install setup deps tools install-hooks lint lint-check typecheck \
         test coverage format merge-markers clean check
 
 help:
@@ -83,9 +83,8 @@ lint: deps lint-check
 lint-check: deps
 	$(NPM) run lint:check
 
-# CI only: findings surface as PR annotations.
-lint-github: deps
-	$(NPM) run lint:github
+# No target here: ESLint 9 removed its extra formatters, so a GitHub-annotation
+# formatter is a third-party dependency. CI runs lint-check, which still fails the build.
 
 typecheck: deps
 	$(NPM) run typecheck
