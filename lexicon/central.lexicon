@@ -25,9 +25,10 @@ venv
 LiteLLM
 Vaultwarden
 Tailscale
-sherpa-onnx
 Deepgram
 podman
 restic
 opencode
 omp
+pyrefly
+omp-config
