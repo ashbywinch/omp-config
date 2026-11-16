@@ -7,9 +7,9 @@ description: Fix a jargon word, product name, person or acronym that speech-to-t
 
 ## When to use this
 
-The user reports that a dictated message came out with the wrong word for a name they use: a
-repository, product, service, person, or acronym (`LiteLLM` heard as `Light LLM`, `Vaultwarden` as
-`Fault Warden`, `floorplan` as `floor plan`).
+The user reports that a dictated message came out with the wrong word for a name they use. That
+covers a repository, a product, a service, a person, or an acronym: `LiteLLM` heard as `Light LLM`,
+`Vaultwarden` as `Fault Warden`, `floorplan` as `floor plan`.
 
 Do not use it for substitutions of ordinary English (`build` heard as `brought`) or for dropped
 words. Those are not vocabulary faults and no lexicon fixes them.

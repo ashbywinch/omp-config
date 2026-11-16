@@ -8,7 +8,9 @@ from memory. General applies to every repo; take exactly one language section.
 - [ ] Makefile pins the recipe shell (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — recipes can't diverge between macOS and CI
 - [ ] `make test` depends on `make lint`; CI runs only make targets
 - [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
-- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail) — EXCEPT where the toolchain is pinned and deterministic (Rust under `rust-toolchain.toml`: clippy/rustc need no baseline, per the language layer)
+- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count
+- [ ] The baseline is locked in both directions: a new error AND a stale entry fail
+- [ ] Exception: a pinned, deterministic toolchain needs no baseline (Rust under `rust-toolchain.toml`)
 - [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
 - [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
 - [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
@@ -40,7 +42,8 @@ from memory. General applies to every repo; take exactly one language section.
 - [ ] Semantic types wired: pint for quantities, a Money type for currency (the generic rules are in the global standard; the library choices are here)
 - [ ] `docs/coding-standards.md` carries the "Python conventions" section (materialized from this skill's language layer — the bot reads only `repo_context_files`)
 - pytest is the runner; unittest only for eval harnesses needing module-level discovery (documented deviation, not default)
-- Type checker (pyrefly recommended, or basedpyright/mypy) configured and gated inside `make test`; pyrefly uses the both-direction baseline lock (`scripts/pyrefly-lock.py` — new errors AND stale baseline entries fail; pyrefly's own baseline is one-way and misses stale entries)
+- Type checker (pyrefly recommended, or basedpyright/mypy) configured and gated inside `make test`
+- The baseline lock runs both directions via `scripts/pyrefly-lock.py`: new errors AND stale entries fail. Pyrefly's own baseline is one-way and misses stale entries
 - `make check` = lint + typecheck — the single gate CI and the pre-push hook both run (same command, no drift); check targets depend on `deps`, never `install-hooks`
 - Flat `<pkg>/` layout with `packages.find` include
 - [ ] Raw git hooks: `scripts/pre-commit` (lint via `make lint-check` + gitleaks) and `scripts/pre-push` (the full `make check` gate), installed by `make install-hooks` (via `make setup`); gitleaks is a one-time install (`go install github.com/gitleaks/gitleaks/v8@latest` or brew)
