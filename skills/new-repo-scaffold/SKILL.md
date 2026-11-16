@@ -179,9 +179,9 @@ gh api repos/<owner>/<name>/branches/main/protection -X PUT \
 ```
 
 **Auto-merge is armed on every PR, and the gate is approval, checks and conversations.** Arming is a
-workflow, never a human step: it sets the flag on open and again when a review lands, so a PR merges
-when — and only when — one human approval, every required check, and every review conversation
-resolved are all true. This is implemented differently by visibility:
+workflow, never a human step: it sets the flag on open and again when a review lands. A PR then merges
+when one human approval, every required check, and every review conversation resolved are all true.
+This is implemented differently by visibility:
 
 | Repo | Implementation |
 |---|---|

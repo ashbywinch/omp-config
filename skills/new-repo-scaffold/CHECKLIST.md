@@ -21,7 +21,10 @@ from memory. General applies to every repo; take exactly one language section.
 - [ ] README.md: purpose, Quick Start via make, usage, docs table
 - [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules — **bootloader not OS: only 100%-relevant content, and every doc reachable from it**
 - [ ] `docs/` standards copied from omp-config in full — coding-standards.md, testing-standards.md, ux-standards.md (from omp-config's `standards/`), writing-documentation.md, documentation-structure.md (from omp-config's `docs/`)
-- [ ] Required doc set present (per docs/documentation-structure.md): `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` (or `docs/PLAN/`) with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies; every doc discoverable from AGENTS.md
+- [ ] `docs/PRD.md` (or `docs/PRD/`) present with JTBD, personas, and the cost/longevity/backups/monitoring/auth/scale/hosting constraints
+- [ ] `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) present with tech choices, spikes, requirement-referencing decisions, and an architecture mermaid diagram
+- [ ] `docs/PLAN.md` (or `docs/PLAN/`) present with phase inputs/outputs, operations, quality gates, and no later-phase dependencies
+- [ ] every doc reachable from AGENTS.md (per `docs/documentation-structure.md`)
 - [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern), the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`), and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
 - [ ] review workflow placeholders substituted (`{ACCOUNT_ID}/{GATEWAY}`, the secret name) and `push_trigger_ignore_bot_commits = false` in the config branch
