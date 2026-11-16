@@ -53,6 +53,44 @@ scroll works, a drag behaves, or a control responds.
 - A test that cannot fail on a plausible bug is not a test (no tautological
   fixtures — validate real artifacts).
 
+## When a real-model eval fails
+
+A red eval means the prompt is ambiguous. Fix the prompt, not the eval.
+
+- **Never append an example for a single failing case.** Fix the rule so the
+  case is covered. Reshape the examples only when the prompt as a whole calls
+  for it.
+- **Never state a rule without its reason.** The model follows a rule it
+  understands, and guesses at one it memorised.
+- **Never allow an output value without defining it.** Define each value once,
+  where the output is declared, and render it into the prompt. Do not retype
+  the list.
+- **Never keep two rules for one decision.** Delete the weaker one.
+
+One rule, two ways:
+
+✗ "Refunds, deliveries and invoices are not urgent."
+
+✓ "Urgent: the sender must act today to avoid a loss."
+
+**A condition that fails both ways means the rule is ambiguous.** A clear rule
+cannot produce both answers. More samples only choose which error ships.
+
+| Never | Because |
+|---|---|
+| Re-run the job, suite, or eval | the run is the verdict |
+| Sample n-of-m or best-of-k | it votes on a defect |
+| Weaken or delete the assertion | it hides the defect |
+| Move the eval off the required check | the gate becomes decorative |
+| Ask the user to choose among these | fix the prompt |
+
+**A condition that fails an unrelated change means the rule is unstable.** A
+docs-only change cannot move a judgement.
+
+**Never retry through a response cache.** A cached completion replays the
+failure. Send the gateway's cache-bypass header (`cf-aig-skip-cache: true`) on
+every retry.
+
 ## Never skip tests for a missing environment
 
 A test that needs an external dependency — a store, a service, an API key,
