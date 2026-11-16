@@ -18,6 +18,7 @@ GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
+LEXICON_DST       := $(H)/.paseo/lexicon.central
 PR_THREADS_DST := $(H)/.local/bin/pr-threads
 LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
 WAIT_FOR_DST := $(H)/.local/bin/wait-for
@@ -56,6 +57,8 @@ install:
 		fi; \
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
+	mkdir -p $(dir $(LEXICON_DST))
+	ln -sf $(CURDIR)/lexicon/central.lexicon $(LEXICON_DST)
 	ln -sf $(CURDIR)/tools/pr_threads.py $(PR_THREADS_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
 	ln -sf $(CURDIR)/tools/wait-for.sh $(WAIT_FOR_DST)
@@ -102,7 +105,7 @@ uninstall:
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
 	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
-	rm -f $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(NOTION_WRITE_DST)
+	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(NOTION_WRITE_DST)
 	@echo "Removed omp-config symlinks."
 
 # lucidlint consumption per the bundle's own README: unpack to .tools/lucidlint
