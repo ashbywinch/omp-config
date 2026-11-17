@@ -441,7 +441,16 @@ finished. Reporting is a step, not a summary of whatever the last command happen
    PRs: a hand-picked sample presented as the list is a wrong answer, not a partial one. State the
    count and the repo count so the reader can see the scope.
 3. **Report a cancelled check as stale.** Cancelled means a newer run on the same ref replaced it.
-   Re-run it before judging the head, and call it stale — not green, not failed.
+   Re-run it before judging the head, and call it stale — not green, not failed. Read verdicts from
+   the API, never from `gh pr checks`, which prints `fail` for a cancelled job:
+
+   ```bash
+   gh api "repos/<owner>/<repo>/commits/<sha>/check-runs" \
+     --jq '.check_runs[] | "\(.name) \(.status) \(.conclusion // "-")"'
+   ```
+
+   A required check passes only when `status` is `completed` and `conclusion` is `success`. Anything
+   else is stale or failing: `gh run rerun <run-id>` for the first, a fix for the second.
 4. **Quote the run for the commit you are describing.** Wait for that run to finish; a success on an
    earlier sha says nothing about the current head.
 5. **Reply to every review thread and resolve none.** Only the reviewer resolves. Answer a red check
