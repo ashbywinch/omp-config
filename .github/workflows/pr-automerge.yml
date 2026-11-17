@@ -193,9 +193,10 @@ jobs:
               gh pr merge "$PR" --repo "$REPO" --auto --"$MERGE_METHOD"
               ;;
             push|workflow_dispatch|schedule)
-              # A main merge produces no event on an open PR, so an approved PR
-              # can sit BEHIND forever. Refresh the branches that are ready to
-              # land: same-repo, non-draft, approved or already armed.
+              # Keep every open same-repo PR current, not only the approved ones. The ruleset dismisses
+              # stale approvals on push, so refreshing an approved branch destroys the approval the
+              # refresh was for: approve, update, approval gone, arm refuses. Refreshing before the
+              # approval arrives means the common case never needs a second one.
               owner="${REPO%%/*}"
               gh pr list --repo "$REPO" --state open --limit 100 \
                 --json number,isDraft,mergeStateStatus,reviewDecision,autoMergeRequest,headRepositoryOwner |
@@ -204,7 +205,6 @@ jobs:
                 | select(.isDraft == false)
                 | select(.mergeStateStatus == "BEHIND")
                 | select(.headRepositoryOwner.login == $owner)
-                | select(.reviewDecision == "APPROVED")
                 | .number
               ' |
               while read -r pr; do
