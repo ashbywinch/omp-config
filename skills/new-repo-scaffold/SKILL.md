@@ -186,6 +186,7 @@ This is implemented differently by visibility:
 | Repo | Implementation |
 |---|---|
 | Public (free plan ok) | `allow_auto_merge` + `delete_branch_on_merge`, branch protection with `required_conversation_resolution`, and the reusable `ashbywinch/omp-config/.github/workflows/pr-automerge.yml@<tag>` caller |
+| Public (free plan ok) | App needs **Contents: write, Pull requests: write and Actions: write** — the last one so the workflow can approve the runs its own branch update creates, which GitHub parks as `action_required` |
 | Private on a free plan | GitHub refuses branch protection and auto-merge outright ("Upgrade to GitHub Pro or make public") — either make the repo public, or record in the repo that the gate is convention-only; do not claim a gate that is not enforced |
 
 Rules:
