@@ -441,8 +441,8 @@ finished. Reporting is a step, not a summary of whatever the last command happen
    PRs: a hand-picked sample presented as the list is a wrong answer, not a partial one. State the
    count and the repo count so the reader can see the scope.
 3. **Report a cancelled check as stale.** Cancelled means a newer run on the same ref replaced it.
-   Re-run it before judging the head, and call it stale — not green, not failed. Read verdicts from
-   the API, never from `gh pr checks`, which prints `fail` for a cancelled job:
+   Re-run it before judging the head, and call it stale — not green, not failed. `gh pr checks`
+   prints `fail` for a cancelled job. Read verdicts from the API instead:
 
    ```bash
    gh api "repos/<owner>/<repo>/commits/<sha>/check-runs" \
