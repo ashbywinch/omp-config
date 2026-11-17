@@ -55,10 +55,10 @@ scroll works, a drag behaves, or a control responds.
 
 ## When a real-model eval fails
 
+A red eval means the rule it checks is ambiguous. Fix the rule, not the eval.
+
 An eval runs fixture inputs through the prompt and checks each answer against a
 rule.
-
-A red eval means the rule is ambiguous. Fix the rule, not the eval.
 
 A rule that lists the cases it decides grows by one clause per case. Write the
 rule as the test that decides every case, then delete the clauses the test
