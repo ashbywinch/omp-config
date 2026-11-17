@@ -79,11 +79,11 @@ The ✗ rule decides three cases by name and says nothing about the next one. Th
   understands and guesses at one it memorised.
 - **Never keep two rules for one decision.** Delete the weaker one.
 
-**A rule that fails in both directions is ambiguous.** Every case has one
-expected answer: the rule accepts the case or rejects it. A rule fails in both
-directions when it rejects a case it should accept and accepts a case it should
-reject. Correcting one error then causes the other. More cases only choose
-which error ships.
+**Replace a rule that fails in both directions.** No wording fix resolves both
+errors. Every case has one expected answer: the rule accepts the case or
+rejects it. A rule fails in both directions when it rejects a case it should
+accept and accepts a case it should reject. Correcting one error then causes
+the other, and more cases only choose which error ships.
 
 Run the eval after every prompt change. That run is how you verify the fix.
 
@@ -98,10 +98,9 @@ Run the eval after every prompt change. That run is how you verify the fix.
 Never ask the user to choose between re-running the eval, running more cases,
 weakening the assertion, and dropping the check. Fix the prompt yourself.
 
-**A red eval on a PR that touched no prompt means the rule does not decide the
-answer.** A documentation-only change cannot move a model's judgement. A model
-that answers differently on a prompt that did not change shows the rule leaves
-the answer open.
+**Never dismiss a red eval on a PR that touched no prompt as a flake.** A
+documentation-only change cannot move a model's judgement. A model that answers
+differently on an unchanged prompt shows the rule leaves the answer open.
 
 ## Never skip tests for a missing environment
 
