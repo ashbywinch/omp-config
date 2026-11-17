@@ -22,12 +22,12 @@ name: PR auto-merge (reusable)
 #       secrets:
 #         app_private_key: ${{ secrets.OMP_APP_PRIVATE_KEY }}
 #
-# Why the App token: GitHub does not run workflows for events caused by
-# GITHUB_TOKEN. An App push, once made, is also treated as an outside
-# contributor's: the runs it creates are parked as action_required, so this
-# workflow approves them itself and the App needs Actions: write. An update-branch made with GITHUB_TOKEN leaves the PR head with
-# no checks, and an auto-merge push to main fires no workflows. The App token
-# makes both events real. The App needs Contents: write and Pull requests:
+# Why the App token: GitHub does not run workflows for events that GITHUB_TOKEN
+# causes, so an update-branch made with it leaves the PR head with no checks,
+# and an auto-merge push to main fires no workflows. The App token makes both
+# events real. GitHub also counts an App as an outside contributor and parks the
+# runs its push creates as action_required, so this workflow approves them
+# itself and the App needs Actions: write. The App needs Contents: write and Pull requests:
 # write, and must be installed on the repo.
 #
 # The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled.
@@ -157,9 +157,8 @@ jobs:
                   exit 0
                   ;;
               esac
-              # An update-branch creates a new head whose workflows GitHub parks as action_required,
-              # because the App actor counts as an outside contributor. Approve them here rather than
-              # leaving the PR waiting on a click. Retried: run creation lags the push.
+              # Approve the runs the update just created (see the header). Retried, because run
+              # creation lags the push.
               approve_head() {
                 local pr="$1" head runs run
                 head=$(gh pr view "$pr" --repo "$REPO" --json headRefOid --jq .headRefOid)
