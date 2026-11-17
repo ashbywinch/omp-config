@@ -7,8 +7,9 @@ links to.
 
 ## Quick start
 
-- `make setup` — install toolchain + deps, install git hooks.
+- `make install` — the one-shot: deps, `.env`, hooks, and any toolchain in `.tools/`.
 - `make test` — the gate: lint + typecheck + tests.
+- `make check` — lint + typecheck; the same command the pre-push hook runs.
 - NEVER run ad-hoc commands for these — everything goes through `make`.
 
 ## Where things live — decision tree
