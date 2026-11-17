@@ -23,7 +23,9 @@ name: PR auto-merge (reusable)
 #         app_private_key: ${{ secrets.OMP_APP_PRIVATE_KEY }}
 #
 # Why the App token: GitHub does not run workflows for events caused by
-# GITHUB_TOKEN. An update-branch made with GITHUB_TOKEN leaves the PR head with
+# GITHUB_TOKEN. An App push, once made, is also treated as an outside
+# contributor's: the runs it creates are parked as action_required, so this
+# workflow approves them itself and the App needs Actions: write. An update-branch made with GITHUB_TOKEN leaves the PR head with
 # no checks, and an auto-merge push to main fires no workflows. The App token
 # makes both events real. The App needs Contents: write and Pull requests:
 # write, and must be installed on the repo.
@@ -89,6 +91,11 @@ jobs:
           repositories: ${{ steps.repo.outputs.name }}
           permission-contents: write
           permission-pull-requests: write
+          # The App's own update-branch pushes are attributed to an App actor, which GitHub treats as
+          # an outside contributor: every workflow on the new head is created "action_required" and
+          # nothing runs until somebody approves it. This permission lets the next step approve them
+          # itself, so the refresh it just made does not park the PR.
+          permission-actions: write
       - name: Arm auto-merge, or refresh approved PRs behind main
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -150,6 +157,27 @@ jobs:
                   exit 0
                   ;;
               esac
+              # An update-branch creates a new head whose workflows GitHub parks as action_required,
+              # because the App actor counts as an outside contributor. Approve them here rather than
+              # leaving the PR waiting on a click. Retried: run creation lags the push.
+              approve_head() {
+                local pr="$1" head runs run
+                head=$(gh pr view "$pr" --repo "$REPO" --json headRefOid --jq .headRefOid)
+                for _ in 1 2 3 4 5 6; do
+                  sleep 5
+                  runs=$(gh api "repos/$REPO/actions/runs?head_sha=$head&per_page=50" \
+                    --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | .[]' 2>/dev/null || true)
+                  [ -z "$runs" ] && continue
+                  for run in $runs; do
+                    if gh api -X POST "repos/$REPO/actions/runs/$run/approve" >/dev/null 2>&1; then
+                      echo "approved run $run for $head"
+                    else
+                      echo "could not approve run $run for $head (App needs Actions: write)" >&2
+                    fi
+                  done
+                done
+              }
+
               # A branch behind main blocks the strict status check. BEHIND is
               # mergeable-but-stale; a real conflict reports DIRTY/CONFLICTING
               # and is not updated here. The App token makes the update fire CI.
@@ -161,6 +189,7 @@ jobs:
                   exit 1
                 fi
                 echo "branch updated"
+                approve_head "$PR"
               fi
               gh pr merge "$PR" --repo "$REPO" --auto --"$MERGE_METHOD"
               ;;
@@ -183,6 +212,7 @@ jobs:
                 [ -n "$pr" ] || continue
                 echo "updating #$pr"
                 gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
+                approve_head "$pr"
               done
               ;;
             *)
