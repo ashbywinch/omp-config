@@ -55,41 +55,53 @@ scroll works, a drag behaves, or a control responds.
 
 ## When a real-model eval fails
 
-A red eval means the prompt is ambiguous. Fix the prompt, not the eval.
+An eval runs fixture inputs through the prompt and checks each answer against a
+rule.
 
-- **Never append an example for a single failing case.** Fix the rule so the
-  case is covered. Reshape the examples only when the prompt as a whole calls
-  for it.
-- **Never state a rule without its reason.** The model follows a rule it
-  understands, and guesses at one it memorised.
-- **Never allow an output value without defining it.** Define each value once,
-  where the output is declared, and render it into the prompt. Do not retype
-  the list.
-- **Never keep two rules for one decision.** Delete the weaker one.
+A red eval means the rule is ambiguous. Fix the rule, not the eval.
 
-One rule, two ways:
+A rule that lists the cases it decides grows by one clause per case. Write the
+rule as the test that decides every case, then delete the clauses the test
+replaces.
 
 ✗ "Refunds, deliveries and invoices are not urgent."
 
 ✓ "Urgent: the sender must act today to avoid a loss."
 
-**A condition that fails both ways means the rule is ambiguous.** A clear rule
-cannot produce both answers. More samples only choose which error ships.
+The ✗ rule decides three cases by name and says nothing about the next one. The
+✓ rule states the test, so a new case needs no new clause.
+
+- **Never fix one failing case with an example.** Fix the rule the case exposes.
+- **Never add an example without checking the whole list.** Examples accumulate
+  and contradict each other. When a new example disagrees with one already
+  there, rewrite the list as one set.
+- **Never state a rule without its reason.** The model follows a rule it
+  understands and guesses at one it memorised.
+- **Never keep two rules for one decision.** Delete the weaker one.
+
+**A rule that fails in both directions is ambiguous.** Every case has one
+expected answer: the rule accepts the case or rejects it. A rule fails in both
+directions when it rejects a case it should accept and accepts a case it should
+reject. Correcting one error then causes the other. More cases only choose
+which error ships.
+
+Run the eval after every prompt change. That run is how you verify the fix.
 
 | Never | Because |
 |---|---|
-| Re-run the job, suite, or eval | the run is the verdict |
-| Sample n-of-m or best-of-k | it votes on a defect |
-| Weaken or delete the assertion | it hides the defect |
-| Move the eval off the required check | the gate becomes decorative |
-| Ask the user to choose among these | fix the prompt |
+| Re-run the eval without changing the prompt | the prompt did not change, so the answer does not either |
+| Run more cases until one passes, or keep the best of several runs | a vote only chooses which error ships |
+| Weaken an assertion that is correct | it hides the defect |
+| Keep an assertion that is wrong | it demands the wrong answer |
+| Drop the eval from the required checks | a check that does not block the merge protects nothing |
 
-**A condition that fails an unrelated change means the rule is unstable.** A
-docs-only change cannot move a judgement.
+Never ask the user to choose between re-running the eval, running more cases,
+weakening the assertion, and dropping the check. Fix the prompt yourself.
 
-**Never retry through a response cache.** A cached completion replays the
-failure. Send the gateway's cache-bypass header (`cf-aig-skip-cache: true`) on
-every retry.
+**A red eval on a PR that touched no prompt means the rule does not decide the
+answer.** A documentation-only change cannot move a model's judgement. A model
+that answers differently on a prompt that did not change shows the rule leaves
+the answer open.
 
 ## Never skip tests for a missing environment
 
