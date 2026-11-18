@@ -430,13 +430,13 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ## Part 4b: Before you report a PR's state
 
-A PR's state is a claim about someone else's next action, so it is only made after the reviewer has
-finished. Reporting is a step, not a summary of whatever the last command happened to print.
+Report a PR's state only after the reviewer has finished: it is a claim about someone else's next
+action. Do not summarise whatever the last command printed; run the three checks below.
 
-### Readiness is three facts, all proven on the current head
+### Prove three facts on the current head before you report
 
-Say "ready for approval" only when all three hold. One failing makes the PR **blocked**, whatever the
-other two say.
+Say "ready for approval" only when all three hold. Treat one failure as **blocked**, whatever the other
+two say.
 
 | Fact | Prove it with | Never with |
 |---|---|---|
@@ -444,16 +444,16 @@ other two say.
 | every required check passed | its `check-runs` entry is `completed` + `success` on the head sha | a run on an earlier sha, or the PR's overall colour |
 | every thread is answered | `pr-threads --wait <pr>` prints nothing | reading threads before the reviewer finished |
 
-**A red required check is red, whatever `main` does.** "It fails on main too" describes the cause; it
-never turns the PR ready. Report it as **blocked outside this diff**, name the cause, and name the fix:
+**Never treat a red required check as ready, whatever `main` does.** Report the cause, then report the
+PR as **blocked outside this diff**, and name the fix:
 
 ✗ "Ready for approval — the red is inherited from `main`."
 ✓ "Blocked: `build-and-test` fails on the eval step, which also fails on `main` (`<error>`). The fix is
 `<change>`; approving now would not merge it."
 
-**A conflict outranks a colour.** A PR with an unresolved conflict is never ready, even with every check
-green and every thread answered. `mergeable` is a cached opinion: GitHub recomputes it after a push.
-Take the `git merge-tree` exit status instead.
+**Never treat a conflicted PR as ready, whatever its colour.** Take the `git merge-tree` exit status:
+`mergeable` is a cached opinion GitHub recomputes after a push, so it answers a question you did not
+ask — what the merge looked like before the last push.
 
 1. **`pr-threads --wait <pr>` for every PR you mention** — not only the one you just pushed. The
    `--wait` block is what makes the answer current; reading threads earlier reports a clean PR that is
