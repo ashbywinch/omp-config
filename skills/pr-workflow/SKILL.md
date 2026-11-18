@@ -452,8 +452,8 @@ never turns the PR ready. Report it as **blocked outside this diff**, name the c
 `<change>`; approving now would not merge it."
 
 **A conflict outranks a colour.** A PR with an unresolved conflict is never ready, even with every check
-green and every thread answered. Re-read `mergeable` only after GitHub has recomputed it, and prefer the
-`git merge-tree` answer: it is the fact, not a cached opinion.
+green and every thread answered. `mergeable` is a cached opinion: GitHub recomputes it after a push.
+Take the `git merge-tree` exit status instead.
 
 1. **`pr-threads --wait <pr>` for every PR you mention** — not only the one you just pushed. The
    `--wait` block is what makes the answer current; reading threads earlier reports a clean PR that is
