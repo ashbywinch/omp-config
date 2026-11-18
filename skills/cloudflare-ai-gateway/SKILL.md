@@ -142,6 +142,29 @@ Per-request headers that override the model node's settings
 | [`cf-aig-max-attempts`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Max retries (0-5) |
 | [`cf-aig-retry-delay`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | Delay between retries (ms, max 5000) |
 | [`cf-aig-backoff`](https://developers.cloudflare.com/ai-gateway/configuration/request-handling/) | `constant`, `linear`, or `exponential` |
+| `cf-aig-skip-cache` | `true` bypasses the response cache for this request. **A retry must send it** (see below). |
+
+### The cache replays, so a retry must skip it
+
+Cloudflare AI Gateway **caches a completion by request body**. The gateway
+answers a repeated body with the cached completion: same response id,
+`cf-aig-cache-status: HIT`.
+
+A retry that re-sends the identical body is therefore not a retry. The failure
+is replayed instead of re-sampled, so the client's retry loop cannot recover.
+Send `cf-aig-skip-cache: true` on every attempt after the first.
+
+An "independent" second measurement is the first one again by the same
+mechanism, because identical questions return the previous run's answers. A
+client that measures must send `cf-aig-skip-cache: true` on every attempt. A
+client that serves may keep the cache for the first attempt only.
+
+`cf-aig-cache-ttl: 0` does not bypass the cache; the response is still a `HIT`.
+The skip header is the only lever, and the timeout and retry headers are a
+separate request-handling feature that does not cover it.
+
+Read the response's `cf-aig-cache-status` header when an answer looks
+suspiciously fast or suspiciously identical.
 
 The local proxy adds these headers to every request. PR-Agent in GitHub Actions needs them sent via `[litellm] extra_headers` in `.pr_agent.toml` — as a JSON **string**: the handler runs `json.loads(get_settings().litellm.extra_headers)`, so an inline TOML table fails every call with "the JSON object must be str, bytes or bytearray, not DynaBox". The working block lives in the sample: `skill://new-repo-scaffold/examples/.pr_agent.toml` (the `[litellm]` section).
 
