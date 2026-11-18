@@ -430,8 +430,30 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ## Part 4b: Before you report a PR's state
 
-A PR's state is a claim about someone else's next action, so it is only made after the reviewer has
-finished. Reporting is a step, not a summary of whatever the last command happened to print.
+Report a PR's state only after the reviewer has finished: it is a claim about someone else's next
+action. Do not summarise whatever the last command printed; run the three checks below.
+
+### Prove three facts on the current head before you report
+
+Say "ready for approval" only when all three hold. Treat one failure as **blocked**, whatever the other
+two say.
+
+| Fact | Prove it with | Never with |
+|---|---|---|
+| the branch merges cleanly | `git merge-tree --write-tree origin/main <head>` — exit 0 | `mergeable` right after a push: GitHub returns `UNKNOWN` or the previous value until it recomputes |
+| every required check passed | its `check-runs` entry is `completed` + `success` on the head sha | a run on an earlier sha, or the PR's overall colour |
+| every thread is answered | `pr-threads --wait <pr>` prints nothing | reading threads before the reviewer finished |
+
+**Never treat a red required check as ready, whatever `main` does.** Report the cause, then report the
+PR as **blocked outside this diff**, and name the fix:
+
+✗ "Ready for approval — the red is inherited from `main`."
+✓ "Blocked: `build-and-test` fails on the eval step, which also fails on `main` (`<error>`). The fix is
+`<change>`; approving now would not merge it."
+
+**Never treat a conflicted PR as ready, whatever its colour.** Take the `git merge-tree` exit status:
+`mergeable` is a cached opinion GitHub recomputes after a push, so it answers a question you did not
+ask — what the merge looked like before the last push.
 
 1. **`pr-threads --wait <pr>` for every PR you mention** — not only the one you just pushed. The
    `--wait` block is what makes the answer current; reading threads earlier reports a clean PR that is
@@ -506,6 +528,9 @@ The sections above are the how-to; these are the one-line reminders.
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
+- **Calling a PR ready on two of the three facts** — a clean merge, a green head and answered threads
+  are separate claims; a red required check or an unresolved conflict means **blocked**, never
+  "ready" (§4b).
 - **Reporting state before `pr-threads --wait`** — a list, a "ready to approve", a handover: all of
   them are claims the reviewer has finished. Unanswered threads make the state "awaiting reply" (§4b).
 - **Treating a cancelled check as either verdict** — cancelled means superseded by a newer run (§4b).
