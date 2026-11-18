@@ -85,22 +85,25 @@ rejects it. A rule fails in both directions when it rejects a case it should
 accept and accepts a case it should reject. Correcting one error then causes
 the other, and more cases only choose which error ships.
 
-Run the eval after every prompt change. That run is how you verify the fix.
+Run the eval after every change to the prompt or to the code. That run is how
+you verify the fix.
 
 | Never | Because |
 |---|---|
-| Re-run the eval without changing the prompt | the prompt did not change, so the answer does not either |
+| Re-run the eval with nothing changed | a pass on the same input is luck, not a fix |
 | Run more cases until one passes, or keep the best of several runs | a vote only chooses which error ships |
 | Weaken an assertion that is correct | it hides the defect |
 | Keep an assertion that is wrong | it demands the wrong answer |
-| Drop the eval from the required checks | a check that does not block the merge protects nothing |
+| Drop the eval from the required checks | a check that does not block the release protects nothing |
 
-Never ask the user to choose between re-running the eval, running more cases,
-weakening the assertion, and dropping the check. Fix the prompt yourself.
+Never ask the user to choose between re-running the eval with nothing changed,
+running more cases, weakening the assertion, and dropping the check. Fix the
+prompt yourself.
 
-**Never dismiss a red eval on a PR that touched no prompt as a flake.** A
-documentation-only change cannot move a model's judgement. A model that answers
-differently on an unchanged prompt shows the rule leaves the answer open.
+**A rule that leaves its answer open blocks the release.** The eval is a required
+check whose verdict is pass or fail, so an open answer decides the release by
+chance. A red eval on a change that did not touch the prompt shows the rule
+leaves the answer open. Never dismiss that red eval as a flake.
 
 ## Never skip tests for a missing environment
 
