@@ -53,6 +53,58 @@ scroll works, a drag behaves, or a control responds.
 - A test that cannot fail on a plausible bug is not a test (no tautological
   fixtures — validate real artifacts).
 
+## When a real-model eval fails
+
+A red eval means the rule it checks is ambiguous. Fix the rule, not the eval.
+
+An eval runs fixture inputs through the prompt and checks each answer against a
+rule.
+
+A rule that lists the cases it decides grows by one clause per case. Write the
+rule as the test that decides every case, then delete the clauses the test
+replaces.
+
+✗ "Refunds, deliveries and invoices are not urgent."
+
+✓ "Urgent: the sender must act today to avoid a loss."
+
+The ✗ rule decides three cases by name and says nothing about the next one. The
+✓ rule states the test, so a new case needs no new clause.
+
+- **Never fix one failing case with an example.** Fix the rule the case exposes.
+- **Never add an example without checking the whole list.** Examples accumulate
+  and contradict each other. When a new example disagrees with one already
+  there, rewrite the list as one set.
+- **Never state a rule without its reason.** The model follows a rule it
+  understands and guesses at one it memorised.
+- **Never keep two rules for one decision.** Delete the weaker one.
+
+**Replace a rule that fails in both directions.** No wording fix resolves both
+errors. Every case has one expected answer: the rule accepts the case or
+rejects it. A rule fails in both directions when it rejects a case it should
+accept and accepts a case it should reject. Correcting one error then causes
+the other, and more cases only choose which error ships.
+
+Run the eval after every change to the prompt or to the code. That run is how
+you verify the fix.
+
+| Never | Because |
+|---|---|
+| Re-run the eval with nothing changed | a pass on the same input is luck, not a fix |
+| Run more cases until one passes, or keep the best of several runs | a vote only chooses which error ships |
+| Weaken an assertion that is correct | it hides the defect |
+| Keep an assertion that is wrong | it demands the wrong answer |
+| Drop the eval from the required checks | a check that does not block the release protects nothing |
+
+Never ask the user to choose between re-running the eval with nothing changed,
+running more cases, weakening the assertion, and dropping the check. Fix the
+prompt yourself.
+
+**A rule that leaves its answer open blocks the release.** The eval is a required
+check whose verdict is pass or fail, so an open answer decides the release by
+chance. A red eval on a change that did not touch the prompt shows the rule
+leaves the answer open. Never dismiss that red eval as a flake.
+
 ## Never skip tests for a missing environment
 
 A test that needs an external dependency — a store, a service, an API key,

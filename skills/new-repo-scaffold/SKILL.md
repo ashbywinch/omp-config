@@ -18,17 +18,18 @@ Use when asked to start a new project repository ("shell repo", "scaffold a repo
 1. **General layer** — applies to every new repo regardless of language. Non-negotiable.
 2. **Language layer** — toolchain specifics per stack (Python: uv/ruff/pytest; JS/TS: npm/vitest/eslint; Rust: cargo/clippy/rustfmt), in `skill://scaffold-language-layers`.
 
-Scaffold in this order: Makefile → CI → coverage → git hygiene → entry docs → repo creation + branch protection. Finish with the checklist.
+Scaffold in this order: Makefile → CI → coverage → git hygiene → entry docs → repo creation + branch protection. Finish with `skill://new-repo-scaffold/CHECKLIST.md`.
 
 ## General layer
 
 ### 1. Makefile is the single dev entry point
 
-Every dev action goes through `make`; CI runs make targets, never raw tool commands. energy_envelope states the contract explicitly: "CI runs exactly: `make setup && make lint && make test`".
+Every dev action goes through `make`; CI runs make targets, never raw tool commands. energy_envelope states the contract explicitly: "CI runs exactly: `make install && make lint && make test`".
 
 **Template: `skill://scaffold-language-layers/examples/<stack>/Makefile`** — copy it into the new repo, then edit the `CHANGE` points (package name, versions, project targets). Each example file carries a `CHANGE` / `DO NOT CHANGE` comment header — the comments say *what* and *why*; the invariants below say *when* it's OK to deviate. The stack-specific examples (Makefile, pyproject, typechecker config, hooks) live in the language layer's `examples/<stack>/` dir; the general examples (dotfiles, CI, AGENTS.md, review bot) live in `examples/` here. A repo takes the general dir + exactly one stack dir.
 
 Targets (template `help` lists them; meaning fixed by the standard):
+- `install` the one-shot a clone runs and CI's first step: deps, toolchains into `.tools/`, hooks
 - `setup` idempotent toolchain+deps+hooks · `lint` static checks · `test` suite gated by lint · `coverage` XML for CI · `format` auto-fix · `clean` removes only `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, `__pycache__`, `*.pyc` — never user data · `run`/`stop` dev servers (service repos) · `dist` build artifacts (CI uploads).
 
 Deviating from the template is allowed only where the rules say so:
@@ -177,9 +178,26 @@ gh api repos/<owner>/<name>/branches/main/protection -X PUT \
   -F enforce_admins=false
 ```
 
+**Auto-merge is armed on every PR, and the gate is approval, checks and conversations.** Arming is a
+workflow, never a human step: it sets the flag on open and again when a review lands. A PR then merges
+when one human approval, every required check, and every review conversation resolved are all true.
+This is implemented differently by visibility:
+
+| Repo | Implementation |
+|---|---|
+| Public (free plan ok) | `allow_auto_merge` + `delete_branch_on_merge`, branch protection with `required_conversation_resolution`, and the reusable `ashbywinch/omp-config/.github/workflows/pr-automerge.yml@<tag>` caller |
+| Public (free plan ok) | App needs **Contents: write, Pull requests: write and Actions: write** — the last one so the workflow can approve the runs its own branch update creates, which GitHub parks as `action_required` |
+| Private on a free plan | GitHub refuses branch protection and auto-merge outright ("Upgrade to GitHub Pro or make public") — either make the repo public, or record in the repo that the gate is convention-only; do not claim a gate that is not enforced |
+
 Rules:
 - Never push to main; the first commit is `main`, everything after is branches + PRs (rule://session-start).
 - `--private` is the default for personal repos; go public only deliberately.
+- **Substitute the review workflow's placeholders** before the first PR. The example carries
+  `{ACCOUNT_ID}/{GATEWAY}` in `OPENAI_BASE_URL` and `<PROJECT>_API_KEY` in the env block; leaving them
+  produces a 401 `Invalid request path` from the gateway that reads like a bad key.
+- **Bot-authored pushes are not reviewed by default.** Every commit here is bot-authored, so
+  `push_trigger_ignore_bot_commits` must be `false` in the config branch's `.pr_agent.toml`, or the
+  action logs `Skipping synchronize: bot commit detected` and the verify step fails with no output.
 - **Set `<PROJECT>_API_KEY` as a repo secret BEFORE the first PR** — the review job fails fast without it (observed: secret created after the PR-open event, run dead in 6s). The secret value is the Cloudflare AI Gateway token (`CLOUDFLARE_AIGATEWAY_TOKEN` in the shell environment).
 
 ## Language layers — see `skill://scaffold-language-layers`
@@ -188,78 +206,16 @@ Toolchain details per stack materialize into the repo's `docs/coding-standards.m
 
 ## Verification (prove the scaffold works)
 
-Run in order; the checklist below is the final gate, not documentation.
+Run in order; the checklist (`skill://new-repo-scaffold/CHECKLIST.md`) is the final gate, not documentation.
 
 1. **Fresh-clone smoke test** — the single most valuable check. Clone the new repo into a temp dir and run `make setup && make lint && make test` there. This simulates exactly what every future clone and CI run experiences; it fails if anything depends on scaffold-session state (venv, cwd, env, uncommitted files).
 2. **Coverage and clean loop** — `make coverage` (emits `coverage.xml` for the CI gate), then `make clean`, then re-run `make test` — proves the clean target doesn't break the loop.
 3. **Hooks actually fire** — `make install-hooks` copies the raw hooks; stage a lint-breaking change and confirm the pre-commit hook blocks the commit (or run `.git/hooks/pre-commit` directly on the staged changes). Then prove gitleaks with a REALISTIC key. Plain `sk-` + 24 chars matches no default rule. Use the OpenAI format `sk-` + 20 alnum + `T3BlbkFJ` + 20 alnum (RuleID `openai-api-key`). Confirm the commit is blocked, revert, confirm it passes. Confirm pre-push fires on the pushed range. A push that touches only docs skips; a push touching `.py` runs `make check`.
 4. **Gitignore honesty** — after setup, `git status --porcelain` is empty: `.venv/`, `.env`, caches, and agent state never appear.
 5. **CI, for real** — push a feature branch, open a PR, `gh pr checks --watch` until green; only then merge. (Branch protection cannot be applied until the check has run once.) No remote yet? Run `actionlint` over the workflow files as the static substitute. Budget one CI debug iteration when standing up a new repo. A recipe that passes locally — and in a fresh clone — can still fail on the runner. Print `--version`, `--help`, and raw exit codes before changing the recipe.
-6. **Walk the checklist** — every box checked against the actual repo, not from memory.
+6. **Walk the checklist** — `skill://new-repo-scaffold/CHECKLIST.md`, every box checked against the actual repo, not from memory.
 
 ## Checklist
 
-### General (every repo)
-- [ ] Makefile with `help setup lint test coverage format clean` (+ `run`/`stop` for services, `dist` for artifacts); `.PHONY` on all targets
-- [ ] Makefile pins the recipe shell (`SHELL := /bin/bash` + `.SHELLFLAGS := -eu -o pipefail -c`) — recipes can't diverge between macOS and CI
-- [ ] `make test` depends on `make lint`; CI runs only make targets
-- [ ] Runtime pinned: CI (`setup-*` action) and local dev (`.python-version`/`.nvmrc`) use the SAME version
-- [ ] Type checker configured (strict where possible) and gated inside `make test` on the error count; baseline-locked in both directions (new errors AND stale baseline entries fail) — EXCEPT where the toolchain is pinned and deterministic (Rust under `rust-toolchain.toml`: clippy/rustc need no baseline, per the language layer)
-- [ ] `make setup` idempotent — installs toolchain if missing, syncs deps
-- [ ] `make clean` removes exactly `.venv`/`node_modules`, `htmlcov/`, `.coverage`, `coverage.xml`, caches — never user data
-- [ ] CI workflow: checkout@v4, `permissions: contents: read`, concurrency group with `cancel-in-progress: true`, steps = `make setup` → `make lint` → `make test`
-- [ ] Coverage emitted as XML for CI (`coverage.xml` / `coverage/clover.xml`); CI fails below floor (~80%), posts PR comment, tracks 90%. For an EXISTING codebase, set the floor below the measured number first (e.g. 65 floor / 80 goal at 71% measured) and raise it as coverage lands — a hard 80 gate on day one is a broken CI
-- [ ] `.gitignore` covers env, venv/node_modules, IDE, caches, agent state, logs, recreatable data
-- [ ] `.env.example` committed, all vars documented, values blank; `.env` gitignored; `make setup` ensures `.env` exists (copy from example); run targets load via `--env-file` (real env wins), lint/test never touch it
-- [ ] `.editorconfig` (utf-8, lf, final newline) and `.gitattributes` (`* text=auto eol=lf`)
-- [ ] README.md: purpose, Quick Start via make, usage, docs table
-- [ ] AGENTS.md: quick start, make-target testing rule, decision tree to `docs/`, git + secrets rules — **bootloader not OS: only 100%-relevant content, and every doc reachable from it**
-- [ ] `docs/` standards copied from omp-config in full — coding-standards.md, testing-standards.md, ux-standards.md (from omp-config's `standards/`), writing-documentation.md, documentation-structure.md (from omp-config's `docs/`)
-- [ ] Required doc set present (per docs/documentation-structure.md): `docs/PRD.md` (or `docs/PRD/`) with JTBD + personas + cost/longevity/backups/monitoring/auth/scale/hosting constraints; `docs/TECHSPEC.md` (or `docs/TECHSPEC/`) with tech choices, spikes, requirement-referencing decisions, architecture mermaid diagram; `docs/PLAN.md` (or `docs/PLAN/`) with the software's phase inputs/outputs, operations, quality gates and no later-phase dependencies; every doc discoverable from AGENTS.md
-- [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern), the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`), and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
-- [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
-- [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
-- [ ] dependabot configured per the 'Dependency updates are automated, with a human boundary' rule in standards/coding-standards.md — grouping and auto-merge as in the examples
-- [ ] Branch workflow: never commit to main, PRs required, protected main
-- [ ] PR auto-merge wired: example copied, both repo settings on, one approval + checks (private: `merge-when-approved.yml`)
-- [ ] Git hooks run the fast checks — lint, typecheck, secrets scan (gitleaks) — installed by `make setup`; never the full test suite
-- [ ] End-to-end green: `make setup && make lint && make test` locally and CI green on push
-- [ ] Repo created via `gh repo create --source --push --private`; branch protection applied after first CI run (PR + status check required)
-
-### Python
-- [ ] uv + `.python-version` = current stable at scaffold time (via `uv python list`, subject to dep support); ruff `target-version` matches
-- [ ] pyproject.toml: ruff `select E,F,I,UP,B,SIM,N`, `line-length 120`, double quotes, no ignore list
-- [ ] pytest with `testpaths = ["tests"]`; dev deps in `[dependency-groups] dev` (PEP 735) incl. archunitpython
-- [ ] Semantic types wired: pint for quantities, a Money type for currency (the generic rules are in the global standard; the library choices are here)
-- [ ] `docs/coding-standards.md` carries the "Python conventions" section (materialized from this skill's language layer — the bot reads only `repo_context_files`)
-- pytest is the runner; unittest only for eval harnesses needing module-level discovery (documented deviation, not default)
-- Type checker (pyrefly recommended, or basedpyright/mypy) configured and gated inside `make test`; pyrefly uses the both-direction baseline lock (`scripts/pyrefly-lock.py` — new errors AND stale baseline entries fail; pyrefly's own baseline is one-way and misses stale entries)
-- `make check` = lint + typecheck — the single gate CI and the pre-push hook both run (same command, no drift); check targets depend on `deps`, never `install-hooks`
-- Flat `<pkg>/` layout with `packages.find` include
-- [ ] Raw git hooks: `scripts/pre-commit` (lint via `make lint-check` + gitleaks) and `scripts/pre-push` (the full `make check` gate), installed by `make install-hooks` (via `make setup`); gitleaks is a one-time install (`go install github.com/gitleaks/gitleaks/v8@latest` or brew)
-
-### JS/TS
-- [ ] npm scripts mirror make targets: dev/build/preview/test/coverage/lint/format
-- [ ] vitest + istanbul, reporters text+clover → `coverage/clover.xml`
-- [ ] ESLint flat config with prettier last (or oxlint `typeAware`); prettier defaults
-- [ ] `strict: true` TS; type-check gate inside `build`
-- [ ] `docs/coding-standards.md` carries the "JS/TS conventions" section (materialized from this skill's language layer — the bot reads only `repo_context_files`)
-- [ ] Node pinned in CI (setup-node, 22.x) and locally (`.nvmrc` same version)
-- [ ] husky pre-commit: lint + typecheck + gitleaks
-
-### Rust
-- [ ] `rust-toolchain.toml` pins the exact stable channel at scaffold time; CI (`dtolnay/rust-toolchain@stable` — installs rustup; the file's channel is honored in-dir) and local rustup use the same file — components `clippy`, `rustfmt`, `llvm-tools`
-- [ ] `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` inside `make lint`; rustfmt `max_width = 120` matching `.editorconfig` (one formatter per artifact — generated code excluded, not re-formatted)
-- [ ] Type gate = `cargo check --all-targets` inside `make test` (the borrow checker is the type checker; deterministic under the toolchain pin — no baseline needed, stated in the Makefile)
-- [ ] `cargo test` runner; coverage via `cargo llvm-cov --cobertura` → `cobertura.xml` for the CI gate (fail below floor, track goal)
-- [ ] `target/` and `cobertura.xml` gitignored (Rust build + coverage artifacts — `cargo build` writes `target/`, `make coverage` writes cobertura.xml; the general `.gitignore` set §4 covers the Python/JS artifacts)
-- [ ] CI workflow is the Rust variant: `dtolnay/rust-toolchain@stable` + `taiki-e/install-action` (cargo-llvm-cov), steps exactly make targets, `make lint-github` (clippy -D warnings — human-readable output feeds GitHub's built-in matcher for inline annotations)
-- [ ] Raw hooks: pre-commit (make lint-check + gitleaks) + pre-push (make check), watch scope `*.rs Cargo.toml Cargo.lock rust-toolchain.toml rustfmt.toml`
-- [ ] `#[allow(...)]` carries a reason comment (no blanket `#![allow]`); newtypes over primitives (units in the type name, Money never bare float)
-- [ ] Repo self-checks: std-only `#[test]`s for docs links and for architecture layers (forbidden `use` paths — exact paths, never the vacuous glob form), and the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`)
-- [ ] Cargo.lock committed (reproducible builds); fast-moving crates pinned with a comment why
-- [ ] `docs/coding-standards.md` carries the "Rust conventions" section (materialized from the language layer — the bot reads only `repo_context_files`)
-
-### Non-code
-- [ ] Docker services: layered compose files, per-service Dockerfile, shared env_file
-- [ ] Other languages: Makefile carries the real build dependency graph; `install` to `~/.local` where applicable
+Run `skill://new-repo-scaffold/CHECKLIST.md` before reporting done: the general list plus exactly one
+language section. It is a separate file so this always-loaded skill stays inside its byte ceiling.

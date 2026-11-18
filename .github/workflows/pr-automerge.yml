@@ -22,16 +22,21 @@ name: PR auto-merge (reusable)
 #       secrets:
 #         app_private_key: ${{ secrets.OMP_APP_PRIVATE_KEY }}
 #
-# Why the App token: GitHub does not run workflows for events caused by
-# GITHUB_TOKEN. An update-branch made with GITHUB_TOKEN leaves the PR head with
-# no checks, and an auto-merge push to main fires no workflows. The App token
-# makes both events real. The App needs Contents: write and Pull requests:
+# Why the App token: GitHub does not run workflows for events that GITHUB_TOKEN
+# causes, so an update-branch made with it leaves the PR head with no checks,
+# and an auto-merge push to main fires no workflows. The App token makes both
+# events real. GitHub also counts an App as an outside contributor and parks the
+# runs its push creates as action_required, so this workflow approves them
+# itself and the App needs Actions: write. The App needs Contents: write and Pull requests:
 # write, and must be installed on the repo.
 #
-# The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled,
-# and a ruleset that requires one approving review plus the CI checks. This
-# workflow only sets the flag and refreshes stale branches; it never approves
-# or merges directly.
+# The repo must have `allow_auto_merge` and `delete_branch_on_merge` enabled.
+# A ruleset that requires an approving review plus the CI checks is still
+# wanted — it is what holds `main` — but it is NOT the approval gate: this
+# workflow arms only a PR whose head commit carries an approval, and disarms an
+# armed PR as soon as a push moves the head past it. Without that, a PR based on
+# a feature branch (no ruleset) merged itself with a red check (2026-11-15).
+# This workflow never approves or merges directly.
 #
 # The hourly schedule is the fallback for a main merge that produced no
 # event: it refreshes approved/armed PRs that fell behind.
@@ -58,9 +63,12 @@ on:
 permissions:
   contents: read
 
+# Arming is idempotent and takes seconds, so a newer event must not cancel an in-flight run: the
+# cancelled run is reported by `gh pr checks` as a failure, and if the cancelled one carried the
+# approval the PR is left unarmed with nothing to show why.
 concurrency:
   group: pr-automerge-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   automerge:
@@ -83,6 +91,11 @@ jobs:
           repositories: ${{ steps.repo.outputs.name }}
           permission-contents: write
           permission-pull-requests: write
+          # The App's own update-branch pushes are attributed to an App actor, which GitHub treats as
+          # an outside contributor: every workflow on the new head is created "action_required" and
+          # nothing runs until somebody approves it. This permission lets the next step approve them
+          # itself, so the refresh it just made does not park the PR.
+          permission-actions: write
       - name: Arm auto-merge, or refresh approved PRs behind main
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -110,6 +123,33 @@ jobs:
               # Idempotent: every push fires this, and an already-armed PR must
               # not fail the job. `--jq` prints an EMPTY line for a null field.
               armed=$(gh pr view "$PR" --repo "$REPO" --json autoMergeRequest --jq '.autoMergeRequest')
+              # THE APPROVAL GATE LIVES HERE, not only in a ruleset. A ruleset
+              # covers the default branch, and this workflow is called for PRs
+              # into ANY base: a PR stacked on a feature branch had no ruleset,
+              # so it armed, merged itself with a failing check and an unanswered
+              # review thread (the-loft, 2026-11-15). And an approval of an
+              # earlier commit is not an approval of this one — GitHub keeps
+              # REVIEW_REQUIRED's state across pushes unless a ruleset dismisses
+              # stale reviews, so the approval is matched to the head SHA.
+              head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
+              # one line per approval across every page, last wins: `gh api`
+              # applies --jq page by page, so the reduction happens here
+              approved=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+                --jq '.[] | select(.state == "APPROVED") | .commit_id' | tail -n 1)
+              # Strictly the head commit: an approval is of the code that was
+              # read. A push after it — the fix a reviewer asked for, or the
+              # behind-branch update — means nobody has read this head, so the
+              # arm is withdrawn and the reviewer approves again. The cost is a
+              # second click after a base merge; the alternative is an approval
+              # standing for code its author never saw.
+              if [ -z "$approved" ] || [ "$approved" != "$head" ]; then
+                echo "no approval covering the head ($head) — not arming"
+                if [ -n "$armed" ] && [ "$armed" != "null" ]; then
+                  gh pr merge "$PR" --repo "$REPO" --disable-auto
+                  echo "auto-merge disarmed: a commit moved the head past the approval"
+                fi
+                exit 0
+              fi
               case "$armed" in
                 "" | null) : ;;
                 *)
@@ -117,6 +157,26 @@ jobs:
                   exit 0
                   ;;
               esac
+              # Approve the runs the update just created (see the header). Retried, because run
+              # creation lags the push.
+              approve_head() {
+                local pr="$1" head runs run
+                head=$(gh pr view "$pr" --repo "$REPO" --json headRefOid --jq .headRefOid)
+                for _ in 1 2 3 4 5 6; do
+                  sleep 5
+                  runs=$(gh api "repos/$REPO/actions/runs?head_sha=$head&per_page=50" \
+                    --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | .[]' 2>/dev/null || true)
+                  [ -z "$runs" ] && continue
+                  for run in $runs; do
+                    if gh api -X POST "repos/$REPO/actions/runs/$run/approve" >/dev/null 2>&1; then
+                      echo "approved run $run for $head"
+                    else
+                      echo "could not approve run $run for $head (App needs Actions: write)" >&2
+                    fi
+                  done
+                done
+              }
+
               # A branch behind main blocks the strict status check. BEHIND is
               # mergeable-but-stale; a real conflict reports DIRTY/CONFLICTING
               # and is not updated here. The App token makes the update fire CI.
@@ -128,13 +188,15 @@ jobs:
                   exit 1
                 fi
                 echo "branch updated"
+                approve_head "$PR"
               fi
               gh pr merge "$PR" --repo "$REPO" --auto --"$MERGE_METHOD"
               ;;
             push|workflow_dispatch|schedule)
-              # A main merge produces no event on an open PR, so an approved PR
-              # can sit BEHIND forever. Refresh the branches that are ready to
-              # land: same-repo, non-draft, approved or already armed.
+              # Keep every open same-repo PR current, not only the approved ones. The ruleset dismisses
+              # stale approvals on push, so refreshing an approved branch destroys the approval the
+              # refresh was for: approve, update, approval gone, arm refuses. Refreshing before the
+              # approval arrives means the common case never needs a second one.
               owner="${REPO%%/*}"
               gh pr list --repo "$REPO" --state open --limit 100 \
                 --json number,isDraft,mergeStateStatus,reviewDecision,autoMergeRequest,headRepositoryOwner |
@@ -143,13 +205,13 @@ jobs:
                 | select(.isDraft == false)
                 | select(.mergeStateStatus == "BEHIND")
                 | select(.headRepositoryOwner.login == $owner)
-                | select(.reviewDecision == "APPROVED" or .autoMergeRequest != null)
                 | .number
               ' |
               while read -r pr; do
                 [ -n "$pr" ] || continue
                 echo "updating #$pr"
                 gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
+                approve_head "$pr"
               done
               ;;
             *)

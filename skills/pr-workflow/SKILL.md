@@ -27,24 +27,33 @@ Do not end the turn after `gh pr create`.
 
 ## Always give the link
 
-Every PR, issue, commit, run or file you mention is a **link**, with its number
-as the text:
+Every PR, issue, commit, run or file you mention is a **link whose text names
+the kind and the number**:
 
-- `[#9](https://github.com/ashbywinch/inbox/pull/9)` — not `#9`, and not the bare
-  URL either. The number is what a reader recognises; the link is what makes it
-  one click.
-- A commit: `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)`.
-- A run: `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)`.
-- A file outside the repo: its Drive or Notion URL, with the file's name as the
-  text.
+| Thing | Write | Never |
+|---|---|---|
+| A pull request | `[PR#2](https://github.com/<owner>/<repo>/pull/2)` | `#2`, `PR 2`, the bare URL |
+| An issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | `#3`, the bare URL |
+| A commit | `[a1b2c3d](https://github.com/<owner>/<repo>/commit/<sha>)` | `a1b2c3d` |
+| A run | `[run 4242](https://github.com/<owner>/<repo>/actions/runs/<id>)` | `4242` |
+| A file outside the repo | `[<file name>](<Drive or Notion URL>)` | its path |
 
-An unlinked `#9` is unfindable to whoever reads the message next — on a phone, in
+This holds on **every surface**, and a summary is not an exception:
+
+- the chat reply — including "five PRs are green, awaiting your approval";
+- the PR description (`pr_description.md`) — see §3 for the one form the
+  ticket extractor forces on a PR number;
+- every review-thread reply.
+
+An unlinked `#2` is unfindable to whoever reads the message next — on a phone, in
 a transcript, hours later. A pasted raw URL is findable but ugly, and it pushes
-the sentence it belongs to off the screen. Link the number; don't spell the URL
+the sentence it belongs to off the screen. Link the number; never spell the URL
 out in prose.
 
-Range links are the exception only when the reader already has the context and
-the thing is genuinely unbounded (a search, a filter).
+**Self-check before you send.** Scan your own text for `#\d+` that sits outside a
+link: each one is the defect this section exists to stop. A list of PR numbers
+in a status line is where it happens most — the numbers are known, the links
+were not looked up.
 
 ## Part 1: Create the PR
 
@@ -85,14 +94,17 @@ Create a `pr_description.md` with:
 - **Risk areas** — what to pay attention to in review
 - **Testing** — what was verified and how
 
-**Never reference issue/PR numbers (`#N`) in the description unless you
-mean a real linked ticket.** PR-Agent's ticket-compliance step latches
-onto any `#N` in the body and tries to fetch it as an issue — a bare
-mention like "see #51" where #51 is a PR (or an issue that can't be
-fetched) crashes the review job with `Error extracting tickets` /
-`'NoneType' object has no attribute 'get'` (observed 2026-08-08, houses:
-a PR body saying "crashed the run on #51" killed pr-agent's review of
-that very PR). Say "the earlier dependabot PR" instead of "#51".
+**In a PR description, leave the `#` off a pull request number.** This is the one
+exception to the rule above, because PR-Agent reads any `#N` in the body as an
+issue to fetch and a PR number crashes the review.
+
+| What | Write | Why |
+|---|---|---|
+| Pull request | `[PR 51](https://github.com/<owner>/<repo>/pull/51)` | a `#` here makes the review job fail |
+| Issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | the extractor can fetch it |
+| Anything else | name it, don't number it | a placeholder or a run is not a ticket |
+
+Chat and thread replies have no extractor, so `PR#2` is fine there.
 
 ### 4. Create PR
 
@@ -416,6 +428,56 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ---
 
+## Part 4b: Before you report a PR's state
+
+Report a PR's state only after the reviewer has finished: it is a claim about someone else's next
+action. Do not summarise whatever the last command printed; run the three checks below.
+
+### Prove three facts on the current head before you report
+
+Say "ready for approval" only when all three hold. Treat one failure as **blocked**, whatever the other
+two say.
+
+| Fact | Prove it with | Never with |
+|---|---|---|
+| the branch merges cleanly | `git merge-tree --write-tree origin/main <head>` — exit 0 | `mergeable` right after a push: GitHub returns `UNKNOWN` or the previous value until it recomputes |
+| every required check passed | its `check-runs` entry is `completed` + `success` on the head sha | a run on an earlier sha, or the PR's overall colour |
+| every thread is answered | `pr-threads --wait <pr>` prints nothing | reading threads before the reviewer finished |
+
+**Never treat a red required check as ready, whatever `main` does.** Report the cause, then report the
+PR as **blocked outside this diff**, and name the fix:
+
+✗ "Ready for approval — the red is inherited from `main`."
+✓ "Blocked: `build-and-test` fails on the eval step, which also fails on `main` (`<error>`). The fix is
+`<change>`; approving now would not merge it."
+
+**Never treat a conflicted PR as ready, whatever its colour.** Take the `git merge-tree` exit status:
+`mergeable` is a cached opinion GitHub recomputes after a push, so it answers a question you did not
+ask — what the merge looked like before the last push.
+
+1. **`pr-threads --wait <pr>` for every PR you mention** — not only the one you just pushed. The
+   `--wait` block is what makes the answer current; reading threads earlier reports a clean PR that is
+   about to have findings. In a list, a PR with unanswered threads is **awaiting a reply**, never
+   "ready to approve", however green its checks are.
+2. **A list means every repo, from a command that enumerates them.** Owned repos, then each one's open
+   PRs: a hand-picked sample presented as the list is a wrong answer, not a partial one. State the
+   count and the repo count so the reader can see the scope.
+3. **Report a cancelled check as stale.** Cancelled means a newer run on the same ref replaced it.
+   Re-run it before judging the head, and call it stale — not green, not failed. `gh pr checks`
+   prints `fail` for a cancelled job. Read verdicts from the API instead:
+
+   ```bash
+   gh api "repos/<owner>/<repo>/commits/<sha>/check-runs" \
+     --jq '.check_runs[] | "\(.name) \(.status) \(.conclusion // "-")"'
+   ```
+
+   A required check passes only when `status` is `completed` and `conclusion` is `success`. Anything
+   else is stale or failing: `gh run rerun <run-id>` for the first, a fix for the second.
+4. **Quote the run for the commit you are describing.** Wait for that run to finish; a success on an
+   earlier sha says nothing about the current head.
+5. **Reply to every review thread and resolve none.** Only the reviewer resolves. Answer a red check
+   with a fix, or by re-running the same commit.
+
 ## Part 5: Handing the merge to the user
 
 ### 13. The PR carries the version bump; merging it is the release
@@ -466,6 +528,12 @@ The sections above are the how-to; these are the one-line reminders.
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
+- **Calling a PR ready on two of the three facts** — a clean merge, a green head and answered threads
+  are separate claims; a red required check or an unresolved conflict means **blocked**, never
+  "ready" (§4b).
+- **Reporting state before `pr-threads --wait`** — a list, a "ready to approve", a handover: all of
+  them are claims the reviewer has finished. Unanswered threads make the state "awaiting reply" (§4b).
+- **Treating a cancelled check as either verdict** — cancelled means superseded by a newer run (§4b).
 - **Calling a push done without re-reading the threads** — a green check says
   nothing about a comment. Run `pr-threads <pr>` after every push; the reviewer
   adds findings a round at a time, and the unread one is the one that mattered.
@@ -476,9 +544,10 @@ The sections above are the how-to; these are the one-line reminders.
 - **Terse thread replies** (`Fixed` / `No`) — every reply names its
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
-- **Referencing `#N` in a PR description** — PR-Agent's ticket extractor
-  fetches any `#N`; a PR number or unfetchable issue crashes the review
-  with `Error extracting tickets` (§3).
+- **An unlinked PR or issue number** — in chat, in a status summary, in a
+  description, in a reply: link it as `PR#2` or `Issue#3`, never a bare `#2`. A
+  PR number in a *description* takes the `#`-free text `PR 2`, because the ticket
+  extractor reads `#N` as an issue and a PR number crashes the review (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).
