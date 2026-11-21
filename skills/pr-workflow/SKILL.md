@@ -20,8 +20,8 @@ reply. `pr-threads` is the review-thread tool, installed with this skill by
 Do not end the turn after `gh pr create`.
 
 Assume confusion behind every comment and every bug — the reviewer's, or the
-author's whose code drew it — and refactor the code so it carries the fact;
-reply only after the code shows it.
+author's whose code drew it. Identify the confusion and refactor the code to
+remove it, then reply.
 
 **Before you report a PR's state** (ready / blocked / mergeable), run
 `watch-pr.sh <n>`. When one area has collected refutations, stop
@@ -625,7 +625,7 @@ The sections above are the how-to; these are the one-line reminders.
 ## Success Criteria
 
 - The description opens with the problem and the user-visible change, and carries no process history
-- Every comment is treated as evidence of confusion and answered by refactoring the code, not by a reply alone
+- The confusion behind every comment is identified and refactored out of the code, not answered by a reply alone
 - All CI checks pass
 - All actionable reviewer findings are fixed in the same session
 - No dead code, backward compatibility shims, or swallowed exceptions
