@@ -217,8 +217,12 @@ jobs:
           if [ "$open_threads" != "0" ]; then echo "$open_threads review thread(s) unresolved — not merging"; exit 0; fi
           if [ "$checks" != "SUCCESS" ]; then echo "checks are $checks — not merging"; exit 0; fi
 
+          # The merge job's own check run is in progress while this line runs,
+          # so GitHub reports UNSTABLE even when every other check is green.
+          # read_checks already excluded this run and confirmed SUCCESS; accept
+          # UNSTABLE here, or the job can never merge the PR it is checking.
           case "$state" in
-            CLEAN) ;;
+            CLEAN|UNSTABLE) ;;
             BEHIND)
               gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
               echo "branch updated; the next run merges"
