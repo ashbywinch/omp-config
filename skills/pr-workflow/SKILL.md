@@ -96,11 +96,31 @@ git push -u origin <branch-name>
 
 ### 3. Create PR Description
 
+The description is for the person using the change, not for the author's
+process. Open with the problem the PR solves; say next what they will see
+different. Everything else supports those two paragraphs.
+
 Create a `pr_description.md` with:
-- **Theme** — one-line summary of what the PR achieves
-- **Key changes** — grouped by file or concern
-- **Risk areas** — what to pay attention to in review
-- **Testing** — what was verified and how
+
+- **The problem** — what was wrong or missing, in the user's terms. One
+  paragraph, with the measurement that makes it real (the line count, the
+  failing case, the result on a real repository). Not the history of how you
+  found it.
+- **What you will see** — the new or changed behaviour: kinds, messages,
+  flags, commands, and the counts on real repositories. Write it as the
+  change's user, not as its author; this is the section the reader came for.
+- **What changed** — the code, grouped by concern, one line per area. No
+  per-file tour.
+- **Verification** — the commands that passed and the behaviours the tests
+  pin.
+
+Cut the design history (what was tried, rejected or reversed — that belongs in
+the plan doc), explanations of what the PR does **not** do or of work left to a
+follow-up (unless the reader needs it to use the change correctly), and metrics
+that do not change a decision (per-arm percentages, a test-by-test
+enumeration). If the body needs a "background" section before the problem is
+clear, the change is not ready to describe. Around 40 lines is the ceiling: a
+longer description is a sign the change needs a plan doc, not a longer PR.
 
 **In a PR description, leave the `#` off a pull request number.** This is the one
 exception to the rule above, because PR-Agent reads any `#N` in the body as an
@@ -509,6 +529,10 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 
 The sections above are the how-to; these are the one-line reminders.
 
+- **A PR description that explains the author's process instead of the
+  change.** Start with the problem and the user-visible difference; history,
+  rejected designs and non-goals belong in the plan doc. If the body needs a
+  "background" section to be understood, rewrite the change or split it.
 - **A run of refutations is a readability finding.** When three or more replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Do not refute each comment in turn — it lets the same question return in a new form.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
   moment it appears: read it, fix or refute it, and post the evidence. Batching replies
@@ -593,7 +617,7 @@ The sections above are the how-to; these are the one-line reminders.
 
 ## Success Criteria
 
-- PR description captures all changes with context
+- The description opens with the problem and the user-visible change, and carries no process history
 - All CI checks pass
 - All actionable reviewer findings are fixed in the same session
 - No dead code, backward compatibility shims, or swallowed exceptions
