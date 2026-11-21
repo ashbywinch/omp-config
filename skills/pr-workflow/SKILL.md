@@ -20,7 +20,7 @@ reply. `pr-threads` is the review-thread tool, installed with this skill by
 Do not end the turn after `gh pr create`.
 
 **Before you report a PR's state** (ready / blocked / mergeable), run
-`scripts/watch-pr.sh <n>`. When one area has collected refutations, stop
+`watch-pr.sh <n>`. When one area has collected refutations, stop
 refuting and refactor it before answering.
 
 ## Prerequisites
@@ -529,7 +529,7 @@ The sections above are the how-to; these are the one-line reminders.
   History, rejected designs and non-goals belong in the plan doc. If the body
   needs a "background" section to be understood, rewrite the change or split
   it.
-- **Watch with the script, not with prose.** `scripts/watch-pr.sh <pr> [required-check]`
+- **Watch with the script, not with prose.** `watch-pr.sh <pr> [required-check]`
   (installed by `make install`) polls and exits with `READY <sha>` when every workflow run
   for the head has completed, every check-run has completed, the required check is
   `success`, the head has been stable across two polls, and no thread's last voice is the
