@@ -532,8 +532,7 @@ release.
 workflow (`automerge.yml`, called by tag) merges on the user's approval. Do not
 run `gh pr merge`, do not approve, and do not arm or re-arm auto-merge; the
 workflow is already the mechanism. A repo where the workflow is absent or not
-firing is a bug to report, not a reason to merge by hand. Report readiness and
-stop.
+firing is a bug to report. Never merge by hand. Report readiness and stop.
 
 ---
 
