@@ -3,7 +3,9 @@ name: pr-workflow
 description: |
   GitHub Pull Request creation and post-creation handling — validate changes,
   create PR description, monitor checks, triage findings from any reviewer
-  (AI or human), iterate.
+  (AI or human), iterate. Also load this BEFORE reporting a PR's state (ready /
+  blocked / mergeable): the three readiness facts and the rule that a run of
+  refutations is a readability finding live here.
 ---
 
 # GitHub Pull Request Workflow
@@ -16,6 +18,12 @@ ends when `pr-threads --wait <n>` prints nothing and every inline comment has a
 reply. `pr-threads` is the review-thread tool, installed with this skill by
 `make install`; `--wait` blocks until the reviewer has finished for this head.
 Do not end the turn after `gh pr create`.
+
+**Before you report a PR's state** (ready / blocked / mergeable), run the three
+facts in §4b — threads answered, checks green on the head, a clean
+`git merge-tree`. And when one area has collected three or more refutations,
+stop refuting: the confusion is the finding (§11b) — make the area readable for
+a reviewer holding only the diff, then answer.
 
 ## Prerequisites
 
@@ -500,6 +508,19 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
+
+- **A run of refutations is a readability finding.** When three or more replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Refuting each comment in turn is how the same question returns in a new costume.
+- **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
+  moment it appears: read it, fix or refute it, and post the evidence. Batching replies
+  behind the next push leaves the reviewer staring at an unanswered question for a whole
+  CI cycle, and it is how a round of findings becomes a wall of them. Pushing is what
+  waits for the review to finish; replying never does.
+- **A wake-up is a running job, not a sentence.** "The watcher is on it" without a
+  started background job is a claim of a mechanism that does not exist — you were
+  waiting for nothing. Start the watcher in the SAME command as the push, and say
+  the shell id it returned. Its condition must name this head: the check-runs for
+  that sha completed AND the review workflow run for that head_sha completed; a
+  count of created check-runs alone can read "done" before the review is created.
 - **Fetch the REST zip when `gh run view --log` prints nothing** (§5).
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
