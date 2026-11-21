@@ -217,10 +217,11 @@ jobs:
           if [ "$open_threads" != "0" ]; then echo "$open_threads review thread(s) unresolved — not merging"; exit 0; fi
           if [ "$checks" != "SUCCESS" ]; then echo "checks are $checks — not merging"; exit 0; fi
 
-          # The merge job's own check run is in progress while this line runs,
-          # so GitHub reports UNSTABLE even when every other check is green.
-          # read_checks already excluded this run and confirmed SUCCESS; accept
-          # UNSTABLE here, or the job can never merge the PR it is checking.
+          # read_checks drops the check run whose details_url points at this
+          # run, and confirmed every other check is SUCCESS. The mergeability
+          # endpoint still counts this job's in-progress check, so it reports
+          # UNSTABLE; accept it here, or the job can never merge the PR it is
+          # checking.
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
