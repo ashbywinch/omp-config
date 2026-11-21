@@ -19,11 +19,9 @@ reply. `pr-threads` is the review-thread tool, installed with this skill by
 `make install`; `--wait` blocks until the reviewer has finished for this head.
 Do not end the turn after `gh pr create`.
 
-**Before you report a PR's state** (ready / blocked / mergeable), run the three
-facts in §4b — threads answered, checks green on the head, a clean
-`git merge-tree`. When one area has collected three or more refutations,
-stop refuting. The confusion is the finding (§11b). Make the area readable for
-a reviewer holding only the diff, then answer.
+**Before you report a PR's state** (ready / blocked / mergeable), run
+`scripts/watch-pr.sh <n>`. When one area has collected refutations, stop
+refuting and refactor it before answering.
 
 ## Prerequisites
 
@@ -96,31 +94,22 @@ git push -u origin <branch-name>
 
 ### 3. Create PR Description
 
-The description is for the person using the change, not for the author's
-process. Open with the problem the PR solves; say next what they will see
-different. Everything else supports those two paragraphs.
+The description is for the person using the change, not the author's process.
+Open with the problem; say next what they will see different.
 
 Create a `pr_description.md` with:
 
-- **The problem** — what was wrong or missing, in the user's terms. One
-  paragraph, with the measurement that makes it real (the line count, the
-  failing case, the result on a real repository). Not the history of how you
-  found it.
-- **What you will see** — the new or changed behaviour: kinds, messages,
-  flags, commands, and the counts on real repositories. Write it as the
-  change's user, not as its author; this is the section the reader came for.
-- **What changed** — the code, grouped by concern, one line per area. No
-  per-file tour.
-- **Verification** — the commands that passed and the behaviours the tests
-  pin.
+- **The problem** — what was wrong or missing, in the user's terms, with the
+  measurement that makes it real (the line count, the failing case, the
+  concrete result). Not how you found it.
+- **What you will see** — the new behaviour: kinds, messages, flags, commands,
+  and the concrete counts.
+- **What changed** — the code, grouped by concern, one line per area.
+- **Verification** — the commands that passed and what the tests pin.
 
-Cut the design history (what was tried, rejected or reversed — that belongs in
-the plan doc), explanations of what the PR does **not** do or of work left to a
-follow-up (unless the reader needs it to use the change correctly), and metrics
-that do not change a decision (per-arm percentages, a test-by-test
-enumeration). If the body needs a "background" section before the problem is
-clear, the change is not ready to describe. Around 40 lines is the ceiling: a
-longer description is a sign the change needs a plan doc, not a longer PR.
+Cut the design history (plan docs hold it), what the PR does not do, follow-up
+work, and decision-neutral metrics. A body over ~40 lines needs a plan doc, not
+a longer PR.
 
 **In a PR description, leave the `#` off a pull request number.** This is the one
 exception to the rule above, because PR-Agent reads any `#N` in the body as an
@@ -439,14 +428,12 @@ of one design, not asking for a third version. Nor dismiss a comment because a
 bot wrote it. The bot stands in for a reader with less context than you, and that
 is exactly the reader the code has to work for.
 
-**A refutation is a refactoring, not a reply.** A comment you cannot answer
-from the code is a readability finding: the code did not carry the fact. Make
-it structural — a name, a type, a branch, a single decision function — so the
-answer is visible without your reply. A doc line, a comment or a test is the
-fallback for a fact the code genuinely cannot express (an external contract, a
-boundary only a test can reach), never the default. One refutation is a
-question about readability; three in one area is a certainty. Both are
-answered by the shape of the code first, and the reply cites that shape.
+**A refutation is a refactoring, not a reply.** A comment exposing a bug means
+the author was confused by the code; one that is incorrect means the bot was
+confused. Either way the code did not carry the fact: make it structural — a
+name, a type, a branch, one decision function. A doc line, comment or test is
+the fallback for a fact the code cannot express, never the default. One
+refutation is a signal; three in one area is a certainty.
 
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two
@@ -538,22 +525,31 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 
 The sections above are the how-to; these are the one-line reminders.
 
-- **A PR description that explains the author's process instead of the
-  change.** Start with the problem and the user-visible difference; history,
-  rejected designs and non-goals belong in the plan doc. If the body needs a
-  "background" section to be understood, rewrite the change or split it.
-- **A run of refutations is a readability finding.** When replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Do not refute each comment in turn — it lets the same question return in a new form. **Leave the fact in the code's shape**: a name, a type, a decision that makes it obvious; a comment or test only when the code cannot carry it. One refutation is already a signal; three in one area is a certainty.
+- **Start the description with the problem and the user-visible difference.**
+  History, rejected designs and non-goals belong in the plan doc. If the body
+  needs a "background" section to be understood, rewrite the change or split
+  it.
+- **Watch with the script, not with prose.** `scripts/watch-pr.sh <pr> [required-check]`
+  (installed by `make install`) polls and exits with `READY <sha>` when every workflow run
+  for the head has completed, every check-run has completed, the required check is
+  `success`, the head has been stable across two polls, and no thread's last voice is the
+  reviewer; it exits with `NEW THREADS n` the moment one is. Do not re-derive those
+  conditions in a one-off loop — that is how "no check-runs yet" and "a second run started
+  after the green one" both read as ready.
+- **A watcher is a program; write it so it cannot lie.** Its readiness condition is ALL of: every workflow run for the head `completed`, every check-run `completed`, the required check `success`, and the head unchanged across two consecutive polls (a base-branch merge re-triggers CI on the same sha, so one green run does not mean the sha is settled). Never collapse conclusions to a unique set — `unique(join)` reads "success" from the finished run while a second run on the same sha is still going. Never write the loop with `[ … ] && echo && break`: the harness shell runs with `errexit`, the first false test aborts the script, and the watcher dies on its first tick. Use `if … then … fi`.
+- **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
+- **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
   moment it appears: read it, fix or refute it, and post the evidence. Batching replies
   behind the next push leaves the reviewer staring at an unanswered question for a whole
   CI cycle, and it is how a round of findings becomes a wall of them. Pushing is what
   waits for the review to finish; replying never does.
-- **A wake-up is a running job, not a sentence.** "The watcher is on it" without a
-  started background job is a claim of a mechanism that does not exist — you were
-  waiting for nothing. Start the watcher in the SAME command as the push, and say
-  the shell id it returned. Its condition must name this head: the check-runs for
-  that sha completed AND the review workflow run for that head_sha completed; a
-  count of created check-runs alone can read "done" before the review is created.
+- **Start the watcher in the same command as the push, and report the shell id
+  it returns.** "The watcher is on it" without a started background job claims a
+  mechanism that does not exist. Its condition must name this head: the
+  check-runs for that sha completed AND the review workflow run for that
+  head_sha completed; a count of created check-runs alone can read "done"
+  before the review is created.
 - **Fetch the REST zip when `gh run view --log` prints nothing** (§5).
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
