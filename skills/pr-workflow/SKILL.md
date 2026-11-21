@@ -512,11 +512,12 @@ ask — what the merge looked like before the last push.
 
 ## Part 5: Handing the merge to the user
 
-### 13. The PR carries the version bump; merging it is the release
+### 13. The PR carries the version bump; the merge is the user's
 
 If the repo releases by version (a semver in a version file, a release branch,
-a tag), the bump goes in the PR under review, before it merges: one PR with the
-change, its tests, its docs and the version. Merging that PR *is* the release.
+a tag), the bump goes in the PR under review, before handoff: one PR with the
+change, its tests, its docs and the version. The merge that follows is the
+release.
 
 - Derive the number from the diff with semver: breaking change → major, new
   capability → minor, fixes only → patch.
@@ -526,6 +527,12 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
   PR. `<version files>` is wherever that stack keeps the version, plus its
   lockfile if it has one — `package.json` and `package-lock.json`, `Cargo.toml`,
   `pyproject.toml`.
+
+**The merge is not the agent's step.** The house's `merge-when-approved`
+workflow (`automerge.yml`, called by tag) merges on the user's approval. Do not
+run `gh pr merge`, do not approve, and do not arm or re-arm auto-merge; the
+workflow is already the mechanism. A repo where the workflow is absent or not
+firing is a bug to report. Never merge by hand. Report readiness and stop.
 
 ---
 
@@ -608,7 +615,8 @@ The sections above are the how-to; these are the one-line reminders.
 - **Fixing AI config suggestions** — `.pr_agent.toml`/workflow
   self-reviews are almost never actionable (§9).
 - **Leaving the version out of the PR** — derive it with semver and have it
-  staged before asking for approval, so the merge is the release (§13).
+  staged before asking for approval, so the release is complete when the user
+  merges (§13).
 - **Deleting a branch a workflow references** — never. Before deleting any
   branch, grep `.github/workflows/` for its name. `pr-agent-config`'s role
   and its two false-stale signals are stated in the workflow that pins
