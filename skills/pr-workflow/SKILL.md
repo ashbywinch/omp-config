@@ -19,8 +19,9 @@ reply. `pr-threads` is the review-thread tool, installed with this skill by
 `make install`; `--wait` blocks until the reviewer has finished for this head.
 Do not end the turn after `gh pr create`.
 
-When a comment or a bug shows confusion — the reviewer's or the author's —
-refactor the code so it carries the fact; reply only after the code shows it.
+Assume confusion behind every comment and every bug — the reviewer's, or the
+author's whose code drew it — and refactor the code so it carries the fact;
+reply only after the code shows it.
 
 **Before you report a PR's state** (ready / blocked / mergeable), run
 `watch-pr.sh <n>`. When one area has collected refutations, stop
@@ -434,9 +435,10 @@ of one design, not asking for a third version. Nor dismiss a comment because a
 bot wrote it. The bot stands in for a reader with less context than you, and that
 is exactly the reader the code has to work for.
 
-**Respond to confusion by refactoring the code, then reply.** A bug in the diff
-means the authoring agent was confused by the code; a comment that is wrong
-means the reviewer was confused. In both cases the code did not carry the fact:
+**Treat every comment as evidence of confusion and refactor the code, then
+reply.** A bug in the diff means the authoring agent was confused by the code;
+a comment that is wrong means the reviewer was confused. Both cases mean the
+code did not carry the fact:
 make it structural — a name, a type, a branch, one decision function — so the
 next reader does not need the explanation. Use a doc line, comment or test only
 when the code cannot express the fact. Refactor first; reply with the new shape.
@@ -623,7 +625,7 @@ The sections above are the how-to; these are the one-line reminders.
 ## Success Criteria
 
 - The description opens with the problem and the user-visible change, and carries no process history
-- A bug by the author or a wrong comment by the reviewer is answered by refactoring the code, not by a reply alone
+- Every comment is treated as evidence of confusion and answered by refactoring the code, not by a reply alone
 - All CI checks pass
 - All actionable reviewer findings are fixed in the same session
 - No dead code, backward compatibility shims, or swallowed exceptions
