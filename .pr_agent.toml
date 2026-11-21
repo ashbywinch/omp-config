@@ -30,8 +30,8 @@ enable_incremental = true
 persistent_comment = true  # update the same review comment instead of posting a new one
 require_tests_review = true
 require_security_review = true
-# Response-size budget, not a target: too high truncates the review and fails
-# the check; too low hides findings. 10 is the house balance.
+# Response-size budget, not a target. Too high truncates the review and fails
+# the check. Too low hides findings. 10 is the house balance.
 num_max_findings = 10
 extra_instructions = """
 Every markdown file this PR changes — docs/, skills/, standards/, AGENTS.md, rules/, APPEND_SYSTEM.md — is a doc under review. Check each one against docs/writing-documentation.md and docs/documentation-structure.md. Report every violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Never report a doc as compliant unless you checked it against both.
