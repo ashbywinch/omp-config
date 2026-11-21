@@ -45,6 +45,7 @@ COMMAND_TIMEOUT_SECONDS = 300  # clone and API calls; a hung command must return
 
 NO_MCP_CONFIG = {"$schema": "https://opencode.ai/config.json"}
 SKILL_NEEDLES = ("pr-desk ensure", "PR_DESK=1", "never approve", "gh pr merge")
+ACTIVE_STATUSES = ("idle", "running")
 DESK_AGENTS = """# pr-desk
 
 A code-review surface. It reads GitHub only; it has no Google tools.
@@ -280,6 +281,7 @@ why. When the queue is empty, say "archive me" and stop.
         run(["git", "-C", str(path), "sparse-checkout", "init", "--no-cone"])
         run(["git", "-C", str(path), "sparse-checkout", "set",
              "/*", "!/opencode.json"])
+        run(["git", "-C", str(path), "sparse-checkout", "reapply"])
         self.worktrees.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -346,17 +348,18 @@ def desk_agents(repo: str) -> list[dict]:
         raise DeskError("paseo ls failed: %s"
                         % (proc.stderr or proc.stdout).strip())
     agents = json.loads(proc.stdout)
-    return [agent for agent in agents if agent.get("status") != "closed"]
+    return [agent for agent in agents
+            if agent.get("status") in ACTIVE_STATUSES]
 
 
 def ensure(repo_arg: str | None) -> int:
     repo = repo_slug(repo_arg)
     config = load_config() or DeskConfig()
+    config.ensure_workspace()
     prs = open_prs(repo)
     if not prs:
         print("%s: no open PRs; no desk needed" % repo)
         return 0
-    config.ensure_workspace()
     desk = RepoDesk(config, repo)
     clone = desk.ensure_clone()
     print("%s: %d open PR(s), clone %s" % (repo, len(prs), clone))
@@ -456,7 +459,8 @@ class DeskCheck:
                         % (repo, agent.get("id"), cwd))
         for agent in paseo_json(["ls", "--global", "--json"]):
             cwd = os.path.expanduser(str(agent.get("cwd") or ""))
-            if agent.get("status") == "closed" or not cwd.startswith(desk):
+            if agent.get("status") not in ACTIVE_STATUSES \
+                    or not cwd.startswith(desk):
                 continue
             if str(agent.get("id")) not in labeled:
                 self.failures.append("desk agent %s has no repo label"

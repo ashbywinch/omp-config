@@ -132,12 +132,23 @@ class Clone(unittest.TestCase):
                                             "ashbywinch/inbox"])
             sparse = [c for c in calls if "sparse-checkout" in c]
             self.assertTrue(sparse)
-            self.assertIn("!/opencode.json", sparse[-1])
+            self.assertIn("!/opencode.json", sparse[-2])
+            self.assertEqual(sparse[-1][-1], "reapply")
             self.assertTrue((pathlib.Path(cfg.path) / "worktrees"
                              / "ashbywinch/inbox").is_dir())
 
 
 class Agents(unittest.TestCase):
+    def test_only_idle_and_running_agents_are_active(self):
+        rows = [{"id": "a", "status": "running"},
+                {"id": "b", "status": "idle"},
+                {"id": "c", "status": "error"},
+                {"id": "d", "status": "closed"}]
+        with mock.patch.object(pr_desk, "run",
+                               return_value=proc(json.dumps(rows))):
+            self.assertEqual([a["id"] for a in pr_desk.desk_agents("o/r")],
+                             ["a", "b"])
+
     def test_a_running_agent_is_not_duplicated(self):
         with tempfile.TemporaryDirectory() as tmp:
             desk = pr_desk.RepoDesk(config(tmp), "ashbywinch/inbox")
@@ -183,7 +194,7 @@ class Agents(unittest.TestCase):
 
 
 class Ensure(unittest.TestCase):
-    def test_a_repo_with_no_prs_does_not_create_the_desk(self):
+    def test_a_repo_with_no_prs_still_ensures_the_workspace(self):
         with mock.patch.object(pr_desk, "repo_slug",
                                return_value="ashbywinch/inbox"), \
              mock.patch.object(pr_desk, "open_prs", return_value=[]), \
@@ -191,7 +202,7 @@ class Ensure(unittest.TestCase):
             out = io.StringIO()
             with redirect_stdout(out):
                 self.assertEqual(pr_desk.ensure("ashbywinch/inbox"), 0)
-        workspace.assert_not_called()
+        workspace.assert_called_once()
         self.assertIn("no open PRs", out.getvalue())
 
 
