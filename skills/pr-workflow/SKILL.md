@@ -19,6 +19,9 @@ reply. `pr-threads` is the review-thread tool, installed with this skill by
 `make install`; `--wait` blocks until the reviewer has finished for this head.
 Do not end the turn after `gh pr create`.
 
+When a comment or a bug shows confusion — the reviewer's or the author's —
+refactor the code so it carries the fact; reply only after the code shows it.
+
 **Before you report a PR's state** (ready / blocked / mergeable), run
 `watch-pr.sh <n>`. When one area has collected refutations, stop
 refuting and refactor it before answering.
@@ -95,7 +98,9 @@ git push -u origin <branch-name>
 ### 3. Create PR Description
 
 The description is for the person using the change, not the author's process.
-Open with the problem; say next what they will see different.
+Open with the problem; say next what they will see different. Every section
+answers the problem: what was wrong, what the user sees now, and how the change
+removes the cause.
 
 Create a `pr_description.md` with:
 
@@ -104,7 +109,8 @@ Create a `pr_description.md` with:
   concrete result). Not how you found it.
 - **What you will see** — the new behaviour: kinds, messages, flags, commands,
   and the concrete counts.
-- **What changed** — the code, grouped by concern, one line per area.
+- **What changed** — the code, grouped by concern, one line per area, each
+  saying how it removes part of the problem.
 - **Verification** — the commands that passed and what the tests pin.
 
 Cut the design history (plan docs hold it), what the PR does not do, follow-up
@@ -428,12 +434,12 @@ of one design, not asking for a third version. Nor dismiss a comment because a
 bot wrote it. The bot stands in for a reader with less context than you, and that
 is exactly the reader the code has to work for.
 
-**A refutation is a refactoring, not a reply.** A comment exposing a bug means
-the author was confused by the code; one that is incorrect means the bot was
-confused. Either way the code did not carry the fact: make it structural — a
-name, a type, a branch, one decision function. A doc line, comment or test is
-the fallback for a fact the code cannot express, never the default. One
-refutation is a signal; three in one area is a certainty.
+**Respond to confusion by refactoring the code, then reply.** A bug in the diff
+means the authoring agent was confused by the code; a comment that is wrong
+means the reviewer was confused. In both cases the code did not carry the fact:
+make it structural — a name, a type, a branch, one decision function — so the
+next reader does not need the explanation. Use a doc line, comment or test only
+when the code cannot express the fact. Refactor first; reply with the new shape.
 
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two
@@ -529,14 +535,11 @@ The sections above are the how-to; these are the one-line reminders.
   History, rejected designs and non-goals belong in the plan doc. If the body
   needs a "background" section to be understood, rewrite the change or split
   it.
-- **Watch with the script, not with prose.** `watch-pr.sh <pr> [required-check]`
-  (installed by `make install`) polls and exits with `READY <sha>` when every workflow run
-  for the head has completed, every check-run has completed, the required check is
-  `success`, the head has been stable across two polls, and no thread's last voice is the
-  reviewer; it exits with `NEW THREADS n` the moment one is. Do not re-derive those
-  conditions in a one-off loop — that is how "no check-runs yet" and "a second run started
-  after the green one" both read as ready.
-- **A watcher is a program; write it so it cannot lie.** Its readiness condition is ALL of: every workflow run for the head `completed`, every check-run `completed`, the required check `success`, and the head unchanged across two consecutive polls (a base-branch merge re-triggers CI on the same sha, so one green run does not mean the sha is settled). Never collapse conclusions to a unique set — `unique(join)` reads "success" from the finished run while a second run on the same sha is still going. Never write the loop with `[ … ] && echo && break`: the harness shell runs with `errexit`, the first false test aborts the script, and the watcher dies on its first tick. Use `if … then … fi`.
+- **Poll with `watch-pr.sh <pr> [required-check]`.** It exits with `READY <sha>`
+  when every workflow run and check-run for the head has completed, the required
+  check is `success`, the head is unchanged across two polls, and no thread's last
+  voice is the reviewer; it exits with `NEW THREADS n` when one is. Use it; do not
+  re-derive the conditions in a one-off loop.
 - **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
 - **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
@@ -546,10 +549,7 @@ The sections above are the how-to; these are the one-line reminders.
   waits for the review to finish; replying never does.
 - **Start the watcher in the same command as the push, and report the shell id
   it returns.** "The watcher is on it" without a started background job claims a
-  mechanism that does not exist. Its condition must name this head: the
-  check-runs for that sha completed AND the review workflow run for that
-  head_sha completed; a count of created check-runs alone can read "done"
-  before the review is created.
+  mechanism that does not exist.
 - **Fetch the REST zip when `gh run view --log` prints nothing** (§5).
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
@@ -623,7 +623,7 @@ The sections above are the how-to; these are the one-line reminders.
 ## Success Criteria
 
 - The description opens with the problem and the user-visible change, and carries no process history
-- A refutation leaves the code clearer (a named decision, type or branch), not only a reply
+- A bug by the author or a wrong comment by the reviewer is answered by refactoring the code, not by a reply alone
 - All CI checks pass
 - All actionable reviewer findings are fixed in the same session
 - No dead code, backward compatibility shims, or swallowed exceptions
