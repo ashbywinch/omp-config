@@ -85,10 +85,11 @@ users — each cluster is checkable, none is an implementation detail:
 ## Constraints
 
 - **Cost to run.** Token cost is a first-class budget: always-loaded docs
-  ≤ ~150–200 lines; the bot's findings cap (50) and context list are
+  ≤ ~150–200 lines; the bot's findings cap (10) and context list are
   bounded; a review iteration costs minutes, so pushes are consolidated.
-  Evidence (2026-08-04): a truncated findings cap forced a redo of a large
-  review — the cap was raised so one review covers a whole PR.
+  The cap is 10: one review covers the findings the model can finish. A cap
+  that is too high truncates the review and fails to post; a cap that is too
+  low hides findings and forces a redo.
 - **Longevity.** Conventions must stay coherent for decades — the 2060
   test: a reader in 2060 can follow them without the original authors;
   decisions are dated and reasoned; data that matters is append-only.
