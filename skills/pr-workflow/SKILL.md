@@ -3,7 +3,9 @@ name: pr-workflow
 description: |
   GitHub Pull Request creation and post-creation handling — validate changes,
   create PR description, monitor checks, triage findings from any reviewer
-  (AI or human), iterate.
+  (AI or human), iterate. Also load this BEFORE reporting a PR's state (ready /
+  blocked / mergeable): the three readiness facts and the rule that a run of
+  refutations is a readability finding live here.
 ---
 
 # GitHub Pull Request Workflow
@@ -16,6 +18,14 @@ ends when `pr-threads --wait <n>` prints nothing and every inline comment has a
 reply. `pr-threads` is the review-thread tool, installed with this skill by
 `make install`; `--wait` blocks until the reviewer has finished for this head.
 Do not end the turn after `gh pr create`.
+
+Assume confusion behind every comment and every bug — the reviewer's, or the
+author's whose code drew it. Identify the confusion and refactor the code to
+remove it, then reply.
+
+**Before you report a PR's state** (ready / blocked / mergeable), run
+`watch-pr.sh <n>`. When one area has collected refutations, stop
+refuting and refactor it before answering.
 
 ## Prerequisites
 
@@ -88,11 +98,25 @@ git push -u origin <branch-name>
 
 ### 3. Create PR Description
 
+The description is for the person using the change, not the author's process.
+Open with the problem; say next what they will see different. Every section
+answers the problem: what was wrong, what the user sees now, and how the change
+removes the cause.
+
 Create a `pr_description.md` with:
-- **Theme** — one-line summary of what the PR achieves
-- **Key changes** — grouped by file or concern
-- **Risk areas** — what to pay attention to in review
-- **Testing** — what was verified and how
+
+- **The problem** — what was wrong or missing, in the user's terms, with the
+  measurement that makes it real (the line count, the failing case, the
+  concrete result). Not how you found it.
+- **What you will see** — the new behaviour: kinds, messages, flags, commands,
+  and the concrete counts.
+- **What changed** — the code, grouped by concern, one line per area, each
+  saying how it removes part of the problem.
+- **Verification** — the commands that passed and what the tests pin.
+
+Cut the design history (plan docs hold it), what the PR does not do, follow-up
+work, and decision-neutral metrics. A body over ~40 lines needs a plan doc, not
+a longer PR.
 
 **In a PR description, leave the `#` off a pull request number.** This is the one
 exception to the rule above, because PR-Agent reads any `#N` in the body as an
@@ -411,6 +435,14 @@ of one design, not asking for a third version. Nor dismiss a comment because a
 bot wrote it. The bot stands in for a reader with less context than you, and that
 is exactly the reader the code has to work for.
 
+**Treat every comment as evidence of confusion and refactor the code, then
+reply.** A bug in the diff means the authoring agent was confused by the code;
+a comment that is wrong means the reviewer was confused. Both cases mean the
+code did not carry the fact:
+make it structural — a name, a type, a branch, one decision function — so the
+next reader does not need the explanation. Use a doc line, comment or test only
+when the code cannot express the fact. Refactor first; reply with the new shape.
+
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two
 rejected the span. The question was neither — the walk was standing on the
@@ -500,6 +532,26 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 ## Common Pitfalls
 
 The sections above are the how-to; these are the one-line reminders.
+
+- **Start the description with the problem and the user-visible difference.**
+  History, rejected designs and non-goals belong in the plan doc. If the body
+  needs a "background" section to be understood, rewrite the change or split
+  it.
+- **Poll with `watch-pr.sh <pr> [required-check]`.** It exits with `READY <sha>`
+  when every workflow run and check-run for the head has completed, the required
+  check is `success`, the head is unchanged across two polls, and no thread's last
+  voice is the reviewer; it exits with `NEW THREADS n` when one is. Use it; do not
+  re-derive the conditions in a one-off loop.
+- **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
+- **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
+- **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
+  moment it appears: read it, fix or refute it, and post the evidence. Batching replies
+  behind the next push leaves the reviewer staring at an unanswered question for a whole
+  CI cycle, and it is how a round of findings becomes a wall of them. Pushing is what
+  waits for the review to finish; replying never does.
+- **Start the watcher in the same command as the push, and report the shell id
+  it returns.** "The watcher is on it" without a started background job claims a
+  mechanism that does not exist.
 - **Fetch the REST zip when `gh run view --log` prints nothing** (§5).
 - **Reading only the `<details>` count** — the review comment has findings
   outside the collapsible sections (security table, compliance links);
@@ -572,7 +624,8 @@ The sections above are the how-to; these are the one-line reminders.
 
 ## Success Criteria
 
-- PR description captures all changes with context
+- The description opens with the problem and the user-visible change, and carries no process history
+- The confusion behind every comment is identified and refactored out of the code, not answered by a reply alone
 - All CI checks pass
 - All actionable reviewer findings are fixed in the same session
 - No dead code, backward compatibility shims, or swallowed exceptions
