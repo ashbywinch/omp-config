@@ -21,8 +21,8 @@ Do not end the turn after `gh pr create`.
 
 **Before you report a PR's state** (ready / blocked / mergeable), run the three
 facts in §4b — threads answered, checks green on the head, a clean
-`git merge-tree`. And when one area has collected three or more refutations,
-stop refuting: the confusion is the finding (§11b) — make the area readable for
+`git merge-tree`. When one area has collected three or more refutations,
+stop refuting. The confusion is the finding (§11b). Make the area readable for
 a reviewer holding only the diff, then answer.
 
 ## Prerequisites
@@ -509,7 +509,7 @@ change, its tests, its docs and the version. Merging that PR *is* the release.
 
 The sections above are the how-to; these are the one-line reminders.
 
-- **A run of refutations is a readability finding.** When three or more replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Refuting each comment in turn is how the same question returns in a new costume.
+- **A run of refutations is a readability finding.** When three or more replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Do not refute each comment in turn — it lets the same question return in a new form.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
   moment it appears: read it, fix or refute it, and post the evidence. Batching replies
   behind the next push leaves the reviewer staring at an unanswered question for a whole
