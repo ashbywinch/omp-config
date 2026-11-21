@@ -439,6 +439,15 @@ of one design, not asking for a third version. Nor dismiss a comment because a
 bot wrote it. The bot stands in for a reader with less context than you, and that
 is exactly the reader the code has to work for.
 
+**A refutation is a code change, not a reply.** The evidence that settles a
+comment — an AST fact, a boundary condition, a contract — belongs where the
+next reader meets it: a doc line on the function, a comment at the branch, or
+a test that pins the boundary. A reply the reviewer accepts but the code does
+not carry is a question that returns in the next review. One refutation is a
+question about readability; three in one area is a certainty. Both are
+answered in the code first: add the line or the test, then reply with its
+referent.
+
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two
 rejected the span. The question was neither — the walk was standing on the
@@ -533,7 +542,7 @@ The sections above are the how-to; these are the one-line reminders.
   change.** Start with the problem and the user-visible difference; history,
   rejected designs and non-goals belong in the plan doc. If the body needs a
   "background" section to be understood, rewrite the change or split it.
-- **A run of refutations is a readability finding.** When three or more replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Do not refute each comment in turn — it lets the same question return in a new form.
+- **A run of refutations is a readability finding.** When replies to one area are "not a defect — here is the line that proves it", the reviewer is telling you the code cannot be read from the diff: two names for one concept, a value derived after the class that uses it, a shape assembled by a wall of `+=`. Refactor that area for clarity — one name per concept — before answering the next comment. Do not refute each comment in turn — it lets the same question return in a new form. **Leave the evidence in the code**: the doc line, comment or test that makes the fact visible to the next reader; a thread-only refutation is not a fix. One refutation is already a signal; three in one area is a certainty.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
   moment it appears: read it, fix or refute it, and post the evidence. Batching replies
   behind the next push leaves the reviewer staring at an unanswered question for a whole
@@ -618,6 +627,7 @@ The sections above are the how-to; these are the one-line reminders.
 ## Success Criteria
 
 - The description opens with the problem and the user-visible change, and carries no process history
+- A refutation leaves its evidence in the code (a doc line, comment or test), not only in the thread
 - All CI checks pass
 - All actionable reviewer findings are fixed in the same session
 - No dead code, backward compatibility shims, or swallowed exceptions
