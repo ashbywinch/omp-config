@@ -65,7 +65,9 @@ extra_instructions = "Check the PR against each file in repo_context_files. Befo
 # Documentation is reviewed like code: a doc finding lands on the line that
 # breaks the rule, not only in the review summary.
 extra_instructions = """
-Apply docs/writing-documentation.md to every markdown file the diff changes. Propose a concrete replacement line for each rule the file breaks. Anchor every suggestion to the line it replaces.
+Apply docs/writing-documentation.md to every markdown file the diff changes.
+Propose a concrete replacement line for each rule the file breaks.
+Anchor every suggestion to the line it replaces.
 """
 persistent_comment = true
 commitable_code_suggestions = true  # inline mode: the summarized table comment is never published; a posting failure degrades to verified one-line comments, never a table
