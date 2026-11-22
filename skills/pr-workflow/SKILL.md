@@ -3,7 +3,8 @@ name: pr-workflow
 description: |
   Create a pull request and carry it through review: validate the change, write
   the description, watch checks, triage findings from any reviewer, and iterate
-  to a clean state. Load before opening a PR or answering a review comment.
+  to a clean state. Load before opening a PR or answering a review comment; to
+  decide whether a PR is ready to report, load `skill://pr-state`.
 ---
 
 # GitHub Pull Request Workflow
