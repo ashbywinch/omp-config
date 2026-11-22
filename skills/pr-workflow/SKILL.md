@@ -172,8 +172,6 @@ issue to fetch and a PR number crashes the review.
 | Issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | the extractor can fetch it |
 | Anything else | name it, don't number it | a placeholder or a run is not a ticket |
 
-Chat has no autolink: write the link form there too.
-
 ### 4. Create PR
 
 ```bash
