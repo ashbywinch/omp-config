@@ -33,15 +33,18 @@ Assume confusion behind every comment and every bug — the reviewer's, or the
 author's whose code drew it. Identify the confusion and refactor the code to
 remove it, then reply.
 
-**Before you report a PR's state** (ready / blocked / mergeable), run
-`watch-pr.sh <n>`. When one area has collected refutations, stop
-refuting and refactor it before answering.
+**Wait for the reviewer before reporting state.** Run `watch-pr.sh <n>` before
+you call a PR ready, blocked or mergeable.
 
-**A refutation is complete only when it names what makes the question
-unaskable** — a code change (a named function whose docstring states the fact, a
-single owner, a type that cannot express the wrong state) or the existing
-docstring/test that already states it, quoted. "Not a defect — here is the line"
-answers the reviewer. Do not leave the next reader to ask it again.
+**Answer a refutation with the code that prevents the mistake.** Name the thing
+that stops the question arising again: a function whose docstring states the
+fact, a single owner, or a type that cannot express the wrong state. Quote the
+docstring or test when it already says it. "Not a defect — here is the line"
+answers this reviewer only, and the next reader asks the same question.
+
+**Refactor an area that keeps collecting refutations.** Two refutations in one
+area mean the design invites the question. Change the code before you answer a
+third.
 
 ## The loop that actually converges
 
@@ -622,10 +625,8 @@ The sections above are the how-to; these are the one-line reminders.
 - **Terse thread replies** (`Fixed` / `No`) — every reply names its
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
-- **An unlinked PR or issue number** — in chat, in a status summary, in a
-  description, in a reply: link it (§4), never a bare `#2`. A PR number in a
-  *description* takes the `#`-free link text `PR 2`, because the ticket
-  extractor reads `#N` as an issue and a PR number crashes the review (§3).
+- **An unlinked PR or issue number** — use the forms in §4, never a bare `#2`;
+  inside a *description*, a PR number also drops the `#` (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).
