@@ -53,6 +53,9 @@ repo_context_files = [
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
+# Each finding becomes an inline thread, so a reviewer can resolve it one at a
+# time and nothing stays hidden in the summary comment.
+inline_key_issues = true
 # Response-size budget, not a target. Too high truncates the review and fails
 # the check. Too low hides findings. 10 is the house balance.
 num_max_findings = 10

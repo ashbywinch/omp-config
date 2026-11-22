@@ -28,6 +28,10 @@ repo_context_files = [
 [pr_reviewer]
 enable_incremental = true
 persistent_comment = true  # update the same review comment instead of posting a new one
+# Each finding becomes an inline thread. The desk answers every thread, the
+# reviewer resolves it, and an unanswered finding cannot sit unread in the
+# review comment.
+inline_key_issues = true
 require_tests_review = true
 require_security_review = true
 # Response-size budget, not a target. Too high truncates the review and fails
