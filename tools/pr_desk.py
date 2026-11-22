@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
-"""pr-desk — one Paseo workspace, one top-level agent per repo.
+"""pr-desk — one project, one workspace per repo, one top-level agent each.
 
-    pr-desk ensure <owner/name>   create the desk if absent; ensure its agent
+    pr-desk ensure <owner/name>   create the repo's workspace and agent
     pr-desk bootstrap             ensure every repo with an open PR
     pr-desk verify                prove the desk has no Google tools
 
-The desk is a separate surface: it reads GitHub only, never Google. It is one
-Paseo workspace with one top-level agent per repo, each with its own clone and
-worktrees. The agents are created with `paseo run` after removing the caller's
-`PASEO_AGENT_ID`, so they are top-level rather than subagents; `pr-desk ensure`
-is called by `skill://pr-workflow` when a PR opens.
+The desk is a separate surface: it reads GitHub only, never Google. The
+`pr-desk` project is the group in the Paseo sidebar; each repo is one workspace
+under it, named for the repo, with one top-level agent. That is the shape the
+UI shows for `build-tools`: a project header, then one row per workspace.
+
+The agent is created with `paseo run` after removing the caller's
+`PASEO_AGENT_ID`, so it is not a subagent and starts with no context from the
+session that called it. Nothing here sends a message to a desk agent: `ensure`
+only creates a workspace and an agent, and leaves an existing one alone.
 
 The clone is made with a sparse checkout that omits `opencode.json`. A clone of
 `inbox` would otherwise load this workspace's Google MCP servers and acquire
 mail and Drive tools the desk must not have. `pr-desk verify` checks every
-clone for that file, and the desk workspace config for any MCP server.
+clone for that file, and the project config for any MCP server.
 
 The desk never approves, resolves a thread, or merges. The repo's
 `merge-when-approved` workflow merges on the user's approval; a missing or
@@ -34,7 +38,7 @@ import os
 import re
 import subprocess
 import sys
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 HOME = Path.home()
@@ -50,10 +54,10 @@ DESK_AGENTS = """# pr-desk
 
 A code-review surface. It reads GitHub only; it has no Google tools.
 
-One top-level agent per repo, labelled `repo:<owner/name>`, each with its own
-clone and worktrees. The desk never approves a PR, resolves a review thread, or
-merges one: the repo's `merge-when-approved` workflow does that on the user's
-approval.
+One workspace per repo, one top-level agent each, named for the repo and
+labelled `repo:<owner/name>`. The desk never approves a PR, resolves a review
+thread, or merges one: the repo's `merge-when-approved` workflow does that on
+the user's approval.
 """
 
 
@@ -124,7 +128,8 @@ def top_level_env() -> dict:
 class DeskConfig:
     owner: str = "ashbywinch"
     path: str = str(DESK_DIR)
-    workspace_id: str | None = None
+    project_id: str | None = None
+    repos: dict[str, str] = field(default_factory=dict)
     provider: str = "opencode"
     model: str = "litellm/primary"
     thinking: str = "default"
@@ -132,10 +137,10 @@ class DeskConfig:
 
     @classmethod
     def from_dict(cls, data: dict) -> "DeskConfig":
-        known = {field.name for field in fields(cls)}
+        known = {field.name for field in fields(cls)} - {"repos"}
         values = {key: value for key, value in data.items()
                   if key in known and value is not None}
-        return cls(**values)
+        return cls(repos=dict(data.get("repos") or {}), **values)
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -172,50 +177,68 @@ class DeskConfig:
         if not agents.exists():
             agents.write_text(DESK_AGENTS, encoding="utf-8")
 
-    def find_workspace(self) -> str | None:
-        desk = self.desk.resolve()
-        for workspace in paseo_json(["workspace", "ls"]):
-            cwd = str(workspace.get("cwd") or "")
-            if cwd and Path(os.path.expanduser(cwd)).resolve() == desk:
-                return workspace_id_of(workspace)
-        return None
-
-    def workspace_exists(self) -> bool:
-        if not self.workspace_id:
-            return False
-        workspaces = paseo_json(["workspace", "ls"])
-        return any(workspace_id_of(workspace) == self.workspace_id
-                   for workspace in workspaces)
-
-    def ensure_workspace(self) -> "DeskConfig":
-        self.write_files()
-        if self.workspace_exists():
-            return self
-        workspace_id = self.find_workspace()
-        if not workspace_id:
-            created = paseo_json([
-                "workspace", "create",
-                "--isolation", "local",
-                "--path", str(self.desk),
-                "--title", "pr-desk",
-            ])
-            workspace_id = workspace_id_of(created)
-            if not workspace_id:
-                raise DeskError("paseo workspace create returned no id")
-        self.workspace_id = workspace_id
-        self.save()
-        return self
-
 
 def load_config() -> DeskConfig | None:
     return DeskConfig.load()
 
 
 # --------------------------------------------------------------------------
-# workspace
+# projects and workspaces
 # --------------------------------------------------------------------------
+def project_id_of(project: dict) -> str | None:
+    return project.get("projectId") or project.get("id")
+
+
 def workspace_id_of(workspace: dict) -> str | None:
     return workspace.get("workspaceId") or workspace.get("id")
+
+
+def _is_active(rows: list[dict], key: str, value: str | None) -> bool:
+    if not value:
+        return False
+    return any((row.get(key) or row.get("id")) == value for row in rows)
+
+
+def project_is_active(project_id: str | None) -> bool:
+    return _is_active(paseo_json(["project", "ls"]), "projectId", project_id)
+
+
+def workspace_is_active(workspace_id: str | None) -> bool:
+    return _is_active(paseo_json(["workspace", "ls"]), "workspaceId",
+                      workspace_id)
+
+
+def find_project(config: DeskConfig) -> str | None:
+    desk = config.desk.resolve()
+    for project in paseo_json(["project", "ls"]):
+        path = str(project.get("path") or "")
+        if project.get("name") == "pr-desk" or (
+                path and Path(os.path.expanduser(path)).resolve() == desk):
+            return project_id_of(project)
+    return None
+
+
+def find_workspace_at(cwd: Path) -> str | None:
+    desired = cwd.expanduser().resolve()
+    for workspace in paseo_json(["workspace", "ls"]):
+        path = str(workspace.get("cwd") or "")
+        if path and Path(os.path.expanduser(path)).resolve() == desired:
+            return workspace_id_of(workspace)
+    return None
+
+
+def ensure_project(config: DeskConfig) -> str:
+    if project_is_active(config.project_id):
+        return str(config.project_id)
+    project_id = find_project(config)
+    if not project_id:
+        created = paseo_json(["project", "create", str(config.desk)])
+        project_id = project_id_of(created)
+        if not project_id:
+            raise DeskError("paseo project create returned no id")
+    config.project_id = project_id
+    config.save()
+    return project_id
 
 
 # --------------------------------------------------------------------------
@@ -227,6 +250,10 @@ class RepoDesk:
     repo: str
 
     @property
+    def short(self) -> str:
+        return self.repo.rsplit("/", 1)[-1]
+
+    @property
     def clone(self) -> Path:
         return self.config.desk / "repos" / self.repo
 
@@ -235,12 +262,12 @@ class RepoDesk:
         return self.config.desk / "worktrees" / self.repo
 
     def prompt(self) -> str:
-        return """You are the PR desk for {repo}. You are a top-level agent in the
-pr-desk workspace, one repo per tab. You are not a subagent, and you do not
+        return """You are the PR desk for {repo}. You are a top-level agent in your
+own Paseo workspace, one repo per row. You are not a subagent, and you do not
 start another desk. The environment has PR_DESK=1; you are the desk.
 
-Your clone is {clone}. The session cwd is the desk directory; use absolute
-paths, or `cd {clone}` in a shell, for git, tests and edits.
+Your clone is {clone}. The session cwd is the clone; use absolute paths for
+the desk root ({desk}) and the worktrees ({worktrees}).
 
 The `pr-workflow` helper commands are at `~/.local/bin/pr-threads`,
 `~/.local/bin/watch-pr.sh` and `~/.local/bin/fetch-pr-findings.sh`; use the
@@ -264,9 +291,10 @@ Never approve a PR, never resolve a review thread, and never merge. The repo's
 merge-when-approved workflow merges on the user's approval; if it is absent or
 not firing, report that as a bug. Do not run `gh pr merge`.
 
-Re-rank after every merge. Report in this tab: the queue, the chosen PR, and
+Re-rank after every merge. Report in this row: the queue, the chosen PR, and
 why. When the queue is empty, say "archive me" and stop.
-""".format(repo=self.repo, clone=self.clone, worktrees=self.worktrees)
+""".format(repo=self.repo, clone=self.clone, desk=self.config.desk,
+           worktrees=self.worktrees)
 
     def ensure_clone(self) -> Path:
         path = self.clone
@@ -285,20 +313,36 @@ why. When the queue is empty, say "archive me" and stop.
         self.worktrees.mkdir(parents=True, exist_ok=True)
         return path
 
-    def ensure_agent(self) -> str:
+    def ensure_workspace(self, project_id: str) -> str:
+        workspace_id = self.config.repos.get(self.repo)
+        if workspace_is_active(workspace_id):
+            return str(workspace_id)
+        found = find_workspace_at(self.clone)
+        if not found:
+            created = paseo_json([
+                "workspace", "create",
+                "--isolation", "local",
+                "--project", project_id,
+                "--path", str(self.clone),
+                "--title", self.short,
+            ])
+            found = workspace_id_of(created)
+            if not found:
+                raise DeskError("paseo workspace create returned no id")
+        self.config.repos[self.repo] = found
+        self.config.save()
+        return found
+
+    def ensure_agent(self, project_id: str) -> str:
         agents = desk_agents(self.repo)
         if agents:
-            agent = agents[0]
-            if agent.get("status") == "idle":
-                run(["paseo", "send", agent["id"],
-                     "%s has a new or updated PR. Re-enumerate and rank."
-                     % self.repo, "--no-wait"])
-                return "woke %s" % agent["id"]
-            return "already running: %s" % agent["id"]
-
+            # One agent per repo. Do not message it: the desk is a separate
+            # surface, and `ensure` only creates.
+            return "already exists: %s" % agents[0]["id"]
+        workspace_id = self.ensure_workspace(project_id)
         args = [
             "paseo", "run",
-            "--workspace", str(self.config.workspace_id),
+            "--workspace", workspace_id,
             "--label", "repo=" + self.repo,
             "--provider", str(self.config.provider),
             "--model", str(self.config.model),
@@ -309,7 +353,7 @@ why. When the queue is empty, say "archive me" and stop.
             + (os.pathsep + os.environ["PATH"] if os.environ.get("PATH") else ""),
             "--no-wait",
             "--json",
-            "--title", self.repo.rsplit("/", 1)[-1][:60],
+            "--title", self.short[:60],
             self.prompt(),
         ]
         created = json_after_banner(run(args, env=top_level_env()).stdout)
@@ -355,7 +399,8 @@ def desk_agents(repo: str) -> list[dict]:
 def ensure(repo_arg: str | None) -> int:
     repo = repo_slug(repo_arg)
     config = load_config() or DeskConfig()
-    config.ensure_workspace()
+    config.write_files()
+    project_id = ensure_project(config)
     prs = open_prs(repo)
     if not prs:
         print("%s: no open PRs; no desk needed" % repo)
@@ -363,7 +408,7 @@ def ensure(repo_arg: str | None) -> int:
     desk = RepoDesk(config, repo)
     clone = desk.ensure_clone()
     print("%s: %d open PR(s), clone %s" % (repo, len(prs), clone))
-    print("%s: %s" % (repo, desk.ensure_agent()))
+    print("%s: %s" % (repo, desk.ensure_agent(project_id)))
     return 0
 
 
@@ -387,19 +432,37 @@ class DeskCheck:
         self.config = config
         self.failures: list[str] = []
 
-    def workspace(self) -> None:
-        if not self.config.workspace_exists():
-            self.failures.append("desk workspace %r is not active"
-                                 % self.config.workspace_id)
+    def root(self) -> None:
+        if not project_is_active(self.config.project_id):
+            self.failures.append("pr-desk project %r is not registered"
+                                 % self.config.project_id)
         desk_file = self.config.desk / "opencode.json"
         if not desk_file.is_file():
             self.failures.append("desk has no opencode.json")
         elif has_google_mcp(read_json(desk_file)):
             self.failures.append("desk opencode.json registers a Google MCP server")
 
-    def clone(self, clone: Path) -> None:
-        repos = self.config.desk / "repos"
-        repo = clone.relative_to(repos).as_posix()
+    def repo(self, repo: str) -> None:
+        workspace_id = self.config.repos.get(repo)
+        if not workspace_is_active(workspace_id):
+            self.failures.append("%s: workspace %r is not active"
+                                 % (repo, workspace_id))
+        clone = self.config.desk / "repos" / repo
+        if clone.is_dir():
+            self.clone(repo, clone)
+        agents = desk_agents(repo)
+        if len(agents) != 1:
+            self.failures.append("%s has %d active desk agents: %s"
+                                 % (repo, len(agents),
+                                    ", ".join(str(a.get("id")) for a in agents)))
+        for agent in agents:
+            cwd = Path(os.path.expanduser(str(agent.get("cwd") or ""))).resolve()
+            if cwd != clone.resolve():
+                self.failures.append(
+                    "%s: agent %s cwd is %s, not its clone"
+                    % (repo, agent.get("id"), cwd))
+
+    def clone(self, repo: str, clone: Path) -> None:
         config_file = clone / "opencode.json"
         if config_file.exists():
             if has_google_mcp(read_json(config_file)):
@@ -435,47 +498,12 @@ class DeskCheck:
         self.failures.extend("pr-workflow does not state %r" % needle
                              for needle in missing)
 
-    def agents(self) -> None:
-        repos_dir = self.config.desk / "repos"
-        if not repos_dir.is_dir():
-            return
-        desk = str(self.config.desk)
-        labeled: set[str] = set()
-        for clone in sorted(repos_dir.glob("*/*")):
-            if not clone.is_dir():
-                continue
-            repo = clone.relative_to(repos_dir).as_posix()
-            agents = desk_agents(repo)
-            if len(agents) > 1:
-                self.failures.append("%s has %d active desk agents: %s"
-                                     % (repo, len(agents),
-                                        ", ".join(str(a.get("id")) for a in agents)))
-            for agent in agents:
-                labeled.add(str(agent.get("id")))
-                cwd = os.path.expanduser(str(agent.get("cwd") or ""))
-                if not cwd.startswith(desk):
-                    self.failures.append(
-                        "%s: agent %s is outside the desk (%s)"
-                        % (repo, agent.get("id"), cwd))
-        for agent in paseo_json(["ls", "--global", "--json"]):
-            cwd = os.path.expanduser(str(agent.get("cwd") or ""))
-            if agent.get("status") not in ACTIVE_STATUSES \
-                    or not cwd.startswith(desk):
-                continue
-            if str(agent.get("id")) not in labeled:
-                self.failures.append("desk agent %s has no repo label"
-                                     % agent.get("id"))
-
     def run(self) -> int:
         try:
-            self.workspace()
-            repos = self.config.desk / "repos"
-            if repos.is_dir():
-                for clone in sorted(repos.glob("*/*")):
-                    if clone.is_dir():
-                        self.clone(clone)
+            self.root()
+            for repo in sorted(self.config.repos):
+                self.repo(repo)
             self.skill()
-            self.agents()
         except DeskError as exc:  # lucidlint: ignore swallow the failure is recorded in self.failures and returned as the exit status
             self.failures.append(str(exc))
         for failure in self.failures:
@@ -517,9 +545,9 @@ def bootstrap(owner: str | None) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="One pr-desk workspace, one top-level agent per repo.")
+        description="One project, one workspace per repo, one top-level agent.")
     sub = parser.add_subparsers(dest="command", required=True)
-    ensure_cmd = sub.add_parser("ensure", help="ensure a desk agent for a repo")
+    ensure_cmd = sub.add_parser("ensure", help="ensure a repo's desk and agent")
     ensure_cmd.add_argument("repo", nargs="?", help="owner/name; default: origin")
     bootstrap_cmd = sub.add_parser("bootstrap",
                                    help="ensure every repo with an open PR")
