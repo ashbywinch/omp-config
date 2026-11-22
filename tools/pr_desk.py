@@ -285,7 +285,7 @@ Do not use a fixed oldest-first queue.
 Work the chosen PR in its own worktree under {worktrees}/pr-<n>; never switch
 the clone's main checkout. Drive the author-side loop: read the findings, fix
 them, reply to every inline comment with evidence, push once per review pass,
-wait for the next review, and repeat.
+wait for the next review, and repeat. Run `make check` before each push.
 
 Never approve a PR, never resolve a review thread, and never merge. The repo's
 merge-when-approved workflow merges on the user's approval; if it is absent or
@@ -450,6 +450,11 @@ class DeskCheck:
         clone = self.config.desk / "repos" / repo
         if clone.is_dir():
             self.clone(repo, clone)
+        worktrees = self.config.desk / "worktrees" / repo
+        if worktrees.is_dir():
+            self.failures.extend(
+                "%s: worktree has opencode.json (%s)" % (repo, path)
+                for path in worktrees.rglob("opencode.json"))
         agents = desk_agents(repo)
         if len(agents) != 1:
             self.failures.append("%s has %d active desk agents: %s"
