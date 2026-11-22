@@ -274,12 +274,6 @@ The `pr-workflow` helper commands are at `~/.local/bin/pr-threads`,
 absolute path if `which` finds nothing. `fetch-run-logs.sh` is at
 `~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
 
-Never restore `opencode.json` in the clone or a worktree; it is deliberately
-absent so the desk has no Google tools. Run `make check`. Every worktree must
-omit it too: after `git worktree add`, run
-`git -C <worktree> sparse-checkout set '/*' '!/opencode.json'`.
-If a command needs `opencode.json`, report it as a bug.
-
 Read skill://pr-workflow and use it for every PR in {repo}.
 
 Enumerate every open PR:
@@ -291,7 +285,7 @@ Do not use a fixed oldest-first queue.
 Work the chosen PR in its own worktree under {worktrees}/pr-<n>; never switch
 the clone's main checkout. Drive the author-side loop: read the findings, fix
 them, reply to every inline comment with evidence, push once per review pass,
-wait for the next review, and repeat.
+wait for the next review, and repeat. Run `make check` before each push.
 
 Never approve a PR, never resolve a review thread, and never merge. The repo's
 merge-when-approved workflow merges on the user's approval; if it is absent or
