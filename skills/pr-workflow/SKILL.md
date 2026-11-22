@@ -1,11 +1,10 @@
 ---
 name: pr-workflow
 description: |
-  GitHub Pull Request creation and post-creation handling — validate changes,
-  create PR description, monitor checks, triage findings from any reviewer
-  (AI or human), iterate. Also load this BEFORE reporting a PR's state (ready /
-  blocked / mergeable): the three readiness facts and the rule that a run of
-  refutations is a readability finding live here.
+  Create a pull request and carry it through review: validate the change, write
+  the description, watch checks, triage findings from any reviewer, and iterate
+  to a clean state. Load before opening a PR or answering a review comment; to
+  decide whether a PR is ready to report, load `skill://pr-state`.
 ---
 
 # GitHub Pull Request Workflow
@@ -280,12 +279,12 @@ fetch-pr-findings.sh <n>
 install`). If it is not found, run `make install` in the omp-config repo
 first. It fetches all three sources: inline file comments, issue/PR
 comments, and review thread comments, never truncated, each with the numeric
-id a reply needs. Run it before fixing anything — do not hand-roll the
-queries: a `reviewThreads` page or the rendered PR view misses findings, and
-a missed finding reads to the user as ignored. If you must query directly,
-inline comments are `repos/<owner>/<repo>/pulls/<n>/comments` (numeric `id`
-per comment) and unresolved threads are GraphQL `reviewThreads` filtered on
-`isResolved == false`.
+id a reply needs. Read the tally it prints first — it marks a person with `*`.
+Run it before fixing anything — do not hand-roll the queries: a `reviewThreads`
+page or the rendered PR view misses findings, and a missed finding reads to the
+user as ignored. If you must query directly, inline comments are
+`repos/<owner>/<repo>/pulls/<n>/comments` (numeric `id` per comment) and
+unresolved threads are GraphQL `reviewThreads` filtered on `isResolved == false`.
 
 **CRITICAL: Human reviewers (including the user who opened the PR) may leave
 inline comments on specific lines of the changed files. The `pulls/<n>/comments`
@@ -402,6 +401,14 @@ git push origin <branch>
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
 
+**Read what you changed whole before the push.** Zoom out from the diff and read
+it as a reader meets it, then fix what that shows (§11c).
+
+**The reviewer reads the house standard, never a repo's copy.** A repo's copy goes
+out of date, and that is a defect to fix rather than a claim to refute. Diff the
+two, update the copy, and the finding stops for every later PR
+(`docs/standards-deployment.md`).
+
 ### 11. Verify Next Round
 
 After push, checks trigger again automatically (if configured). Wait for completion, then:
@@ -460,6 +467,14 @@ rejected the span. The question was neither — the walk was standing on the
 `return` and searching the body for it, so passing the statement kind down
 removed both objections at once.
 
+### 11c. Zoom out on every comment
+
+Every comment is evidence of confusion: the code's if the reviewer is right, the
+reviewer's if the code is. Either way, zoom out: read the file whole, look at the
+big picture, find what is actually confusing, and refactor that.
+
+`repeat-findings <pr>` lists the hunks a reviewer has already come back to.
+
 ### 12. Know When to Stop
 
 The AI may keep finding new issues on each round (especially compliance nits). Stop iterating when:
@@ -473,53 +488,8 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ## Part 4b: Before you report a PR's state
 
-Report a PR's state only after the reviewer has finished: it is a claim about someone else's next
-action. Do not summarise whatever the last command printed; run the three checks below.
-
-### Prove three facts on the current head before you report
-
-Say "ready for approval" only when all three hold. Treat one failure as **blocked**, whatever the other
-two say.
-
-| Fact | Prove it with | Never with |
-|---|---|---|
-| the branch merges cleanly | `git merge-tree --write-tree origin/main <head>` — exit 0 | `mergeable` right after a push: GitHub returns `UNKNOWN` or the previous value until it recomputes |
-| every required check passed | its `check-runs` entry is `completed` + `success` on the head sha | a run on an earlier sha, or the PR's overall colour |
-| every thread is answered | `pr-threads --wait <pr>` prints nothing | reading threads before the reviewer finished |
-
-**Never treat a red required check as ready, whatever `main` does.** Report the cause, then report the
-PR as **blocked outside this diff**, and name the fix:
-
-✗ "Ready for approval — the red is inherited from `main`."
-✓ "Blocked: `build-and-test` fails on the eval step, which also fails on `main` (`<error>`). The fix is
-`<change>`; approving now would not merge it."
-
-**Never treat a conflicted PR as ready, whatever its colour.** Take the `git merge-tree` exit status:
-`mergeable` is a cached opinion GitHub recomputes after a push, so it answers a question you did not
-ask — what the merge looked like before the last push.
-
-1. **`pr-threads --wait <pr>` for every PR you mention** — not only the one you just pushed. The
-   `--wait` block is what makes the answer current; reading threads earlier reports a clean PR that is
-   about to have findings. In a list, a PR with unanswered threads is **awaiting a reply**, never
-   "ready to approve", however green its checks are.
-2. **A list means every repo, from a command that enumerates them.** Owned repos, then each one's open
-   PRs: a hand-picked sample presented as the list is a wrong answer, not a partial one. State the
-   count and the repo count so the reader can see the scope.
-3. **Report a cancelled check as stale.** Cancelled means a newer run on the same ref replaced it.
-   Re-run it before judging the head, and call it stale — not green, not failed. `gh pr checks`
-   prints `fail` for a cancelled job. Read verdicts from the API instead:
-
-   ```bash
-   gh api "repos/<owner>/<repo>/commits/<sha>/check-runs" \
-     --jq '.check_runs[] | "\(.name) \(.status) \(.conclusion // "-")"'
-   ```
-
-   A required check passes only when `status` is `completed` and `conclusion` is `success`. Anything
-   else is stale or failing: `gh run rerun <run-id>` for the first, a fix for the second.
-4. **Quote the run for the commit you are describing.** Wait for that run to finish; a success on an
-   earlier sha says nothing about the current head.
-5. **Reply to every review thread and resolve none.** Only the reviewer resolves. Answer a red check
-   with a fix, or by re-running the same commit.
+Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
+resolve none (`skill://pr-state`).
 
 ## Part 5: Handing the merge to the user
 
