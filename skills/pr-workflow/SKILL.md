@@ -169,7 +169,7 @@ issue to fetch and a PR number crashes the review.
 | Issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | the extractor can fetch it |
 | Anything else | name it, don't number it | a placeholder or a run is not a ticket |
 
-Chat and thread replies have no extractor, so `PR#2` is fine there.
+Chat has no autolink: write the link form there too.
 
 ### 4. Create PR
 
@@ -623,8 +623,8 @@ The sections above are the how-to; these are the one-line reminders.
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
 - **An unlinked PR or issue number** — in chat, in a status summary, in a
-  description, in a reply: link it as `PR#2` or `Issue#3`, never a bare `#2`. A
-  PR number in a *description* takes the `#`-free text `PR 2`, because the ticket
+  description, in a reply: link it (§4), never a bare `#2`. A PR number in a
+  *description* takes the `#`-free link text `PR 2`, because the ticket
   extractor reads `#N` as an issue and a PR number crashes the review (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly

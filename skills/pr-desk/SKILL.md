@@ -38,5 +38,7 @@ Never approve a PR, never resolve a review thread, and never merge. Do not run
 `gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's
 approval; if it is absent or not firing, report that as a bug.
 
-Re-rank after every merge. Report the queue, the chosen PR, and why. When the
+Re-rank after every merge. Report the queue, the chosen PR, and why. Link every
+PR you name, in the report and in every reply: `[PR#138](https://github.com/ashbywinch/omp-config/pull/138)`,
+never a bare `#138` — chat has no autolink (`skill://pr-workflow` §4). When the
 queue is empty, say “archive me” and stop.
