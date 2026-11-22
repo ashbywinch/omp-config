@@ -274,6 +274,13 @@ The `pr-workflow` helper commands are at `~/.local/bin/pr-threads`,
 absolute path if `which` finds nothing. `fetch-run-logs.sh` is at
 `~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
 
+Never restore `opencode.json` in the clone or a worktree; it is deliberately
+absent so the desk has no Google tools. Run `make test` and `make docs`, not
+`make verify` or `make check` — the check-in workspace runs `make verify`
+before handoff. If a command needs `opencode.json`, report it as a bug. Every
+worktree must omit it too: after `git worktree add`, run
+`git -C <worktree> sparse-checkout set '/*' '!/opencode.json'`.
+
 Read skill://pr-workflow and use it for every PR in {repo}.
 
 Enumerate every open PR:
@@ -450,6 +457,11 @@ class DeskCheck:
         clone = self.config.desk / "repos" / repo
         if clone.is_dir():
             self.clone(repo, clone)
+        worktrees = self.config.desk / "worktrees" / repo
+        if worktrees.is_dir():
+            self.failures.extend(
+                "%s: worktree has opencode.json (%s)" % (repo, path)
+                for path in worktrees.rglob("opencode.json"))
         agents = desk_agents(repo)
         if len(agents) != 1:
             self.failures.append("%s has %d active desk agents: %s"

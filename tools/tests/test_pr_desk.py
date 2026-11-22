@@ -133,6 +133,8 @@ class Prompt(unittest.TestCase):
         self.assertIn("PR_DESK=1", text)
         self.assertIn("repos/ashbywinch/inbox", text)
         self.assertIn("~/.local/bin/pr-threads", text)
+        self.assertIn("Never restore `opencode.json`", text)
+        self.assertIn("make verify", text)
 
 
 class Clone(unittest.TestCase):
