@@ -44,11 +44,15 @@ from pathlib import Path
 HOME = Path.home()
 CONFIG_PATH = HOME / ".config/omp/pr-desk.json"
 DESK_DIR = HOME / "Documents/code/pr-desk"
-SKILL = Path(__file__).resolve().parent.parent / "skills/pr-workflow/SKILL.md"
+WORKFLOW_SKILL = Path(__file__).resolve().parent.parent / "skills/pr-workflow/SKILL.md"
+DESK_SKILL = Path(__file__).resolve().parent.parent / "skills/pr-desk/SKILL.md"
 COMMAND_TIMEOUT_SECONDS = 300  # clone and API calls; a hung command must return
 
 NO_MCP_CONFIG = {"$schema": "https://opencode.ai/config.json"}
-SKILL_NEEDLES = ("pr-desk ensure", "PR_DESK=1", "never approve", "gh pr merge")
+SKILL_CHECKS = (
+    (WORKFLOW_SKILL, ("pr-desk ensure", "PR_DESK=1")),
+    (DESK_SKILL, ("never approve", "gh pr merge", "make check")),
+)
 ACTIVE_STATUSES = ("idle", "running")
 DESK_AGENTS = """# pr-desk
 
@@ -263,36 +267,11 @@ class RepoDesk:
 
     def prompt(self) -> str:
         return """You are the PR desk for {repo}. You are a top-level agent in your
-own Paseo workspace, one repo per row. You are not a subagent, and you do not
-start another desk. The environment has PR_DESK=1; you are the desk.
+own Paseo workspace; PR_DESK=1. Read skill://pr-desk and follow it for every PR
+in {repo}.
 
-Your clone is {clone}. The session cwd is the clone; use absolute paths for
-the desk root ({desk}) and the worktrees ({worktrees}).
-
-The `pr-workflow` helper commands are at `~/.local/bin/pr-threads`,
-`~/.local/bin/watch-pr.sh` and `~/.local/bin/fetch-pr-findings.sh`; use the
-absolute path if `which` finds nothing. `fetch-run-logs.sh` is at
-`~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
-
-Read skill://pr-workflow and use it for every PR in {repo}.
-
-Enumerate every open PR:
-  gh pr list --repo {repo} --state open --json number,title,isDraft,createdAt,updatedAt,mergeStateStatus,reviewDecision,statusCheckRollup,additions,deletions,labels
-Rank them with a reason for the order: age, check state, review state,
-unresolved threads, size, labels, mergeability, and whether one blocks another.
-Do not use a fixed oldest-first queue.
-
-Work the chosen PR in its own worktree under {worktrees}/pr-<n>; never switch
-the clone's main checkout. Drive the author-side loop: read the findings, fix
-them, reply to every inline comment with evidence, push once per review pass,
-wait for the next review, and repeat. Run `make check` before each push.
-
-Never approve a PR, never resolve a review thread, and never merge. The repo's
-merge-when-approved workflow merges on the user's approval; if it is absent or
-not firing, report that as a bug. Do not run `gh pr merge`.
-
-Re-rank after every merge. Report in this row: the queue, the chosen PR, and
-why. When the queue is empty, say "archive me" and stop.
+Your clone is {clone}. The desk root is {desk}; worktrees are {worktrees}.
+Start by enumerating the open PRs and ranking them with reasons.
 """.format(repo=self.repo, clone=self.clone, desk=self.config.desk,
            worktrees=self.worktrees)
 
@@ -337,8 +316,17 @@ why. When the queue is empty, say "archive me" and stop.
         agents = desk_agents(self.repo)
         if agents:
             # One agent per repo. Do not message it: the desk is a separate
-            # surface, and `ensure` only creates.
+            # surface, and `ensure` only creates or reloads.
             return "already exists: %s" % agents[0]["id"]
+        for agent in all_desk_agents(self.repo):
+            if agent.get("status") in ACTIVE_STATUSES:
+                continue
+            if agent_is_archived(agent["id"]):
+                continue
+            # A closed agent still has its session and worktrees. Reload it;
+            # never replace it with a fresh one.
+            run(["paseo", "agent", "reload", agent["id"]])
+            return "reloaded %s" % agent["id"]
         workspace_id = self.ensure_workspace(project_id)
         args = [
             "paseo", "run",
@@ -394,6 +382,25 @@ def desk_agents(repo: str) -> list[dict]:
     agents = json.loads(proc.stdout)
     return [agent for agent in agents
             if agent.get("status") in ACTIVE_STATUSES]
+
+
+def all_desk_agents(repo: str) -> list[dict]:
+    proc = run(["paseo", "ls", "--global", "--all", "--label", "repo=" + repo,
+                "--json"], check=False)
+    if proc.returncode != 0:
+        raise DeskError("paseo ls --all failed: %s"
+                        % (proc.stderr or proc.stdout).strip())
+    return json.loads(proc.stdout)
+
+
+def agent_is_archived(agent_id: str) -> bool:
+    proc = run(["paseo", "inspect", agent_id, "--json"], check=False)
+    if proc.returncode != 0:
+        return False
+    try:
+        return bool(json.loads(proc.stdout).get("Archived"))
+    except json.JSONDecodeError:
+        return False
 
 
 def ensure(repo_arg: str | None) -> int:
@@ -495,13 +502,14 @@ class DeskCheck:
                 "%s: no auto-merge workflow — a bug to report" % repo)
 
     def skill(self) -> None:
-        if not SKILL.is_file():
-            self.failures.append("pr-workflow skill is not at %s" % SKILL)
-            return
-        text = SKILL.read_text(encoding="utf-8")
-        missing = [needle for needle in SKILL_NEEDLES if needle not in text]
-        self.failures.extend("pr-workflow does not state %r" % needle
-                             for needle in missing)
+        for path, needles in SKILL_CHECKS:
+            if not path.is_file():
+                self.failures.append("desk skill is not at %s" % path)
+                continue
+            text = path.read_text(encoding="utf-8")
+            missing = [needle for needle in needles if needle not in text]
+            self.failures.extend("%s does not state %r" % (path.name, needle)
+                                 for needle in missing)
 
     def run(self) -> int:
         try:
