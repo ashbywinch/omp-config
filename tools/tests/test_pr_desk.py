@@ -124,18 +124,17 @@ class Config(unittest.TestCase):
 
 
 class Prompt(unittest.TestCase):
-    def test_it_names_the_repo_the_clone_and_the_merge_rule(self):
+    def test_it_names_the_repo_and_sends_the_rules_to_the_skill(self):
         with tempfile.TemporaryDirectory() as tmp:
             text = pr_desk.RepoDesk(config(tmp), "ashbywinch/inbox").prompt()
         self.assertIn("ashbywinch/inbox", text)
-        self.assertIn("never merge", text.replace("Never merge", "never merge"))
+        self.assertIn("skill://pr-desk", text)
         self.assertIn("worktrees", text)
         self.assertIn("PR_DESK=1", text)
         self.assertIn("repos/ashbywinch/inbox", text)
-        self.assertIn("~/.local/bin/pr-threads", text)
-        self.assertIn("make check", text)
+        self.assertNotIn("never merge", text)
+        self.assertNotIn("make check", text)
         self.assertNotIn("opencode.json", text)
-        self.assertNotIn("make verify", text)
 
 
 class Clone(unittest.TestCase):
@@ -193,11 +192,45 @@ class Agents(unittest.TestCase):
             self.assertIn("already exists", out)
             run.assert_not_called()
 
+    def test_a_closed_agent_is_reloaded_not_replaced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            desk = pr_desk.RepoDesk(config(tmp), "ashbywinch/inbox")
+            with mock.patch.object(pr_desk, "desk_agents", return_value=[]), \
+                 mock.patch.object(pr_desk, "all_desk_agents",
+                                   return_value=[{"id": "old", "status": "closed"}]), \
+                 mock.patch.object(pr_desk, "agent_is_archived",
+                                   return_value=False), \
+                 mock.patch.object(pr_desk, "run") as run:
+                out = desk.ensure_agent("prj_test")
+            self.assertIn("reloaded old", out)
+            self.assertEqual(run.call_args.args[0][:4],
+                             ["paseo", "agent", "reload", "old"])
+
+    def test_an_archived_closed_agent_is_replaced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = config(tmp)
+            desk = pr_desk.RepoDesk(cfg, "ashbywinch/inbox")
+            with mock.patch.object(pr_desk, "desk_agents", return_value=[]), \
+                 mock.patch.object(pr_desk, "all_desk_agents",
+                                   return_value=[{"id": "old", "status": "closed"}]), \
+                 mock.patch.object(pr_desk, "agent_is_archived",
+                                   return_value=True), \
+                 mock.patch.object(pr_desk.RepoDesk, "ensure_workspace",
+                                   return_value="wks_inbox"), \
+                 mock.patch.object(
+                     pr_desk, "run",
+                     return_value=proc('{"agentId": "new"}')) as run:
+                out = desk.ensure_agent("prj_test")
+            self.assertIn("created new", out)
+            self.assertNotIn("reload", run.call_args.args[0])
+
     def test_a_new_agent_is_in_the_repo_workspace_and_has_no_parent(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = config(tmp)
             desk = pr_desk.RepoDesk(cfg, "ashbywinch/inbox")
             with mock.patch.object(pr_desk, "desk_agents", return_value=[]), \
+                 mock.patch.object(pr_desk, "all_desk_agents",
+                                   return_value=[]), \
                  mock.patch.object(pr_desk.RepoDesk, "ensure_workspace",
                                    return_value="wks_inbox"), \
                  mock.patch.object(

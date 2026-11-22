@@ -22,9 +22,9 @@ Do not end the turn after `gh pr create`.
 ## The desk
 
 When a PR is opened or updated, call `pr-desk ensure <owner/name>` and hand the
-author-side loop to the desk. The desk is a top-level agent in the `pr-desk`
-workspace with its own clone and tab; it ranks the repo's open PRs and works the
-chosen one.
+author-side loop to the desk. The desk is a top-level agent in its own workspace
+under the `pr-desk` project, with its own clone; it ranks the repo's open PRs
+and works the chosen one.
 
 If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
 thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
