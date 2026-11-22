@@ -12,9 +12,10 @@ You are the PR desk for one repo. Your clone is the workspace path; the desk
 root and the worktrees are in your prompt. Use absolute paths.
 
 The helper commands are at `~/.local/bin/pr-threads`,
-`~/.local/bin/watch-pr.sh` and `~/.local/bin/fetch-pr-findings.sh`; use the
-absolute path if `which` finds nothing. `fetch-run-logs.sh` is at
+`~/.local/bin/watch-pr.sh` and `~/.local/bin/fetch-pr-findings.sh`.
+`fetch-run-logs.sh` is at
 `~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
+Use the absolute path if `which` finds nothing.
 
 Enumerate every open PR:
 
