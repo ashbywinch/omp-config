@@ -9,7 +9,17 @@ import unittest
 from pathlib import Path
 
 import tools.pr_ready as pr_ready
-from tools.pr_ready import Check, Fact, PullRequest, Target, Verdict, failed, next_step, verdict
+from tools.pr_ready import (
+    Check,
+    Fact,
+    PullRequest,
+    Target,
+    Verdict,
+    failed,
+    latest_by_name,
+    next_step,
+    verdict,
+)
 
 
 def check(name: str = "ci", status: str = "completed", conclusion: str | None = "success") -> Check:
@@ -35,6 +45,32 @@ class ChecksTest(unittest.TestCase):
 
     def test_a_failure_is_named(self):
         self.assertIn("ci", failed([check(conclusion="failure")])[0])
+
+
+class SupersededTest(unittest.TestCase):
+    """A re-run replaces the run before it; a cancelled run is the replaced one."""
+
+    def test_a_later_success_supersedes_an_earlier_cancelled_run(self):
+        runs = [check(conclusion="cancelled"), check(conclusion="success")]
+        self.assertEqual(failed(latest_by_name(runs)), [])
+
+    def test_a_run_cancelled_after_a_success_still_reports_the_latest(self):
+        """The PR head that ran arm six times: cancelled, success, cancelled, success."""
+        runs = [
+            Check(name="arm", status="completed", conclusion="cancelled", started="13:26:45"),
+            Check(name="arm", status="completed", conclusion="success", started="13:26:49"),
+            Check(name="arm", status="completed", conclusion="cancelled", started="13:26:58"),
+            Check(name="arm", status="completed", conclusion="success", started="13:27:03"),
+        ]
+        self.assertEqual(failed(latest_by_name(runs)), [])
+
+    def test_a_cancelled_run_with_no_successor_fails(self):
+        runs = [check(name="arm", conclusion="success"), check(name="arm", conclusion="cancelled")]
+        self.assertEqual(len(failed(latest_by_name(runs))), 1)
+
+    def test_one_entry_per_name(self):
+        runs = [check(name="arm", conclusion="success"), check(name="arm", conclusion="success")]
+        self.assertEqual(len(latest_by_name(runs)), 1)
 
 
 class ZeroChecksTest(unittest.TestCase):

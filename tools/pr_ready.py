@@ -55,11 +55,16 @@ class Target:
 
 @dataclass(frozen=True)
 class Check:
-    """One check-run on the head, as far as a verdict needs it."""
+    """One check-run on the head, as far as a verdict needs it.
+
+    `started` orders two runs of the same name: a re-run supersedes the run
+    before it, and a cancelled run is the superseded one.
+    """
 
     name: str
     status: str
     conclusion: str | None
+    started: str = ""
 
     @classmethod
     def from_api(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
@@ -68,6 +73,7 @@ class Check:
             name=str(node.get("name") or "unnamed"),
             status=str(node.get("status") or "unknown"),
             conclusion=node.get("conclusion"),
+            started=str(node.get("started_at") or ""),
         )
 
     @property
@@ -85,6 +91,20 @@ def gh_json(args: list[str]) -> dict:  # lucidlint: ignore record-shape the GitH
     """A `gh api` response, parsed, or an empty record when the call fails."""
     result = run(["gh", *args])
     return json.loads(result.stdout) if result.returncode == 0 and result.stdout.strip() else {}
+
+
+def latest_by_name(checks: list[Check]) -> list[Check]:
+    """One check per name, the most recent run.
+
+    A re-run supersedes the run before it, so counting every run reports a
+    cancelled run as a failure while the run that replaced it is green.
+    """
+    latest: dict[str, Check] = {}
+    for check in checks:
+        held = latest.get(check.name)
+        if held is None or check.started >= held.started:
+            latest[check.name] = check
+    return list(latest.values())
 
 
 def failed(checks: list[Check]) -> list[str]:
@@ -136,10 +156,11 @@ class PullRequest:
                 detail="0 check-runs on this sha. Nothing ran: a conflicted PR cannot build "
                 "its merge ref, so no pull_request run starts. Fix the conflict, then re-run.",
             )
-        broken = failed(checks)
+        current = latest_by_name(checks)
+        broken = failed(current)
         if broken:
             return Fact(name="checks", ok=False, detail="; ".join(broken))
-        return Fact(name="checks", ok=True, detail=f"{len(checks)} check(s), all completed and successful")
+        return Fact(name="checks", ok=True, detail=f"{len(current)} check(s), latest run of each, all successful")
 
     def threads(self, wait: bool) -> Fact:
         """Whether any review thread is waiting for an answer, asked of pr-threads."""
