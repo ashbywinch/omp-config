@@ -19,6 +19,17 @@ reply. `pr-threads` is the review-thread tool, installed with this skill by
 `make install`; `--wait` blocks until the reviewer has finished for this head.
 Do not end the turn after `gh pr create`.
 
+## The desk
+
+When a PR is opened or updated, call `pr-desk ensure <owner/name>` and hand the
+author-side loop to the desk. The desk is a top-level agent in the `pr-desk`
+workspace with its own clone and tab; it ranks the repo's open PRs and works the
+chosen one.
+
+If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
+thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
+approval; if it is absent or not firing, report that as a bug.
+
 Assume confusion behind every comment and every bug — the reviewer's, or the
 author's whose code drew it. Identify the confusion and refactor the code to
 remove it, then reply.
