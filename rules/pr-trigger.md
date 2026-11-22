@@ -11,5 +11,5 @@ When files have been modified and the work unit is complete:
 3. Do not create the PR without explicit user approval
 4. **Before reporting any PR's state** (ready / blocked / mergeable), load
    `skill://pr-workflow` and run `watch-pr.sh <n>`. Green checks and
-   `mergeable` are not readiness: an unanswered review thread means
-   **awaiting reply**, never "ready".
+   `mergeable` do not mean readiness. An unanswered review thread means
+   **awaiting reply**. Never report it as "ready".
