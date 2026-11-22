@@ -95,7 +95,7 @@ python3 lucidlint.py --file path/to/file.py
 
 `make lucidlint` exiting above 1 while printing no action list is the scanner failing, not debt — a crash or a bad flag, which the Makefile treats as a failure precisely so it cannot read as "no findings". Read the stderr file the Makefile writes (`lucidlint-dist/.last.err`) for the reason.
 
-A baseline that is not the expected object is **not** the cause: the loader logs `baseline <path> unreadable — ignoring` and degrades to an empty baseline (no keys, empty ledger), and the command still exits 0. `[]`, `{}`, a truncated file and a missing file are all tolerated. What follows is a run of `config-ignored '<rule>' grew 0 -> N` lines, and those are **warnings**, not failures (the growth ledger cannot compare against a ledger that is not there). So an empty or corrupt baseline changes what is acknowledged, never the exit status; do not "fix" it as if it broke the gate.
+A baseline that is not the expected object is **not** the cause. The loader logs `baseline <path> unreadable — ignoring` and degrades to an empty baseline. That baseline has no keys and an empty ledger. `[]`, `{}`, a truncated file and a missing file are all tolerated. The command still exits 0. What follows is a run of `config-ignored '<rule>' grew 0 -> N` lines. Those are **warnings**, not failures: the growth ledger cannot compare against a ledger that is not there. An empty or corrupt baseline changes what is acknowledged, never the exit status. Do not "fix" it as if it broke the gate.
 
 The honest repair for a corrupt baseline is still `--update-baseline` (it writes `{actions, config_ignored}`), and knowing what it now acknowledges matters — but if the gate is red with no findings, look at the crash, not the file.
 

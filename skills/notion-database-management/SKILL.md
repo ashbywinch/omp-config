@@ -130,8 +130,8 @@ Never delete a page to remove a property; the page is the record.
 
 **Show the row before asking about it.** A question about a record item carries
 the item: its name, what it is for, and the rows or tasks that depend on it. If
-the user cannot see what "these" are, the answer is a guess. This applies to
-epics and value streams as much as to interactions.
+the user cannot see the item, the answer is a guess. This applies to epics and
+value streams as much as to interactions.
 
 ## Key Rule: Use Property Names, Not Internal IDs
 
