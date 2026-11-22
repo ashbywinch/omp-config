@@ -37,6 +37,37 @@ remove it, then reply.
 `watch-pr.sh <n>`. When one area has collected refutations, stop
 refuting and refactor it before answering.
 
+**A refutation is complete only when it names what makes the question
+unaskable** — a code change (a named function whose docstring states the fact, a
+single owner, a type that cannot express the wrong state) or the existing
+docstring/test that already states it, quoted. "Not a defect — here is the line"
+answers the reviewer and leaves the next reader to ask it again.
+
+## The loop that actually converges
+
+The reviewer reviews **every push**. So the order is not "reply, push, reply,
+push" — that keeps you permanently one batch behind. It is:
+
+1. **Land every code change first** (including the ones you accepted in a
+   reply and then deferred — a deferred acceptance is an open finding).
+2. Run `pr-threads <pr>` and **answer every thread on the current head**.
+3. **Push once.**
+4. Run `pr-threads --wait <pr>`: it blocks until the review of that push has
+   landed and lists what is unanswered. Answer that batch.
+5. Only push again if an answer needed a code change; otherwise you are done.
+
+`pr-threads` is the authority on "answered" — not a hand-rolled query and not
+a login comparison. A readiness claim needs its output, freshly run on the head
+being described.
+
+`watch-pr.sh` answers a different question — are the checks finished and green,
+and is the head settled — and it is not a thread authority. Use it for checks;
+use `pr-threads --wait` for findings.
+
+**Read the branch under test.** A claim about the code must come from the
+worktree of the branch being reviewed, not the default checkout; the two can
+differ silently.
+
 ## Prerequisites
 
 - `gh` CLI installed and authenticated
@@ -530,6 +561,13 @@ The sections above are the how-to; these are the one-line reminders.
   check is `success`, the head is unchanged across two polls, and no thread's last
   voice is the reviewer; it exits with `NEW THREADS n` when one is. Use it; do not
   re-derive the conditions in a one-off loop.
+- **The watcher exits with work in hand; answering it is the next action, not a wait.**
+  `watch-pr.sh` prints `NEW THREADS` with each thread's `file:line` and exits — it never
+  waits for threads to be *resolved*, because only the reviewer resolves, so a script that
+  waited on that would never return. When it fires: read those threads, fix or refute each,
+  reply to each, then run the watcher again. Never sit on a watcher that is still running
+  while a thread has no reply — check the threads yourself first; the script is a convenience,
+  and the rule is that no thread is left unanswered, script or no script.
 - **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
 - **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the

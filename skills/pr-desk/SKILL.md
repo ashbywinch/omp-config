@@ -28,9 +28,11 @@ unresolved threads, size, labels, mergeability, and whether one blocks another.
 Do not use a fixed oldest-first queue.
 
 Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
-the clone's main checkout. Drive the author-side loop: read the findings, fix
-them, reply to every inline comment with evidence, push once per review pass,
-wait for the next review, and repeat. Run `make check` before each push.
+the clone's main checkout. Drive the loop in the order that converges: read the
+findings, land every code change, answer every thread with `pr-threads <pr>`,
+push once, then `pr-threads --wait <pr>` until it prints nothing. A push starts
+a new review, so never push between reply batches. Run `make check` before each
+push.
 
 Never approve a PR, never resolve a review thread, and never merge. Do not run
 `gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's
