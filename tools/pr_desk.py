@@ -275,11 +275,10 @@ absolute path if `which` finds nothing. `fetch-run-logs.sh` is at
 `~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
 
 Never restore `opencode.json` in the clone or a worktree; it is deliberately
-absent so the desk has no Google tools. Run `make test` and `make docs`. Do not
-run `make verify` or `make check` — the check-in workspace runs `make verify`
-before handoff. If a command needs `opencode.json`, report it as a bug. Every
-worktree must omit it too: after `git worktree add`, run
+absent so the desk has no Google tools. Run `make check`. Every worktree must
+omit it too: after `git worktree add`, run
 `git -C <worktree> sparse-checkout set '/*' '!/opencode.json'`.
+If a command needs `opencode.json`, report it as a bug.
 
 Read skill://pr-workflow and use it for every PR in {repo}.
 

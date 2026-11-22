@@ -134,7 +134,8 @@ class Prompt(unittest.TestCase):
         self.assertIn("repos/ashbywinch/inbox", text)
         self.assertIn("~/.local/bin/pr-threads", text)
         self.assertIn("Never restore `opencode.json`", text)
-        self.assertIn("make verify", text)
+        self.assertIn("Run `make check`", text)
+        self.assertNotIn("make verify", text)
 
 
 class Clone(unittest.TestCase):
