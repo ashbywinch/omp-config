@@ -189,6 +189,7 @@ class Agents(unittest.TestCase):
             self.assertIn("repo=ashbywinch/inbox", args)
             self.assertIn("--no-wait", args)
             self.assertIn("--json", args)
+            self.assertEqual(args[args.index("--title") + 1], "inbox")
             self.assertNotIn("PASEO_AGENT_ID", run.call_args.kwargs["env"])
             self.assertIn("created agent-1", out)
 

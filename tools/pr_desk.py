@@ -309,7 +309,7 @@ why. When the queue is empty, say "archive me" and stop.
             + (os.pathsep + os.environ["PATH"] if os.environ.get("PATH") else ""),
             "--no-wait",
             "--json",
-            "--title", ("PR desk: " + self.repo)[:60],
+            "--title", self.repo.rsplit("/", 1)[-1][:60],
             self.prompt(),
         ]
         created = json_after_banner(run(args, env=top_level_env()).stdout)
