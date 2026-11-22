@@ -26,6 +26,8 @@ An Epic is a tactical work package that converts a Top Level Epic into actionabl
 
 **Hierarchy validity**: a value stream can NEVER be a child of an epic (an epic is finishable work; an ongoing value stream cannot be "part of" a finishable package). A value stream's parent, if any, is itself a value stream (or a mission). If a would-be epic turns out to be a value stream, any epic parent in its chain is likewise mislabeled and must be converted first.
 
+**Auditing a branch**: a child epic carries `Parent Epic` and no value stream; it inherits the value stream through its parent. A blank `Parent Value Stream` on a child is therefore correct, not a gap. Walk each epic up to its root; only a root with no value stream is missing one. When recommending a change, show the epic name, its description and its tasks first — a question about a branch the user cannot see is not a question.
+
 ## Status Lifecycle
 
 **Draft** → Initial state after conversion from Top Level Epic. Strategic scope, sized for quarters.
