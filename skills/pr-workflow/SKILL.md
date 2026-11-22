@@ -41,7 +41,7 @@ refuting and refactor it before answering.
 unaskable** — a code change (a named function whose docstring states the fact, a
 single owner, a type that cannot express the wrong state) or the existing
 docstring/test that already states it, quoted. "Not a defect — here is the line"
-answers the reviewer and leaves the next reader to ask it again.
+answers the reviewer. Do not leave the next reader to ask it again.
 
 ## The loop that actually converges
 

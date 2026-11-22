@@ -31,7 +31,7 @@ Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
 the clone's main checkout. Drive the loop in the order that converges: read the
 findings, land every code change, answer every thread with `pr-threads <pr>`,
 push once, then `pr-threads --wait <pr>` until it prints nothing. A push starts
-a new review, so never push between reply batches. Run `make check` before each
+a new review. Never push between reply batches. Run `make check` before each
 push.
 
 Never approve a PR, never resolve a review thread, and never merge. Do not run
