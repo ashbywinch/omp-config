@@ -93,13 +93,24 @@ python3 lucidlint.py --file path/to/file.py
 
 ## When the gate fails with no findings
 
-`make lucidlint` exiting above 1 while printing no action list is the scanner failing, not debt — a crash or a bad flag, which the Makefile treats as a failure precisely so it cannot read as "no findings". Read the stderr file the Makefile writes (`lucidlint-dist/.last.err`) for the reason.
+`make lucidlint` exits above 1 while printing no action list when the scanner
+itself failed — a crash or a bad flag. The Makefile reports that as a failure so
+it cannot read as "no findings". Read the reason in the stderr file the Makefile
+writes, `lucidlint-dist/.last.err`.
 
-A baseline that is not the expected object is **not** the cause. The loader logs `baseline <path> unreadable — ignoring` and degrades to an empty baseline. That baseline has no keys and an empty ledger. `[]`, `{}`, a truncated file and a missing file are all tolerated. The command still exits 0. What follows is a run of `config-ignored '<rule>' grew 0 -> N` lines. Those are **warnings**, not failures: the growth ledger cannot compare against a ledger that is not there. An empty or corrupt baseline changes what is acknowledged, never the exit status. Do not "fix" it as if it broke the gate.
+**A corrupt baseline does not fail the gate.** The loader logs `baseline <path>
+unreadable — ignoring`, then runs with an empty baseline: no keys, empty ledger.
+`[]`, `{}`, a truncated file and a missing file are all accepted, and the run
+still exits 0. It also prints `config-ignored '<rule>' grew 0 -> N` for every
+rule the missing ledger cannot compare. Treat those lines as warnings, never as
+the failure. Restore the file with `--update-baseline --baseline lucidlint.json`.
+That command writes `{actions, config_ignored}`, so read what the new baseline
+acknowledges. Then trace the crash, not the file.
 
-The honest repair for a corrupt baseline is still `--update-baseline` (it writes `{actions, config_ignored}`), and knowing what it now acknowledges matters — but if the gate is red with no findings, look at the crash, not the file.
-
-If the tool crashes only under the pre-commit hook, suspect the transient tree: the hook stashes unstaged changes, runs, then restores, so a scanner that reads a file mid-restore can see a half-applied edit. Re-run `make lucidlint` on a clean tree before blaming the baseline.
+If the tool crashes only under the pre-commit hook, suspect the transient tree:
+the hook stashes unstaged changes, runs, then restores them, so a scan can read a
+half-applied edit. Re-run `make lucidlint` on a clean tree before blaming the
+baseline.
 
 ## Baseline conventions
 
