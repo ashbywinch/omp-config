@@ -27,43 +27,36 @@ and works the chosen one.
 
 If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
 thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
-approval; if it is absent or not firing, report that as a bug.
+approval. Report it as a bug when it is absent or not firing.
 
-Assume confusion behind every comment and every bug — the reviewer's, or the
-author's whose code drew it. Identify the confusion and refactor the code to
-remove it, then reply.
+A comment or a bug hides a confusion, in the reviewer or in the author whose
+code drew it. Find the confusion. Refactor the code to remove it. Reply with the
+new shape.
 
-**Wait for the reviewer before reporting state.** Run `watch-pr.sh <n>` before
-you call a PR ready, blocked or mergeable.
+Run `watch-pr.sh <n>` before you report a PR's state.
 
-**A finding is answered by a refactor, never by an argument.** §11b has the
-rule: every comment is evidence of confusion, and the reply carries the new
-shape.
+A finding is answered by a refactor, never by an argument. §11b holds the rule.
 
 ## The loop that actually converges
 
-The reviewer reviews **every push**. So the order is not "reply, push, reply,
-push" — that keeps you permanently one batch behind. It is:
+The reviewer reviews every push, so a reply-push-reply loop stays one batch
+behind.
 
-1. **Land every code change first** (including the ones you accepted in a
-   reply and then deferred — a deferred acceptance is an open finding).
-2. Run `pr-threads <pr>` and **answer every thread on the current head**.
-3. **Push once.**
-4. Run `pr-threads --wait <pr>`: it blocks until the review of that push has
-   landed and lists what is unanswered. Answer that batch.
-5. Only push again if an answer needed a code change; otherwise you are done.
+1. Land every code change before you answer. A change you accepted in a reply
+   and then deferred is an open finding.
+2. Run `pr-threads <pr>`. Answer every thread on the current head.
+3. Push once.
+4. Run `pr-threads --wait <pr>`. Answer the batch it lists.
+5. Push again only when an answer needed a code change.
 
-`pr-threads` is the authority on "answered" — not a hand-rolled query and not
-a login comparison. A readiness claim needs its output, freshly run on the head
-being described.
+`pr-threads` is the authority on "answered". Neither a hand-rolled query nor a
+login comparison is. Run it fresh on the head you describe.
 
-`watch-pr.sh` answers a different question — are the checks finished and green,
-and is the head settled — and it is not a thread authority. Use it for checks;
-use `pr-threads --wait` for findings.
+`watch-pr.sh` reports whether the checks are finished and green, and whether the
+head is settled. It is not a thread authority.
 
-**Read the branch under test.** A claim about the code must come from the
-worktree of the branch being reviewed, not the default checkout; the two can
-differ silently.
+Work in the branch's own worktree. A claim about the code comes from the branch
+under review, never the default checkout.
 
 ## Prerequisites
 
@@ -559,10 +552,10 @@ The sections above are the how-to; these are the one-line reminders.
 - **The watcher exits with work in hand; answering it is the next action, not a wait.**
   `watch-pr.sh` prints `NEW THREADS` with each thread's `file:line` and exits — it never
   waits for threads to be *resolved*, because only the reviewer resolves, so a script that
-  waited on that would never return. When it fires: read those threads, fix or refute each,
-  reply to each, then run the watcher again. Never sit on a watcher that is still running
-  while a thread has no reply — check the threads yourself first; the script is a convenience,
-  and the rule is that no thread is left unanswered, script or no script.
+  waited on that would never return. Read those threads, refactor what they
+  found, reply to each, then run the watcher again. Never sit on a watcher that
+  is still running while a thread has no reply: check the threads yourself
+  first. The rule is that no thread is left unanswered, script or no script.
 - **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
 - **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
@@ -617,8 +610,8 @@ The sections above are the how-to; these are the one-line reminders.
 - **Terse thread replies** (`Fixed` / `No`) — every reply names its
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
-- **An unlinked PR or issue number** — use the forms in §4, never a bare `#2`;
-  inside a *description*, a PR number also drops the `#` (§3).
+- **An unlinked PR or issue number** — use the forms in §4. A PR number inside a
+  *description* drops the `#` (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).
