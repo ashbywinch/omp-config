@@ -1,10 +1,4 @@
-"""Tests for tools/pr_ready.py — the four facts, and absence is not success.
-
-The load-bearing rules: zero check-runs is blocked (a conflicted PR starts no
-run), a cancelled check is blocked and named, a head behind its base is blocked
-even when it merges cleanly, and one failed fact blocks the others however green
-they are.
-"""
+"""The failures a READY verdict must never hide: absence, a superseded run, a head behind its base."""
 
 import subprocess
 import unittest

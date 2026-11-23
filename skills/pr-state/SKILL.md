@@ -1,9 +1,8 @@
 ---
 name: pr-state
 description: |
-  Decide whether a pull request is ready to report — clean merge, current with its
-  base, checks green on the head, every thread answered — and say blocked when one
-  fails. Load this before saying "ready for approval" or "blocked".
+  Decide whether a pull request is ready to report, and say blocked when it is
+  not. Load this before saying "ready for approval" or "blocked".
 ---
 
 # A PR's state

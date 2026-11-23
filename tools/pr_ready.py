@@ -3,16 +3,13 @@
 
     pr_ready.py <pr-number> [--repo owner/name] [--root path] [--no-wait]
 
-Four facts decide it: the head merges into the base, the head contains the base
-tip (a PR behind its base is not ready), every check-run on the head is
-completed and successful, and no review thread is waiting for an answer. The
-tool prints each fact with its evidence, then READY or BLOCKED and the next
-step. Exit 0 when ready, 1 when blocked.
+Each fact is printed with its evidence, then READY or BLOCKED and the next step;
+exit 0 when ready, 1 when blocked. A fact the tool cannot read is a failure, not
+a pass.
 
-Merging cleanly and being current are separate claims. GitHub can report
-MERGEABLE for a branch that is behind its base, and the merge it would make
-silently drops the base's newer commits, so "behind" blocks on its own even
-while the merge fact stays true.
+Merging cleanly and being current are separate claims: GitHub reports MERGEABLE
+for a branch behind its base, and the merge it makes would drop the base's newer
+commits. So the base is `origin/<base>`, never a local branch of that name.
 
 Absence is not success. Zero check-runs is BLOCKED, and the reason matters: a
 conflicted PR cannot build its merge ref, so the `pull_request` event never
@@ -44,7 +41,7 @@ class Verdict(Enum):
 
 @dataclass(frozen=True)
 class Fact:
-    """One of the things a reader needs before the PR is handed over."""
+    """One claim and its evidence: `detail` lets a reader check `ok` without re-running the tool."""
 
     name: str
     ok: bool
@@ -139,7 +136,7 @@ class PullRequest:
         )
 
     def _present(self, target: Target) -> bool:
-        """Fetch the base and the head, so both sides of every comparison exist locally."""
+        """A comparison is only as true as the refs it read: the base by name, the head by sha."""
         run(["git", "fetch", "origin", target.base], cwd=self.root)
         if not target.sha:
             return False
@@ -158,10 +155,6 @@ class PullRequest:
 
     def base(self, target: Target) -> Fact:
         """Whether the head contains the base tip. A PR behind its base is not ready.
-
-        Being behind is its own failure, not a merge conflict: GitHub still calls
-        such a PR MERGEABLE, and merging it drops the base's newer commits — the
-        PR's diff was proved against a base that has since moved.
 
         The base is `origin/<base>`, never a local branch of the same name: local
         `main` is whatever the last checkout left there, so it would pass a PR
@@ -211,13 +204,12 @@ class PullRequest:
         return Fact(name="threads", ok=result.returncode == 0, detail=first)
 
     def facts(self, wait: bool) -> list[Fact]:
-        """The four facts, in the order a reader asks them."""
         target = self.target()
         return [self.merge(target), self.base(target), self.checks(target), self.threads(wait=wait)]
 
 
 def verdict(facts: list[Fact]) -> Verdict:
-    """READY only when every fact holds. One failure is blocked, whatever the rest say."""
+    """READY is the conjunction of the facts, never a majority."""
     return Verdict.READY if all(fact.ok for fact in facts) else Verdict.BLOCKED
 
 
@@ -244,7 +236,6 @@ def report(pr: PullRequest, target: Target, facts: list[Fact]) -> str:
 
 
 def main() -> int:
-    """Print the four facts and the verdict; exit non-zero when blocked."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("pr", help="pull request number")
     parser.add_argument("--repo", default=None, help="owner/name (default: this checkout)")
