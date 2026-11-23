@@ -36,15 +36,9 @@ remove it, then reply.
 **Wait for the reviewer before reporting state.** Run `watch-pr.sh <n>` before
 you call a PR ready, blocked or mergeable.
 
-**Answer a refutation with the code that prevents the mistake.** Name the thing
-that stops the question arising again: a function whose docstring states the
-fact, a single owner, or a type that cannot express the wrong state. Quote the
-docstring or test when it already says it. "Not a defect — here is the line"
-answers this reviewer only, and the next reader asks the same question.
-
-**Refactor an area that keeps collecting refutations.** Two refutations in one
-area mean the design invites the question. Change the code before you answer a
-third.
+**A finding is answered by a refactor, never by an argument.** §11b has the
+rule: every comment is evidence of confusion, and the reply carries the new
+shape.
 
 ## The loop that actually converges
 
