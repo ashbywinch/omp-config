@@ -28,9 +28,9 @@ unresolved threads, size, labels, mergeability, and whether one blocks another.
 Do not use a fixed oldest-first queue.
 
 Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
-the clone's main checkout. Run the loop in `skill://pr-workflow` "The loop that
-actually converges", answering threads with `pr-threads <pr>`, and run
-`make test` before each push.
+the clone's main checkout. Run the loop in `skill://pr-workflow` §11 (Verify Next
+Round), answering threads with `pr-threads <pr>`, and run `make test` before each
+push.
 
 Never approve a PR, never resolve a review thread, and never merge. Do not run
 `gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's

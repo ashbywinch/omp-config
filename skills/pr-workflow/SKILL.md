@@ -33,31 +33,6 @@ A comment or a bug hides a confusion, in the reviewer or in the author whose
 code drew it. Find the confusion. Refactor the code to remove it. Reply with the
 new shape.
 
-Run `watch-pr.sh <n>` before you report a PR's state.
-
-A finding is answered by a refactor, never by an argument. §11b holds the rule.
-
-## The loop that actually converges
-
-The reviewer reviews every push, so a reply-push-reply loop stays one batch
-behind.
-
-1. Land every code change before you answer. A change you accepted in a reply
-   and then deferred is an open finding.
-2. Run `pr-threads <pr>`. Answer every thread on the current head.
-3. Push once.
-4. Run `pr-threads --wait <pr>`. Answer the batch it lists.
-5. Push again only when an answer needed a code change.
-
-`pr-threads` is the authority on "answered". Neither a hand-rolled query nor a
-login comparison is. Run it fresh on the head you describe.
-
-`watch-pr.sh` reports whether the checks are finished and green, and whether the
-head is settled. It is not a thread authority.
-
-Work in the branch's own worktree. A claim about the code comes from the branch
-under review, never the default checkout.
-
 ## Prerequisites
 
 - `gh` CLI installed and authenticated
@@ -420,6 +395,10 @@ git push origin <branch>
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
 
+**Land every code change before you answer a thread.** A change you accepted in a reply and then deferred is an open finding.
+
+**Work in the branch's own worktree.** A claim about the code comes from the branch under review, never the default checkout.
+
 **Read what you changed whole before the push.** Zoom out from the diff and read
 it as a reader meets it, then fix what that shows (§11c).
 
@@ -509,6 +488,9 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
 resolve none (`skill://pr-state`).
+
+`pr-threads` is the authority on "answered"; neither a hand-rolled query nor a
+login comparison is. `watch-pr.sh` reports the checks, not the threads.
 
 ## Part 5: Handing the merge to the user
 
