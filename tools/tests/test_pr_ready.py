@@ -219,6 +219,29 @@ class ZeroChecksTest(unittest.TestCase):
         self.assertIn("required contexts unreadable", fact.detail)
 
 
+class WireTest(unittest.TestCase):
+    def required(self, envelope: dict) -> set[str] | None:
+        original = pr_ready.gh_json
+        pr_ready.gh_json = lambda args: envelope
+        try:
+            pr = PullRequest(repo="owner/name", number="1", root=Path("."))
+            return pr._required_contexts(Target(sha="abc123", base="main"))
+        finally:
+            pr_ready.gh_json = original
+
+    def test_a_null_repository_reads_as_no_required_contexts(self):
+        self.assertEqual(self.required({"data": {"repository": None}}), set())
+
+    def test_a_null_ref_reads_as_no_required_contexts(self):
+        self.assertEqual(self.required({"data": {"repository": {"ref": None}}}), set())
+
+    def test_a_null_rule_reads_as_no_required_contexts(self):
+        self.assertEqual(self.required({"data": {"repository": {"ref": {"branchProtectionRule": None}}}}), set())
+
+    def test_a_failed_call_is_not_an_empty_rule(self):
+        self.assertIsNone(self.required({}))
+
+
 class EvidenceTest(unittest.TestCase):
     def test_a_fact_without_evidence_is_refused(self):
         with self.assertRaises(ValueError):
