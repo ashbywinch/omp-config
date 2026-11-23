@@ -37,6 +37,10 @@
 # A notice that could not be sent is not recorded as sent: the signature stays
 # unset and the next pass sends it again.
 #
+# A read that does not answer is not an answer. Every GitHub call is bounded by
+# PR_DESK_WATCH_TIMEOUT seconds (30 by default), and a pass that cannot read the
+# PR says so on stderr rather than looking quiet.
+#
 # It never approves, never resolves a thread, never pushes, never merges. The
 # approval is the person's.
 set -uo pipefail
@@ -71,6 +75,13 @@ if [ -z "$repo" ]; then
   echo "pr-desk-watch: not in a checkout, and no owner/name given" >&2
   exit 2
 fi
+# The slug is interpolated into API paths, so it is held to the shape GitHub
+# uses. Every use is quoted already; this refuses the value rather than relying
+# on that everywhere.
+if ! printf '%s' "$repo" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+  echo "pr-desk-watch: repo must be owner/name, got '$repo'" >&2
+  exit 2
+fi
 
 # A tool that cannot read the PR's state reports "nothing to do" forever, which
 # looks the same as a quiet PR. Every source of state is required to be here.
@@ -88,6 +99,17 @@ if ! command -v paseo >/dev/null 2>&1; then
   exit 2
 fi
 
+# A call that hangs is a watcher that stops watching, so every read is bounded.
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "pr-desk-watch: timeout (coreutils) is not on PATH — a hung read would freeze the watcher" >&2
+  exit 2
+fi
+read_timeout="${PR_DESK_WATCH_TIMEOUT:-30}"
+if ! printf '%s' "$read_timeout" | grep -Eq '^[1-9][0-9]*$'; then
+  echo "pr-desk-watch: PR_DESK_WATCH_TIMEOUT must be a positive whole number of seconds, got '$read_timeout'" >&2
+  exit 2
+fi
+
 slug="$pr ($repo)"
 notified_threads=""
 notified_checks=""
@@ -95,36 +117,57 @@ notified_ready=""
 required=""
 required_for=""
 
+# Every read of GitHub's state goes through here: one place bounds the wait, and
+# a non-zero exit is the caller's to handle as "unknown", never as "clean".
+gh_read() {  # gh_read <gh args...>
+  timeout "$read_timeout" gh "$@"
+}
+
 # A failed send returns non-zero so the caller leaves its signature unset: the
-# notice is re-sent next pass instead of being recorded as delivered.
+# notice is re-sent next pass instead of being recorded as delivered. The
+# sender's own words come with it — "agent not found" is the line that explains
+# a notice that never lands.
 notify() {  # notify <agent-id> <message>
-  paseo send "$1" "$2" >/dev/null 2>&1 && return 0
-  echo "pr-desk-watch: send to $1 failed — retrying next pass" >&2
+  local err
+  err=$(paseo send "$1" "$2" 2>&1 >/dev/null) && return 0
+  echo "pr-desk-watch: send to $1 failed — ${err:-no message} — retrying next pass" >&2
   return 1
 }
 
 # The contexts this base branch requires, from both places GitHub records them:
 # classic branch protection and rulesets. Empty means the API would not say,
 # and the caller then treats every check as required — the conservative way.
+# A source that fails is the same as a source that will not say: a partial list
+# would silently drop a required check, so either failure returns empty.
 required_contexts() {  # <owner/name> <base>
-  local owner="${1%%/*}" name="${1#*/}"
-  {
-    gh api graphql \
-      -f query='query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}' \
-      -f o="$owner" -f n="$name" -f b="refs/heads/$2" \
-      --jq '.data.repository.ref.branchProtectionRule.requiredStatusCheckContexts[]?' 2>/dev/null
-    gh api "repos/$1/rules/branches/$2" \
-      --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null
-  } | sort -u
+  local owner="${1%%/*}" name="${1#*/}" classic rules
+  classic=$(gh_read api graphql \
+    -f query='query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}' \
+    -f o="$owner" -f n="$name" -f b="refs/heads/$2" \
+    --jq '.data.repository.ref.branchProtectionRule.requiredStatusCheckContexts[]?' 2>/dev/null) || {
+    echo "pr-desk-watch: branch protection unreadable — treating every check as required" >&2
+    return 0
+  }
+  rules=$(gh_read api "repos/$1/rules/branches/$2" \
+    --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null) || {
+    echo "pr-desk-watch: rulesets unreadable — treating every check as required" >&2
+    return 0
+  }
+  printf '%s\n%s\n' "$classic" "$rules" | sed '/^$/d' | sort -u
 }
 
-# The required checks on a head, as two comma-joined lists on one tab-separated
-# line: `blocked` then `failed`.
+# The required checks on a head, as one JSON object:
+#
+#   {"blocked": [...], "failed": [...]}
 #
 #   blocked   every required check that is not a completed success — running,
-#             queued and cancelled included. Readiness needs this empty.
+#             queued and cancelled included. Readiness needs it empty.
 #   failed    the blocked ones with a failure conclusion. This is the list
 #             worth a message, because it names something to fix.
+#
+# The state is an object of arrays, not a delimited line, so no check name can
+# be mistaken for a separator. The caller gates on `blocked | length`, never on
+# a string being empty.
 #
 # A check is green only when it finished and finished successfully, so the
 # absence of `failed` is not greenness: a run still in flight is in `blocked`.
@@ -132,21 +175,25 @@ required_contexts() {  # <owner/name> <base>
 # repeats the check as the authority.
 #
 # An unreadable list is not a clean one, so the function exits non-zero when
-# the answer cannot be trusted: the call failed, the head has no runs at all
-# (absence is not success — `tools/pr_ready.py:11-14`), or two runs carry one
-# name, which means `filter=latest` did not reduce them.
+# the answer cannot be trusted: the head is not a commit sha, the call failed,
+# the head has no runs at all (absence is not success — `tools/pr_ready.py:11-14`),
+# or two runs carry one name, which means `filter=latest` did not reduce them.
 #
 # One run per name comes from the API (`filter=latest`), not from sorting here:
 # `started_at` is null on a run that never started, and a sort on it would
 # choose the wrong run for exactly the check that has not begun.
 check_state() {  # <owner/name> <head> <newline-separated contexts>
-  local runs out
-  runs=$(gh api --paginate "repos/$1/commits/$2/check-runs?per_page=100&filter=latest" \
+  local runs
+  if ! printf '%s' "$2" | grep -Eq '^[0-9a-f]{7,40}$'; then
+    echo "pr-desk-watch: '$2' is not a commit sha — check state unknown" >&2
+    return 1
+  fi
+  runs=$(gh_read api --paginate "repos/$1/commits/$2/check-runs?per_page=100&filter=latest" \
            --jq '.check_runs[]' 2>/dev/null) || {
     echo "pr-desk-watch: check-runs unreadable on ${2:0:7} — holding readiness" >&2
     return 1
   }
-  out=$(printf '%s\n' "$runs" | jq -s -r --arg req "$3" '
+  printf '%s\n' "$runs" | jq -s -r --arg req "$3" '
     ($req | split("\n") | map(select(. != ""))) as $required
     | map(select(($required | length) == 0
           or (.name as $n | any($required[]; . == $n)))) as $runs
@@ -155,27 +202,28 @@ check_state() {  # <owner/name> <head> <newline-separated contexts>
         then error("two runs for one name — filter=latest was not honoured")
       else $runs end
     | map(select((.status == "completed" and .conclusion == "success") | not)) as $blocked
-    | [ ($blocked | map(.name) | unique | join(", ")),
-        ($blocked
-          | map(select(.conclusion
-                | IN("failure", "timed_out", "action_required", "startup_failure")))
-          | map(.name) | unique | join(", ")) ]
-    | @tsv
-  ') || {
+    | { blocked: ($blocked | map(.name) | unique),
+        failed:  ($blocked
+                  | map(select(.conclusion
+                        | IN("failure", "timed_out", "action_required", "startup_failure")))
+                  | map(.name) | unique) }
+  ' || {
     echo "pr-desk-watch: the check state above cannot be trusted on ${2:0:7} — holding readiness" >&2
     return 1
   }
-  printf '%s\n' "$out"
 }
 
 while :; do
   # The empty reviewDecision is written as "-" so that `read` cannot collapse
   # it: IFS whitespace drops an empty field, and the next two fields — the base
   # and the link — would slide left into the wrong names.
-  view=$(gh pr view "$pr" --repo "$repo" \
+  view=$(gh_read pr view "$pr" --repo "$repo" \
     --json state,headRefOid,reviewDecision,baseRefName,url \
     --jq '[.state, .headRefOid, (.reviewDecision // "-"), .baseRefName, .url] | @tsv' 2>/dev/null)
   if [ -z "$view" ]; then
+    # Silence here would look exactly like a quiet PR, which is the failure
+    # this tool exists to prevent.
+    echo "pr-desk-watch: cannot read $slug — still watching" >&2
     sleep "$interval"
     continue
   fi
@@ -208,9 +256,10 @@ while :; do
   # An unreadable or ambiguous check list is not a clean one: readiness is held
   # and the reason is printed, rather than the absence of a failure read as green.
   if checks=$(check_state "$repo" "$head" "$required"); then
-    IFS=$'\t' read -r blocked broken <<< "$checks"
+    blocked=$(printf '%s' "$checks" | jq -r '.blocked | length')
+    broken=$(printf '%s' "$checks" | jq -r '.failed | join(", ")')
   else
-    blocked="unknown"
+    blocked=1          # unknown is not clean
     broken=""
   fi
   if [ -n "$broken" ]; then
@@ -225,13 +274,16 @@ while :; do
 
   # Readiness is asked only of a PR whose cheap signals are already clean —
   # pr-ready is the authority, and it runs the same checks again plus the merge.
-  # `blocked` holds every required check that is not a completed success, a
-  # running one included, and "unknown" when the list could not be read, so no
-  # pass asks pr-ready about a state it cannot vouch for.
-  if [ -z "$pending" ] && [ -z "$blocked" ] && [ "$decision" != "APPROVED" ]; then
+  # `blocked` is the number of required checks that are not a completed success,
+  # a running one included, and 1 when the list could not be read, so no pass
+  # asks pr-ready about a state it cannot vouch for.
+  if [ -z "$pending" ] && [ "$blocked" -eq 0 ] && [ "$decision" != "APPROVED" ]; then
     ready_out=$(pr-ready "$pr" --repo "$repo" --root "$root" --no-wait 2>&1)
     rc=$?
-    if [ "$rc" -eq 0 ] && printf '%s\n' "$ready_out" | grep -q '^READY'; then
+    # pr-ready's verdict is its own line, `READY: <next step>` — the prefix and
+    # the colon are the format (`tools/pr_ready.py:197-202`), so a longer word
+    # that merely starts with READY cannot match.
+    if [ "$rc" -eq 0 ] && printf '%s\n' "$ready_out" | grep -q '^READY:'; then
       signature="$head"
       if [ "$signature" != "$notified_ready" ]; then
         notify "$human" "PR $slug is ready for your approval — $url (head ${head:0:7}: merges cleanly into origin/$base, required checks green, no unanswered threads). The approval is yours; this watcher will not approve, resolve or merge." \
@@ -240,7 +292,7 @@ while :; do
     else
       # pr-ready answers BLOCKED with its reasons. No verdict at all is the
       # tool failing to answer, and that reason is worth a line of its own.
-      if ! printf '%s\n' "$ready_out" | grep -q '^BLOCKED'; then
+      if ! printf '%s\n' "$ready_out" | grep -q '^BLOCKED:'; then
         reason=$(printf '%s\n' "$ready_out" | tail -1)
         echo "pr-desk-watch: pr-ready gave no verdict${reason:+ — $reason}" >&2
       fi
