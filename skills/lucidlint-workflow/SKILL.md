@@ -94,9 +94,8 @@ python3 lucidlint.py --file path/to/file.py
 ## When the gate fails with no findings
 
 `make lucidlint` exits above 1 while printing no action list when the scanner
-itself failed — a crash or a bad flag. The Makefile reports that as a failure so
-it cannot read as "no findings". Read the reason in the stderr file the Makefile
-writes, `lucidlint-dist/.last.err`.
+itself failed — a crash or a bad flag. Read the reason in the stderr file the
+Makefile writes, `lucidlint-dist/.last.err`.
 
 **A corrupt baseline does not fail the gate.** The loader logs `baseline <path>
 unreadable — ignoring`, then runs with an empty baseline: no keys, empty ledger.
@@ -107,10 +106,9 @@ the failure. Restore the file with `--update-baseline --baseline lucidlint.json`
 That command writes `{actions, config_ignored}`, so read what the new baseline
 acknowledges. Then trace the crash, not the file.
 
-If the tool crashes only under the pre-commit hook, suspect the transient tree:
-the hook stashes unstaged changes, runs, then restores them, so a scan can read a
-half-applied edit. Re-run `make lucidlint` on a clean tree before blaming the
-baseline.
+Under the pre-commit hook the tree is transient: the hook stashes unstaged
+changes, runs, then restores them, so a scan can read a half-applied edit. Rule
+that out before blaming the baseline: re-run `make lucidlint` on a clean tree.
 
 ## Baseline conventions
 

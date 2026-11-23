@@ -106,8 +106,8 @@ echo "Updated content" | ntn pages edit <PAGE_ID>
 remove a property. A schema change is a `PATCH /v1/data_sources/<id>` with
 `properties`.
 
-Removing a property is destructive: every value goes with it. Do it in this
-order.
+**Remove a property in this order.** Removal deletes every value the property
+holds.
 
 1. **Back up the schema and every value.** Write a dated JSON file outside the
    repository: the property definition (type, options, ids) and, for every page,
