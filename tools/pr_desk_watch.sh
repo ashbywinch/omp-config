@@ -131,15 +131,29 @@ required_contexts() {  # <owner/name> <base>
 # The cheap gate is therefore never more permissive than `pr-ready`, which
 # repeats the check as the authority.
 #
+# An unreadable list is not a clean one, so the function exits non-zero when
+# the answer cannot be trusted: the call failed, the head has no runs at all
+# (absence is not success — `tools/pr_ready.py:11-14`), or two runs carry one
+# name, which means `filter=latest` did not reduce them.
+#
 # One run per name comes from the API (`filter=latest`), not from sorting here:
 # `started_at` is null on a run that never started, and a sort on it would
 # choose the wrong run for exactly the check that has not begun.
 check_state() {  # <owner/name> <head> <newline-separated contexts>
-  gh api --paginate "repos/$1/commits/$2/check-runs?per_page=100&filter=latest" \
-    --jq '.check_runs[]' 2>/dev/null | jq -s -r --arg req "$3" '
+  local runs out
+  runs=$(gh api --paginate "repos/$1/commits/$2/check-runs?per_page=100&filter=latest" \
+           --jq '.check_runs[]' 2>/dev/null) || {
+    echo "pr-desk-watch: check-runs unreadable on ${2:0:7} — holding readiness" >&2
+    return 1
+  }
+  out=$(printf '%s\n' "$runs" | jq -s -r --arg req "$3" '
     ($req | split("\n") | map(select(. != ""))) as $required
     | map(select(($required | length) == 0
-          or (.name as $n | any($required[]; . == $n))))
+          or (.name as $n | any($required[]; . == $n)))) as $runs
+    | if ($runs | length) == 0 then error("no check-runs on this head")
+      elif ($runs | map(.name) | length) != ($runs | map(.name) | unique | length)
+        then error("two runs for one name — filter=latest was not honoured")
+      else $runs end
     | map(select((.status == "completed" and .conclusion == "success") | not)) as $blocked
     | [ ($blocked | map(.name) | unique | join(", ")),
         ($blocked
@@ -147,7 +161,11 @@ check_state() {  # <owner/name> <head> <newline-separated contexts>
                 | IN("failure", "timed_out", "action_required", "startup_failure")))
           | map(.name) | unique | join(", ")) ]
     | @tsv
-  ' 2>/dev/null
+  ') || {
+    echo "pr-desk-watch: the check state above cannot be trusted on ${2:0:7} — holding readiness" >&2
+    return 1
+  }
+  printf '%s\n' "$out"
 }
 
 while :; do
@@ -180,14 +198,21 @@ while :; do
   if [ -n "$pending" ]; then
     if [ "$pending" != "$notified_threads" ]; then
       count=$(printf '%s\n' "$pending" | wc -l | tr -d ' ')
-      notify "$agent" "PR $slug: $count unanswered review thread(s) on ${head:0:7}. Run: pr-threads $pr --repo $repo — answer each with evidence, fix what is real, push once." \
+      notify "$agent" "PR $slug: $count unanswered review thread(s). Run: pr-threads $pr --repo $repo — answer each with evidence, fix what is real, push once." \
         && notified_threads="$pending"
     fi
   else
     notified_threads=""
   fi
 
-  IFS=$'\t' read -r blocked broken <<< "$(check_state "$repo" "$head" "$required")"
+  # An unreadable or ambiguous check list is not a clean one: readiness is held
+  # and the reason is printed, rather than the absence of a failure read as green.
+  if checks=$(check_state "$repo" "$head" "$required"); then
+    IFS=$'\t' read -r blocked broken <<< "$checks"
+  else
+    blocked="unknown"
+    broken=""
+  fi
   if [ -n "$broken" ]; then
     signature="$head $broken"
     if [ "$signature" != "$notified_checks" ]; then
@@ -201,9 +226,10 @@ while :; do
   # Readiness is asked only of a PR whose cheap signals are already clean —
   # pr-ready is the authority, and it runs the same checks again plus the merge.
   # `blocked` holds every required check that is not a completed success, a
-  # running one included, so no pass asks pr-ready about a check still in flight.
+  # running one included, and "unknown" when the list could not be read, so no
+  # pass asks pr-ready about a state it cannot vouch for.
   if [ -z "$pending" ] && [ -z "$blocked" ] && [ "$decision" != "APPROVED" ]; then
-    ready_out=$(pr-ready "$pr" --repo "$repo" --root "$root" --no-wait 2>/dev/null)
+    ready_out=$(pr-ready "$pr" --repo "$repo" --root "$root" --no-wait 2>&1)
     rc=$?
     if [ "$rc" -eq 0 ] && printf '%s\n' "$ready_out" | grep -q '^READY'; then
       signature="$head"
@@ -212,6 +238,12 @@ while :; do
           && notified_ready="$signature"
       fi
     else
+      # pr-ready answers BLOCKED with its reasons. No verdict at all is the
+      # tool failing to answer, and that reason is worth a line of its own.
+      if ! printf '%s\n' "$ready_out" | grep -q '^BLOCKED'; then
+        reason=$(printf '%s\n' "$ready_out" | tail -1)
+        echo "pr-desk-watch: pr-ready gave no verdict${reason:+ — $reason}" >&2
+      fi
       notified_ready=""
     fi
   else
