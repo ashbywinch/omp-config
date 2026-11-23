@@ -65,6 +65,7 @@ class Check:
     status: str
     conclusion: str | None
     started: str = ""
+    required: bool = False
 
     @classmethod
     def from_api(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
@@ -78,8 +79,14 @@ class Check:
 
     @property
     def passed(self) -> bool:
-        """A check passes only when it finished, and finished successfully."""
-        return self.status == "completed" and self.conclusion == "success"
+        """Finished, and not reporting a problem.
+
+        GitHub treats `success`, `neutral` and `skipped` as passing for branch
+        protection: `neutral` says the run finished without a verdict (the
+        reviewer's informational check), `skipped` says its `if:` did not match.
+        Only a failure conclusion blocks.
+        """
+        return self.status == "completed" and self.conclusion in ("success", "neutral", "skipped")
 
 
 def run(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -108,10 +115,17 @@ def latest_by_name(checks: list[Check]) -> list[Check]:
 
 
 def failed(checks: list[Check]) -> list[str]:
-    """Checks that are not a completed success, named with what they are."""
+    """The REQUIRED checks that did not pass.
+
+    A check the branch does not require cannot block a merge, so reporting it
+    as a failure is a wrong verdict that teaches the reader to ignore the
+    tool. When the API will not say which contexts are required, every check
+    counts — the conservative direction.
+    """
+    required = [check for check in checks if check.required] or checks
     return [
         f"{check.name} is {check.status.lower()} {check.conclusion or ''}".strip()
-        for check in checks
+        for check in required
         if not check.passed
     ]
 
@@ -143,12 +157,35 @@ class PullRequest:
         first = (result.stdout.strip().splitlines() or ["no detail"])[0]
         return Fact(name="merge", ok=False, detail=f"conflicts with origin/{target.base}: {first}")
 
+    def _required_names(self, target: Target) -> set[str]:
+        """The required check contexts for the base branch, or empty when unreadable."""
+        query = (
+            "query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){"
+            "ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}"
+        )
+        owner, _, name = self.repo.partition("/")
+        data = gh_json([
+            "api", "graphql",
+            "-f", f"query={query}",
+            "-f", f"o={owner}", "-f", f"n={name}", "-f", f"b=refs/heads/{target.base}",
+        ])
+        rule = (data.get("data") or {}).get("repository", {}).get("ref", {}) or {}
+        rule = (rule.get("branchProtectionRule") or {})
+        return set(rule.get("requiredStatusCheckContexts") or [])
+
     def checks(self, target: Target) -> Fact:
         """Whether every check on the head passed, with zero checks a failure."""
         if not target.sha:
             return Fact(name="checks", ok=False, detail="no head sha to read checks from")
         nodes = gh_json(["api", f"repos/{self.repo}/commits/{target.sha}/check-runs?per_page=100"])
         checks = [Check.from_api(node) for node in nodes.get("check_runs", [])]
+        required = self._required_names(target)
+        if required:
+            checks = [
+                Check(name=c.name, status=c.status, conclusion=c.conclusion,
+                      started=c.started, required=c.name in required)
+                for c in checks
+            ]
         if not checks:
             return Fact(
                 name="checks",
