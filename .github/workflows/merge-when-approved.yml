@@ -17,12 +17,13 @@ name: Merge when approved
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
 #
-# A branch behind the base is updated by this job, because the ruleset's strict
-# up-to-date policy will not merge it otherwise. The update commits with
-# GITHUB_TOKEN, and a push made with that token starts no workflow runs: the
-# new head would carry no checks and the gate would wait on them forever. So the
-# same run dispatches ci.yml on the new head. That dispatch is the reason this
-# workflow asks for `actions: write`; no other permission is needed for it.
+# A branch behind the base is NOT updated here. The update-branch call commits
+# with GITHUB_TOKEN, so every workflow run for the new head is created by
+# github-actions[bot], and this repo's Actions policy holds runs from that actor
+# for approval: the checks never start and the gate waits on nothing. A person
+# updating the branch runs the checks normally, and re-approving once after that
+# is cheaper than approving every held run. So this job names the state and
+# stops; it does not touch the branch.
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
@@ -56,11 +57,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write       # update-branch, merge
+  contents: write       # merge
   pull-requests: write  # read the PR, merge it
   checks: read          # the PR's check runs
   statuses: read        # the legacy commit statuses, where a repo uses those
-  actions: write        # dispatch the required check after update-branch
 
 jobs:
   merge:
@@ -184,7 +184,6 @@ jobs:
           # Checks usually finish after the approval that started this job, and the
           # last one to finish is often the review the PR is waiting on. Wait for
           # them rather than deciding on a snapshot.
-          updated=0
           for attempt in $(seq 1 15); do
             read -r decision state head_repo < <(read_state)
             checks=$(read_checks) || exit 3
@@ -202,31 +201,11 @@ jobs:
               echo "$open_threads review thread(s) unresolved — not merging"; exit 0
             fi
 
-            # A branch behind the base cannot merge, and this job is the only
-            # actor that updates it. The update commits with GITHUB_TOKEN, and a
-            # push made with that token starts no workflow runs, so the new head
-            # would carry no checks: dispatch the required one by hand, then
-            # keep waiting in this same run for it to finish.
+            # The branch is behind the base. Updating it here would create a
+            # head whose runs are held for approval, so name it and stop.
             if [ "$state" = "BEHIND" ]; then
-              if [ "$updated" = "1" ]; then
-                echo "branch updated; waiting for the dispatched check"
-              else
-                updated=1
-                head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
-                if ! gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null; then
-                  echo "::error::update-branch failed for $head_ref" >&2
-                  exit 3
-                fi
-                if ! gh workflow run ci.yml --repo "$REPO" --ref "$head_ref"; then
-                  echo "::error::could not dispatch ci.yml on $head_ref — the required check will never run" >&2
-                  exit 3
-                fi
-                # the dispatched run's check_suite completion re-triggers this
-                # workflow, so a wait that runs out still gets another pass
-                echo "branch updated and ci.yml dispatched on $head_ref; waiting for its check"
-              fi
-              sleep 60
-              continue
+              echo "::warning::branch is behind the base — update it, then approve again"
+              exit 0
             fi
 
             if [ "$checks" = "SUCCESS" ]; then
@@ -262,10 +241,7 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              # The base moved after the wait loop. The loop owns the update, so
-              # leave it there: this run ends, and the next check_suite run
-              # takes the BEHIND path with its own wait.
-              echo "base moved after the wait — leaving the update to the next run"
+              echo "::warning::branch went behind the base during the wait — update it, then approve again"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
