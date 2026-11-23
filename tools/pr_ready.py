@@ -3,8 +3,7 @@
 
     pr_ready.py <pr-number> [--repo owner/name] [--root path] [--no-wait]
 
-Each fact is its own failure, and a fact the tool cannot read is a failure, not
-a pass.
+The four facts, and what each one means: `skill://pr-state`.
 """
 
 from __future__ import annotations
@@ -67,7 +66,6 @@ class Check:
 
     @property
     def passed(self) -> bool:
-        """Completed, with a conclusion branch protection accepts."""
         return self.status == "completed" and self.conclusion in PASSING_CONCLUSIONS
 
 
