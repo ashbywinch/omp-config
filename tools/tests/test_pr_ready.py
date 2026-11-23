@@ -9,7 +9,6 @@ from tools.pr_ready import (
     PullRequest,
     Target,
     Verdict,
-    blocking,
     failed,
     latest_by_name,
     next_step,
@@ -17,8 +16,8 @@ from tools.pr_ready import (
 )
 
 
-def check(name: str = "ci", status: str = "completed", conclusion: str | None = "success", required: bool = False) -> Check:
-    return Check(name=name, status=status, conclusion=conclusion, required=required)
+def check(name: str = "ci", status: str = "completed", conclusion: str | None = "success") -> Check:
+    return Check(name=name, status=status, conclusion=conclusion)
 
 
 def facts(*oks: bool) -> list[Fact]:
@@ -82,6 +81,10 @@ class BehindBaseTest(unittest.TestCase):
         self.assertFalse(fact.ok)
         self.assertIn("cannot compare", fact.detail)
 
+    def test_a_silent_git_failure_names_the_exit_code(self):
+        fact = self.base(FakeGit(ancestor=128))
+        self.assertIn("git exited 128", fact.detail)
+
     def test_no_head_sha_fails_the_fact(self):
         self.assertFalse(self.base(FakeGit(), sha="").ok)
 
@@ -94,40 +97,58 @@ class BehindBaseTest(unittest.TestCase):
         self.assertIn("behind", next_step(state))
 
 
+class MergeTest(unittest.TestCase):
+    def merge(self, fake: FakeGit, sha: str = "abc123") -> Fact:
+        original = pr_ready.run
+        pr_ready.run = fake
+        try:
+            return PullRequest(repo="owner/name", number="1", root=Path(".")).merge(Target(sha=sha, base="main"))
+        finally:
+            pr_ready.run = original
+
+    def test_a_clean_merge_passes(self):
+        self.assertTrue(self.merge(FakeGit()).ok)
+
+    def test_a_head_that_is_not_present_fails_the_merge_fact(self):
+        self.assertIn("no head sha to merge", self.merge(FakeGit(head="abc123"), sha="def456").detail)
+
+
 class ChecksTest(unittest.TestCase):
     def test_a_completed_success_passes(self):
-        self.assertEqual(failed([check()]), [])
+        self.assertEqual(failed([check()], None), [])
 
     def test_neutral_and_skipped_pass(self):
-        self.assertEqual(failed([check(conclusion="neutral"), check(name="docs", conclusion="skipped")]), [])
+        self.assertEqual(failed([check(conclusion="neutral"), check(name="docs", conclusion="skipped")], None), [])
 
     def test_a_running_check_does_not_pass(self):
-        self.assertEqual(len(failed([check(status="in_progress", conclusion=None)])), 1)
+        self.assertEqual(len(failed([check(status="in_progress", conclusion=None)], None)), 1)
 
     def test_a_cancelled_check_does_not_pass(self):
-        self.assertEqual(len(failed([check(conclusion="cancelled")])), 1)
+        self.assertEqual(len(failed([check(conclusion="cancelled")], None)), 1)
 
     def test_a_failure_is_named(self):
-        self.assertIn("ci", failed([check(conclusion="failure")])[0])
+        self.assertIn("ci", failed([check(conclusion="failure")], None)[0])
 
 
 class RequiredTest(unittest.TestCase):
     def test_a_check_the_branch_does_not_require_cannot_block(self):
-        checks = [check(name="ci", required=True), check(name="lint", conclusion="failure", required=False)]
-        self.assertEqual(failed(checks), [])
+        checks = [check(name="ci"), check(name="lint", conclusion="failure")]
+        self.assertEqual(failed(checks, {"ci"}), [])
+
+    def test_a_required_context_that_did_not_pass_is_named(self):
+        self.assertIn("ci is completed failure", failed([check(conclusion="failure")], {"ci"})[0])
+
+    def test_a_required_context_with_no_run_fails(self):
+        self.assertIn("ci has no run on this sha", failed([check(name="lint")], {"ci"})[0])
 
     def test_an_unreadable_required_list_makes_every_check_count(self):
-        self.assertEqual(len(blocking([check(conclusion="failure")])), 1)
-
-    def test_only_the_required_checks_are_judged(self):
-        checks = [check(name="ci", conclusion="failure", required=True), check(name="lint", required=False)]
-        self.assertEqual(len(blocking(checks)), 1)
+        self.assertEqual(len(failed([check(conclusion="failure")], None)), 1)
 
 
 class SupersededTest(unittest.TestCase):
     def test_a_later_success_supersedes_an_earlier_cancelled_run(self):
         runs = [check(conclusion="cancelled"), check(conclusion="success")]
-        self.assertEqual(failed(latest_by_name(runs)), [])
+        self.assertEqual(failed(latest_by_name(runs), None), [])
 
     def test_a_run_cancelled_after_a_success_still_reports_the_latest(self):
         runs = [
@@ -136,11 +157,11 @@ class SupersededTest(unittest.TestCase):
             Check(name="arm", status="completed", conclusion="cancelled", started="13:26:58"),
             Check(name="arm", status="completed", conclusion="success", started="13:27:03"),
         ]
-        self.assertEqual(failed(latest_by_name(runs)), [])
+        self.assertEqual(failed(latest_by_name(runs), None), [])
 
     def test_a_cancelled_run_with_no_successor_fails(self):
         runs = [check(name="arm", conclusion="success"), check(name="arm", conclusion="cancelled")]
-        self.assertEqual(len(failed(latest_by_name(runs))), 1)
+        self.assertEqual(len(failed(latest_by_name(runs), None)), 1)
 
     def test_one_entry_per_name(self):
         runs = [check(name="arm", conclusion="success"), check(name="arm", conclusion="success")]
@@ -148,9 +169,18 @@ class SupersededTest(unittest.TestCase):
 
 
 class ZeroChecksTest(unittest.TestCase):
-    def report(self, check_runs: list[dict], sha: str = "abc123") -> Fact:
+    def report(
+        self,
+        check_runs: list[dict],
+        sha: str = "abc123",
+        rule: tuple[str, ...] = (),
+        graphql_fails: bool = False,
+    ) -> Fact:
+        graphql: dict = {} if graphql_fails else {
+            "data": {"repository": {"ref": {"branchProtectionRule": {"requiredStatusCheckContexts": list(rule)}}}}
+        }
         original = pr_ready.gh_json
-        pr_ready.gh_json = lambda args: {"check_runs": check_runs}
+        pr_ready.gh_json = lambda args: graphql if "graphql" in args else {"check_runs": check_runs}
         try:
             pr = PullRequest(repo="owner/name", number="1", root=Path("."))
             return pr.checks(Target(sha=sha, base="main"))
@@ -168,6 +198,25 @@ class ZeroChecksTest(unittest.TestCase):
     def test_all_successful_passes(self):
         fact = self.report([{"name": "ci", "status": "completed", "conclusion": "success"}])
         self.assertTrue(fact.ok)
+
+    def test_a_non_required_failure_does_not_block(self):
+        runs = [
+            {"name": "ci", "status": "completed", "conclusion": "success"},
+            {"name": "lint", "status": "completed", "conclusion": "failure"},
+        ]
+        self.assertTrue(self.report(runs, rule=("ci",)).ok)
+
+    def test_a_required_context_with_no_run_fails_the_fact(self):
+        runs = [{"name": "lint", "status": "completed", "conclusion": "success"}]
+        fact = self.report(runs, rule=("ci",))
+        self.assertFalse(fact.ok)
+        self.assertIn("ci has no run", fact.detail)
+
+    def test_an_unreadable_required_list_is_named_in_the_fact(self):
+        runs = [{"name": "ci", "status": "completed", "conclusion": "success"}]
+        fact = self.report(runs, graphql_fails=True)
+        self.assertTrue(fact.ok)
+        self.assertIn("required contexts unreadable", fact.detail)
 
 
 class EvidenceTest(unittest.TestCase):

@@ -50,7 +50,6 @@ class Check:
     status: str
     conclusion: str | None
     started: str = ""
-    required: bool = False
 
     @classmethod
     def from_api(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
@@ -84,17 +83,23 @@ def latest_by_name(checks: list[Check]) -> list[Check]:
     return list(latest.values())
 
 
-def blocking(checks: list[Check]) -> list[Check]:
-    required = [check for check in checks if check.required]
-    return required or checks
+def describe(check: Check) -> str:
+    return f"{check.name} is {check.status.lower()} {check.conclusion or ''}".strip()
 
 
-def failed(checks: list[Check]) -> list[str]:
-    return [
-        f"{check.name} is {check.status.lower()} {check.conclusion or ''}".strip()
-        for check in blocking(checks)
-        if not check.passed
-    ]
+def failed(checks: list[Check], required: set[str] | None) -> list[str]:
+    latest = latest_by_name(checks)
+    if not required:
+        return [describe(check) for check in latest if not check.passed]
+    by_name = {check.name: check for check in latest}
+    broken = []
+    for name in sorted(required):
+        check = by_name.get(name)
+        if check is None:
+            broken.append(f"{name} has no run on this sha")
+        elif not check.passed:
+            broken.append(describe(check))
+    return broken
 
 
 @dataclass(frozen=True)
@@ -125,7 +130,7 @@ class PullRequest:
         result = run(["git", "merge-tree", "--write-tree", target.base_ref, target.sha], cwd=self.root)
         if result.returncode == 0:
             return Fact(name="merge", ok=True, detail=f"merges cleanly into {target.base_ref}")
-        first = (result.stdout.strip().splitlines() or ["no detail"])[0]
+        first = (result.stdout.strip().splitlines() or [f"git exited {result.returncode}"])[0]
         return Fact(name="merge", ok=False, detail=f"conflicts with {target.base_ref}: {first}")
 
     def base(self, target: Target) -> Fact:
@@ -136,14 +141,14 @@ class PullRequest:
         if contains.returncode == 0:
             return Fact(name="base", ok=True, detail=f"contains {target.base_ref}")
         if contains.returncode != 1:
-            first = (contains.stderr.strip().splitlines() or ["no detail"])[0]
+            first = (contains.stderr.strip().splitlines() or [f"git exited {contains.returncode}"])[0]
             return Fact(name="base", ok=False, detail=f"cannot compare with {target.base_ref}: {first}")
         behind = run(["git", "rev-list", "--count", f"{target.sha}..{target.base_ref}"], cwd=self.root)
         count = behind.stdout.strip() if behind.returncode == 0 else "unknown number of"
         commits = f"{count} commit" if count == "1" else f"{count} commits"
         return Fact(name="base", ok=False, detail=f"behind {target.base_ref} by {commits} — merge the base first")
 
-    def _required_contexts(self, target: Target) -> set[str]:
+    def _required_contexts(self, target: Target) -> set[str] | None:
         query = (
             "query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){"
             "ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}"
@@ -154,8 +159,11 @@ class PullRequest:
             "-f", f"query={query}",
             "-f", f"o={owner}", "-f", f"n={name}", "-f", f"b=refs/heads/{target.base}",
         ])
-        rule = (data.get("data") or {}).get("repository", {}).get("ref", {}) or {}
-        rule = (rule.get("branchProtectionRule") or {})
+        if not data:
+            return None
+        repository = (data.get("data") or {}).get("repository") or {}
+        ref = repository.get("ref") or {}
+        rule = ref.get("branchProtectionRule") or {}
         return set(rule.get("requiredStatusCheckContexts") or [])
 
     def checks(self, target: Target) -> Fact:
@@ -163,13 +171,6 @@ class PullRequest:
             return Fact(name="checks", ok=False, detail="no head sha to read checks from")
         nodes = gh_json(["api", f"repos/{self.repo}/commits/{target.sha}/check-runs?per_page=100"])
         checks = [Check.from_api(node) for node in nodes.get("check_runs", [])]
-        required = self._required_contexts(target)
-        if required:
-            checks = [
-                Check(name=c.name, status=c.status, conclusion=c.conclusion,
-                      started=c.started, required=c.name in required)
-                for c in checks
-            ]
         if not checks:
             return Fact(
                 name="checks",
@@ -177,11 +178,18 @@ class PullRequest:
                 detail="0 check-runs on this sha. Nothing ran: a conflicted PR cannot build "
                 "its merge ref, so no pull_request run starts. Fix the conflict, then re-run.",
             )
+        required = self._required_contexts(target)
         current = latest_by_name(checks)
-        broken = failed(current)
+        broken = failed(current, required)
         if broken:
             return Fact(name="checks", ok=False, detail="; ".join(broken))
-        return Fact(name="checks", ok=True, detail=f"{len(current)} check(s), latest run of each, all successful")
+        if required is None:
+            judged = "required contexts unreadable, every run counted"
+        elif required:
+            judged = f"{len(required)} required context(s) passing"
+        else:
+            judged = "no required contexts, every run counted"
+        return Fact(name="checks", ok=True, detail=f"{len(current)} check(s), latest run of each, all successful; {judged}")
 
     def threads(self, wait: bool) -> Fact:
         tool = shutil.which("pr-threads")
