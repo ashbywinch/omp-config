@@ -113,6 +113,10 @@ jobs:
           # that time. Deciding on a stale value is how a PR merges on an approval
           # that was withdrawn.
 
+          # The workflow whose check the ruleset requires. Named once: the
+          # update path dispatches it, and the dispatch must match the ruleset.
+          CI_WORKFLOW=ci.yml
+
           read_state() {
             gh api graphql -f query='
               query($owner: String!, $repo: String!, $pr: Int!) {
@@ -170,6 +174,21 @@ jobs:
           # more than a hundred, and merges it with threads still open. A failed
           # query is fatal, not zero — an unreadable answer must never read as
           # "no unresolved threads".
+          # Update the branch and start the required check on the new head, so
+          # the merge can happen in this repo whatever token the push carried.
+          update_and_dispatch() {
+            local head_ref
+            head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || return 1
+            gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null || {
+              echo "::error::update-branch failed for $head_ref" >&2
+              return 1
+            }
+            gh workflow run "$CI_WORKFLOW" --repo "$REPO" --ref "$head_ref" || {
+              echo "::error::could not dispatch $CI_WORKFLOW on $head_ref" >&2
+              return 1
+            }
+          }
+
           count_threads() {
             local total=0 cursor="" page
             while : ; do
@@ -229,16 +248,8 @@ jobs:
                 echo "branch updated; waiting for the dispatched check"
               else
                 updated=1
-                head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
-                if ! gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null; then
-                  echo "::error::update-branch failed for $head_ref" >&2
-                  exit 3
-                fi
-                if ! gh workflow run ci.yml --repo "$REPO" --ref "$head_ref"; then
-                  echo "::error::could not dispatch ci.yml on $head_ref" >&2
-                  exit 3
-                fi
-                echo "branch updated and ci.yml dispatched on $head_ref; waiting for its check"
+                update_and_dispatch || exit 3
+                echo "branch updated and $CI_WORKFLOW dispatched; waiting for its check"
               fi
               sleep 60
               continue
@@ -277,12 +288,8 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
-              gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null \
-                || { echo "::error::update-branch failed for $head_ref" >&2; exit 3; }
-              gh workflow run ci.yml --repo "$REPO" --ref "$head_ref" \
-                || { echo "::error::could not dispatch ci.yml on $head_ref" >&2; exit 3; }
-              echo "base moved during the wait; updated and dispatched"
+              update_and_dispatch || exit 3
+              echo "base moved during the wait; updated and $CI_WORKFLOW dispatched"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
