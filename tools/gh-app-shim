@@ -12,13 +12,23 @@
 #                            GH_TOKEN/GITHUB_TOKEN override)
 #
 # An agent session is any of:
-#   PASEO_AGENT_ID set, OMP_GIT_IDENTITY=bot   (the daemon / the agent wrapper)
+#   PASEO_AGENT_ID set, OMP_GIT_IDENTITY=bot   (a Paseo agent / the wrapper)
 #   OPENCODE=1 or AI_AGENT set                 (any shell OpenCode spawns)
 #
-# The OpenCode markers are load-bearing: the daemon sets PASEO_AGENT_ID only on
-# a *dedicated* agent server, and a session served by the shared one carries no
-# agent id at all. Those sessions' gh fell through to the stored human account,
-# so a PR was created as the human — who then cannot approve it.
+# The OpenCode markers are load-bearing, and this is why. Paseo hands an agent
+# its identity through OpenCode's per-session environment — PASEO_AGENT_ID and
+# PASEO_AGENT_CWD, the only keys it applies per session instead of per process
+# — so a top-level agent carries the id whichever server serves it. A subagent
+# is a *child* OpenCode session: OpenCode creates it inside the server and
+# Paseo never sees it as an agent, so no environment is ever set for it. Its
+# shells carry OPENCODE=1 and OPENCODE_SESSION_ID and no PASEO_AGENT_ID, so gh
+# fell through to the stored human account — and a PR created as that human can
+# never be approved by them, because GitHub greys out Approve on your own PR.
+#
+# OPENCODE=1 is safe to key on because the human's own shell does not have it:
+# the Paseo terminal worker sets PASEO_TERMINAL_ID and PASEO_WORKSPACE_ID and
+# no OPENCODE marker. Any marker their interactive shell also carried would
+# turn their own `gh` into the bot's.
 #
 # The app key, app id, and installation id come from ~/.secrets at runtime
 # (sourced here so this works under the Paseo daemon AND a bare terminal). No

@@ -1,9 +1,10 @@
 """The session predicate both shims share: who does this shell belong to?
 
-A shell OpenCode spawns must reach the bot. The daemon sets `PASEO_AGENT_ID`
-only on a *dedicated* agent server, so a session served by the shared one used
-to fall through to the human's stored `gh` account — and the PR it created
-could not be approved by that human.
+A shell OpenCode spawns must reach the bot. Paseo sets `PASEO_AGENT_ID` per
+*session* (OpenCode's environment), and only for the agent sessions it creates
+itself — a subagent is a child session it never sees, so its shells carry
+`OPENCODE=1` and no agent id. Without that marker gh fell through to the human's
+stored account, and the PR it created could not be approved by that human.
 
 These tests run the real shims against a fake `gh`/`git` on PATH: pass-through
 must reach the fake, and every agent marker must stop short of it.

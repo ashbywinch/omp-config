@@ -50,13 +50,21 @@ own terminal keeps your personal credentials:
   into agent calls), export `GH_TOKEN` for that call, exec real `gh`
 - **otherwise** (your terminal, scripts, cron) → pass through to real `gh`
 
-The OpenCode markers are load-bearing. The daemon sets `PASEO_AGENT_ID` only on
-a *dedicated* agent server; a session served by the shared one carries no agent
-id, so those shells fell through to the stored human account and created PRs as
-the human. GitHub greys out **Approve** on your own PR, so that PR can never be
-approved by that human — the one identity the desk's gate depends on. The same
+The OpenCode markers are load-bearing. Paseo hands an agent its identity
+through OpenCode's per-session environment, so a top-level agent carries
+`PASEO_AGENT_ID` whichever server serves it. A subagent is a *child* OpenCode
+session: OpenCode creates it inside the server and Paseo never sets an
+environment for it, so its shells carry `OPENCODE=1` and no agent id. Those
+shells fell through to the stored human account and created PRs as the human.
+GitHub greys out **Approve** on your own PR, so that PR can never be approved
+by that human — the one identity the desk's gate depends on. The same
 predicate gates `tools/git-app-shim` (commits and pushes), so both halves of a
 session agree.
+
+`OPENCODE=1` is safe to key on because your own shell does not have it: the
+Paseo terminal worker sets `PASEO_TERMINAL_ID` and `PASEO_WORKSPACE_ID`, and no
+OpenCode marker. Any marker your interactive shell also carried would turn
+your own `gh` into the bot's.
 
 **No literal secret, anywhere.** The only secret is the App private key, at the
 path in `GITHUB_APP_KEY_FILE` (`chmod 600`, outside the repo). The shim mints a
@@ -69,7 +77,8 @@ installation id are public identifiers and live beside it in `~/.secrets`
 Verify the identity in a shell started the way an agent's is:
 
 ```bash
-env OPENCODE=1 zsh -c 'gh auth status'   # Active account: omp-harness[bot] (GH_TOKEN)
+env OPENCODE=1 zsh -c 'gh auth status'   # Active account: omp-harness[bot]
+zsh -c 'gh auth status'                  # Active account: you
 ```
 
 New machine: `make install-gh-shim` symlinks the shim to `~/.local/bin/gh`
