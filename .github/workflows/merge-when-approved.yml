@@ -214,6 +214,8 @@ jobs:
                   echo "::error::could not dispatch ci.yml on $head_ref — the required check will never run" >&2
                   exit 3
                 fi
+                # the dispatched run's check_suite completion re-triggers this
+                # workflow, so a wait that runs out still gets another pass
                 echo "branch updated and ci.yml dispatched on $head_ref; waiting for its check"
               fi
               sleep 60
@@ -253,18 +255,10 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              # The base moved after the wait loop. Update it, dispatch the
-              # required check, and let the next run finish the merge.
-              head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
-              if ! gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null; then
-                echo "::error::update-branch failed for $head_ref" >&2
-                exit 3
-              fi
-              if ! gh workflow run ci.yml --repo "$REPO" --ref "$head_ref"; then
-                echo "::error::could not dispatch ci.yml on $head_ref — the required check will never run" >&2
-                exit 3
-              fi
-              echo "branch went behind after the wait; updated and dispatched, the next run merges"
+              # The base moved after the wait loop. The loop owns the update, so
+              # leave it there: this run ends, and the next check_suite run
+              # takes the BEHIND path with its own wait.
+              echo "base moved after the wait — leaving the update to the next run"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
