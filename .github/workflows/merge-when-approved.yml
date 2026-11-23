@@ -53,6 +53,7 @@ permissions:
   pull-requests: write  # read the PR, merge it
   checks: read          # the PR's check runs
   statuses: read        # the legacy commit statuses, where a repo uses those
+  actions: write        # dispatch the required check after update-branch
 
 jobs:
   merge:
@@ -225,8 +226,14 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
+              # update-branch commits with GITHUB_TOKEN, and a push made with
+              # that token starts no workflow runs: the new head would have no
+              # checks and this gate would wait on them forever. Dispatch the
+              # required check for the new head by hand.
+              head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref)
               gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
-              echo "branch updated; the next run merges"
+              gh workflow run ci.yml --repo "$REPO" --ref "$head_ref" >/dev/null
+              echo "branch updated and ci.yml dispatched; the next run merges"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
