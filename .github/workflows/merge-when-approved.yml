@@ -17,13 +17,11 @@ name: Merge when approved
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
 #
-# A branch behind the base is NOT updated here. The update-branch call commits
-# with GITHUB_TOKEN, so every workflow run for the new head is created by
-# github-actions[bot], and this repo's Actions policy holds runs from that actor
-# for approval: the checks never start and the gate waits on nothing. A person
-# updating the branch runs the checks normally, and re-approving once after that
-# is cheaper than approving every held run. So this job names the state and
-# stops; it does not touch the branch.
+# A branch behind the base is updated by this job, then the required check is
+# dispatched on the new head. The update and the dispatch both use the app
+# token when `vars.APP_ID` and `secrets.APP_PRIVATE_KEY` are set: a push made by
+# the app runs its own checks, while one made with GITHUB_TOKEN is held for
+# approval and starts nothing.
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
@@ -61,6 +59,7 @@ permissions:
   pull-requests: write  # read the PR, merge it
   checks: read          # the PR's check runs
   statuses: read        # the legacy commit statuses, where a repo uses those
+  actions: write        # dispatch the required check after update-branch
 
 jobs:
   merge:
@@ -70,9 +69,29 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     steps:
+      - name: Mint an app token when the app is configured
+        id: app
+        env:
+          APP_ID: ${{ vars.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -n "${APP_ID}" ] && [ -n "${APP_PRIVATE_KEY}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::APP_ID/APP_PRIVATE_KEY unset — falling back to GITHUB_TOKEN, whose pushes are held for approval"
+          fi
+
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        if: steps.app.outputs.configured == 'true'
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Merge if approved, resolved and green
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || github.event.workflow_run.pull_requests[0].number || '' }}
           SHA: ${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
@@ -184,6 +203,7 @@ jobs:
           # Checks usually finish after the approval that started this job, and the
           # last one to finish is often the review the PR is waiting on. Wait for
           # them rather than deciding on a snapshot.
+          updated=0
           for attempt in $(seq 1 15); do
             read -r decision state head_repo < <(read_state)
             checks=$(read_checks) || exit 3
@@ -201,11 +221,27 @@ jobs:
               echo "$open_threads review thread(s) unresolved — not merging"; exit 0
             fi
 
-            # The branch is behind the base. Updating it here would create a
-            # head whose runs are held for approval, so name it and stop.
+            # Behind the base: update, then make sure the required check exists
+            # on the new head. The dispatch covers the GITHUB_TOKEN fallback,
+            # where the update starts no runs.
             if [ "$state" = "BEHIND" ]; then
-              echo "::warning::branch is behind the base — update it, then approve again"
-              exit 0
+              if [ "$updated" = "1" ]; then
+                echo "branch updated; waiting for the dispatched check"
+              else
+                updated=1
+                head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
+                if ! gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null; then
+                  echo "::error::update-branch failed for $head_ref" >&2
+                  exit 3
+                fi
+                if ! gh workflow run ci.yml --repo "$REPO" --ref "$head_ref"; then
+                  echo "::error::could not dispatch ci.yml on $head_ref" >&2
+                  exit 3
+                fi
+                echo "branch updated and ci.yml dispatched on $head_ref; waiting for its check"
+              fi
+              sleep 60
+              continue
             fi
 
             if [ "$checks" = "SUCCESS" ]; then
@@ -241,7 +277,12 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              echo "::warning::branch went behind the base during the wait — update it, then approve again"
+              head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
+              gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null \
+                || { echo "::error::update-branch failed for $head_ref" >&2; exit 3; }
+              gh workflow run ci.yml --repo "$REPO" --ref "$head_ref" \
+                || { echo "::error::could not dispatch ci.yml on $head_ref" >&2; exit 3; }
+              echo "base moved during the wait; updated and dispatched"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
