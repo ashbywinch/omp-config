@@ -113,9 +113,9 @@ holds.
    repository: the property definition (type, options, ids) and, for every page,
    the page id, the object's title/id, and the property's value. Mode `0600`.
 2. **Check the views.** Retrieve each view on the database and look for the
-   property in filters, sorts and visible columns. A filter or sort on a
-   property about to disappear is a question for the user; a visible column is
-   not.
+   property in filters, sorts and visible columns. Ask the user before removing a
+   property that a filter or sort uses. A visible column alone does not stop the
+   removal.
 3. **Remove it** with `PATCH /v1/data_sources/<id>` and
    `{"properties": {"<Name>": null}}`.
 4. **Verify**: the property is absent from the schema, the views no longer list
