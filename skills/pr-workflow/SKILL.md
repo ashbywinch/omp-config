@@ -142,6 +142,22 @@ Chat and thread replies have no extractor, so `PR#2` is fine there.
 
 ### 4. Create PR
 
+**Check the identity; do not export it.** A PR authored by the human cannot be
+approved by that human — GitHub greys "Approve" on your own PR — so a wrong
+identity costs the whole review round. The session carries the identity: `gh`
+here is a shim that mints the App token in an agent session and passes through
+to the user's own account in their terminal, subagent sessions included. So
+check, then create:
+
+```bash
+gh auth status                                     # active account is the bot
+gh pr create --title … --body-file … --base main --head <branch>
+gh pr view <n> --json author --jq .author.login    # app/<app-name> or *[bot]
+```
+
+If the author is a human, close and recreate it immediately: at creation that
+costs nothing; after a review round it costs the whole round.
+
 ```bash
 gh pr create \
   --title "type: description" \

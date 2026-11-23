@@ -32,7 +32,11 @@ the clone's main checkout. Drive the author-side loop: read the findings, fix
 them, reply to every inline comment with evidence, push once per review pass,
 wait for the next review, and repeat. Run `make check` before each push.
 
-Never approve a PR, never resolve a review thread, and never merge. Do not run
+Never approve a PR, never resolve a review thread, and never merge. **Check a
+new PR's author at once** (`gh pr view <n> --json author`): a human-authored PR
+cannot be approved by that human, and the desk's gate assumes the human is the
+reviewer, not the author. If it is wrong, close and recreate before review
+starts. Do not run
 `gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's
 approval; if it is absent or not firing, report that as a bug.
 
