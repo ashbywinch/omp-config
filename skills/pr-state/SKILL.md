@@ -21,9 +21,9 @@ A clean merge, a current base, a green head and answered threads are separate
 claims. One failing blocks the PR whatever the others say.
 
 **Behind the base is not ready.** The base is `origin/<base>`, never a local
-branch of that name. GitHub reports such a PR `MERGEABLE`, and merging it drops
-the base's newer commits. The fix is the branch's: merge the base in, resolve,
-push, then ask again.
+branch of that name. A PR behind its base is not ready: merging it drops the
+base's newer commits. The fix is the branch's: merge the base in, resolve, push,
+then ask again.
 
 ## What the script cannot decide
 

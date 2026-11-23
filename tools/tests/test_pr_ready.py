@@ -1,3 +1,5 @@
+"""Tests for `tools/pr_ready.py`."""
+
 import subprocess
 import unittest
 from pathlib import Path
@@ -94,7 +96,7 @@ class BehindBaseTest(unittest.TestCase):
     def test_the_base_is_fetched_on_every_call(self):
         fake = FakeGit()
         self.base(fake)
-        self.assertIn(["git", "fetch", "origin", "main"], fake.calls)
+        self.assertIn(["git", "fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"], fake.calls)
 
     def test_an_unreadable_base_fails_rather_than_passing(self):
         fact = self.base(FakeGit(ancestor=128, stderr="fatal: bad revision 'origin/main'"))

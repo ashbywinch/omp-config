@@ -17,8 +17,6 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-# Branch protection accepts these as passing: `neutral` finished without a
-# verdict, `skipped` did not apply. Only a failure conclusion blocks.
 PASSING_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
 
 
@@ -123,7 +121,8 @@ class PullRequest:
         return bool(sha) and run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=self.root).returncode == 0
 
     def _fetch(self, target: Target) -> None:
-        run(["git", "fetch", "origin", target.base], cwd=self.root)
+        refspec = f"+refs/heads/{target.base}:refs/remotes/origin/{target.base}"
+        run(["git", "fetch", "origin", refspec], cwd=self.root)
         if not self._has_commit(target.sha):
             run(["git", "fetch", "origin", target.sha], cwd=self.root)
 
