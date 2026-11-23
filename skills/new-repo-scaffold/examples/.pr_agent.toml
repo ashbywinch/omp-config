@@ -69,8 +69,7 @@ extra_instructions = "Check the PR against each file in repo_context_files. Befo
 
 [github_action_config]
 handle_push_trigger = true
-# Code suggestions are off: on a large diff the suggestion pass can fail the
-# run, and the review and its findings are the part that matters.
+# Code suggestions are off: the pass can fail the whole run on a large diff.
 auto_improve = false
 push_commands = ["/review"]
 # A human posting "/skip" on the PR skips the AI review for that PR
