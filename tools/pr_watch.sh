@@ -4,18 +4,23 @@
 #   pr-watch.sh <pr> [owner/name] [interval-seconds]
 #
 # `pr-threads --wait` returns as soon as the reviewer has finished on the
-# current head — so a single call answers "what is unanswered *now*" and then
-# stops watching. Comments arrive afterwards, from the bot on a later pass or
-# from a person at any time, and nothing is listening. This wrapper re-arms
-# after every answer: it polls, and exits only when an unanswered thread
-# exists, printing it. Launch it in the background; its exit is the wake-up.
-# Like every watcher here, it must fail loudly at startup rather than poll a
-# question it cannot answer: an unreadable repo or a missing helper would
-# otherwise look exactly like a quiet PR, forever.
+# current head, so one call answers "what is unanswered now" and then stops
+# watching. Comments arrive afterwards, from the bot on a later pass or from a
+# person at any time.
 #
-# For the desk's long-lived companion — which stays with one PR and also
-# reports a failing required check and a ready-for-approval state — use
-# pr-desk-watch.sh.
+# This wrapper re-arms after every answer: it polls, and exits only when an
+# unanswered thread exists, printing it.
+#
+# Launch it in the background.
+#
+# Its exit is the wake-up.
+#
+# Every watcher here fails loudly at startup rather than poll a question it
+# cannot answer: an unreadable repo or a missing helper would otherwise look
+# exactly like a quiet PR, forever.
+#
+# The desk's long-lived companion — which stays with one PR and also reports a
+# failing required check and a ready-for-approval state — is pr-desk-watch.sh.
 #
 # It never resolves a thread and never pushes. Answering is the agent's job.
 set -uo pipefail

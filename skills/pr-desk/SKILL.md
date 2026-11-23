@@ -44,30 +44,42 @@ Start it once per PR, in the background, for the life of the PR:
 PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" pr-desk-watch.sh <n> <owner/name>
 ```
 
-The two addresses are not interchangeable. `PASEO_AGENT_ID` receives the work
-notices (unanswered threads, a failing required check); it is this session,
-because the desk owns the PR. `PR_DESK_HUMAN_AGENT` receives "ready for your
-approval" — set it to this session's id, since this session is the desk the
-person talks to. A subagent you spawn is a worker with no channel to the
-person: do not hand the watcher to one, and do not point the human notice at
-one. The watcher refuses to start when `PR_DESK_HUMAN_AGENT` is unset.
+`PASEO_AGENT_ID` receives the work notices — unanswered threads, a failing
+required check. It is this session, because the desk owns the PR.
+`PR_DESK_HUMAN_AGENT` receives "ready for your approval"; it is this session
+too, because this session is the desk the person talks to. The watcher refuses
+to start when `PR_DESK_HUMAN_AGENT` is unset.
 
-Do not relaunch it for a new head — the check signature is keyed on the head
-and the thread signature on the threads' ids, so a push notifies once and a
-fixed re-run clears itself. Relaunch only after it exits, which it does when
-the PR merges or closes.
+The two addresses are not interchangeable. A subagent you spawn is a worker
+with no channel to the person.
+
+Do not hand the watcher to a subagent, and do not point the human notice at
+one.
+
+The check signature is keyed on the head and the thread signature on the
+threads' ids, so a push notifies once and a fixed re-run clears itself.
+
+Do not relaunch the watcher for a new head. Relaunch it only after it exits.
+
+It exits when the PR merges or closes.
 
 Relay the "ready for your approval" message to the person with the PR link and
-what stands behind it. Never approve, never resolve a review thread, never
-merge, and do not run `gh pr merge`. The repo's `merge-when-approved` workflow
-merges on the person's approval; if it is absent or not firing, report that as
-a bug.
+what stands behind it.
+
+Never approve, never resolve a review thread, never merge, and do not run
+`gh pr merge`.
+
+The repo's `merge-when-approved` workflow merges on the person's approval.
+
+If that workflow is absent or not firing, report it as a bug.
 
 ## Readiness is pr-ready's verdict
 
-`pr-ready <n> --repo <owner/name> --no-wait` decides it; `pr-threads <n>` says
-what is still unanswered. Do not report against it: "inherited", "the same on
-main" and "someone else's failure" never turn a red required check green.
+`pr-ready <n> --repo <owner/name> --no-wait` decides it. `pr-threads <n>` says
+what is still unanswered.
+
+Do not report against it: "inherited", "the same on main" and "someone else's
+failure" never turn a red required check green.
 
 Re-rank after every merge. Report the queue, the chosen PR, and why. When the
 queue is empty, say "archive me" and stop.
