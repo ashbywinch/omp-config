@@ -22,9 +22,8 @@ claims. One failing blocks the PR whatever the others say.
 
 **Behind the base is not ready.** The base is `origin/<base>`, never a local
 branch of that name. GitHub reports such a PR `MERGEABLE`, and merging it drops
-the base's newer commits — so the diff under review was proved against a base
-that has since moved. The fix is the branch's: merge the base in, resolve, push,
-then ask again.
+the base's newer commits. The fix is the branch's: merge the base in, resolve,
+push, then ask again.
 
 ## What the script cannot decide
 

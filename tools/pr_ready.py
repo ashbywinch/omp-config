@@ -2,22 +2,6 @@
 """Prove a PR's state and say whether it can be handed over.
 
     pr_ready.py <pr-number> [--repo owner/name] [--root path] [--no-wait]
-
-Each fact is printed with its evidence, then READY or BLOCKED and the next step;
-exit 0 when ready, 1 when blocked. A fact the tool cannot read is a failure, not
-a pass.
-
-Merging cleanly and being current are separate claims: GitHub reports MERGEABLE
-for a branch behind its base, and the merge it makes would drop the base's newer
-commits. So the base is `origin/<base>`, never a local branch of that name.
-
-Absence is not success. Zero check-runs is BLOCKED, and the reason matters: a
-conflicted PR cannot build its merge ref, so the `pull_request` event never
-starts a run and the PR shows no checks at all. That reads as nothing to report
-if nobody counts.
-
-A cancelled check is stale, not failed: a newer run on the same ref replaced it.
-The tool names it rather than guessing which run to keep.
 """
 
 from __future__ import annotations
@@ -31,39 +15,37 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+PASSING_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
+
 
 class Verdict(Enum):
-    """The one word a reader acts on."""
-
     READY = "READY"
     BLOCKED = "BLOCKED"
 
 
 @dataclass(frozen=True)
 class Fact:
-    """One claim and its evidence: `detail` lets a reader check `ok` without re-running the tool."""
-
     name: str
     ok: bool
     detail: str
 
+    def __post_init__(self) -> None:
+        if not self.detail.strip():
+            raise ValueError(f"fact {self.name!r} carries no evidence")
+
 
 @dataclass(frozen=True)
 class Target:
-    """The two coordinates of a merge question: what merges, and into what."""
-
     sha: str
     base: str
+
+    @property
+    def base_ref(self) -> str:
+        return f"origin/{self.base}"
 
 
 @dataclass(frozen=True)
 class Check:
-    """One check-run on the head, as far as a verdict needs it.
-
-    `started` orders two runs of the same name: a re-run supersedes the run
-    before it, and a cancelled run is the superseded one.
-    """
-
     name: str
     status: str
     conclusion: str | None
@@ -72,7 +54,6 @@ class Check:
 
     @classmethod
     def from_api(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
-        """Read one check-run off the wire."""
         return cls(
             name=str(node.get("name") or "unnamed"),
             status=str(node.get("status") or "unknown"),
@@ -82,33 +63,19 @@ class Check:
 
     @property
     def passed(self) -> bool:
-        """Finished, and not reporting a problem.
-
-        GitHub treats `success`, `neutral` and `skipped` as passing for branch
-        protection: `neutral` says the run finished without a verdict (the
-        reviewer's informational check), `skipped` says its `if:` did not match.
-        Only a failure conclusion blocks.
-        """
-        return self.status == "completed" and self.conclusion in ("success", "neutral", "skipped")
+        return self.status == "completed" and self.conclusion in PASSING_CONCLUSIONS
 
 
 def run(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    """Run a command and keep its output, whether or not it exits zero."""
     return subprocess.run(args, cwd=cwd, capture_output=True, text=True, check=False)
 
 
 def gh_json(args: list[str]) -> dict:  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
-    """A `gh api` response, parsed, or an empty record when the call fails."""
     result = run(["gh", *args])
     return json.loads(result.stdout) if result.returncode == 0 and result.stdout.strip() else {}
 
 
 def latest_by_name(checks: list[Check]) -> list[Check]:
-    """One check per name, the most recent run.
-
-    A re-run supersedes the run before it, so counting every run reports a
-    cancelled run as a failure while the run that replaced it is green.
-    """
     latest: dict[str, Check] = {}
     for check in checks:
         held = latest.get(check.name)
@@ -117,79 +84,66 @@ def latest_by_name(checks: list[Check]) -> list[Check]:
     return list(latest.values())
 
 
-def failed(checks: list[Check]) -> list[str]:
-    """The REQUIRED checks that did not pass.
+def blocking(checks: list[Check]) -> list[Check]:
+    required = [check for check in checks if check.required]
+    return required or checks
 
-    A check the branch does not require cannot block a merge, so reporting it
-    as a failure is a wrong verdict that teaches the reader to ignore the
-    tool. When the API will not say which contexts are required, every check
-    counts — the conservative direction.
-    """
-    required = [check for check in checks if check.required] or checks
+
+def failed(checks: list[Check]) -> list[str]:
     return [
         f"{check.name} is {check.status.lower()} {check.conclusion or ''}".strip()
-        for check in required
+        for check in blocking(checks)
         if not check.passed
     ]
 
 
 @dataclass(frozen=True)
 class PullRequest:
-    """What a PR is: a repo, a number, and the checkout its diff is proved in."""
-
     repo: str
     number: str
     root: Path
 
     def target(self) -> Target:
-        """The head sha and base branch, as the PR records them."""
         data = gh_json(["api", f"repos/{self.repo}/pulls/{self.number}"])
         return Target(
             sha=data.get("head", {}).get("sha", ""),
             base=data.get("base", {}).get("ref", "main"),
         )
 
-    def _present(self, target: Target) -> bool:
-        """A comparison is only as true as the refs it read: the base by name, the head by sha."""
+    def _has_commit(self, sha: str) -> bool:
+        return bool(sha) and run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=self.root).returncode == 0
+
+    def _fetch(self, target: Target) -> None:
         run(["git", "fetch", "origin", target.base], cwd=self.root)
-        if not target.sha:
-            return False
-        if run(["git", "cat-file", "-e", f"{target.sha}^{{commit}}"], cwd=self.root).returncode != 0:
+        if not self._has_commit(target.sha):
             run(["git", "fetch", "origin", target.sha], cwd=self.root)
-        return True
 
     def merge(self, target: Target) -> Fact:
-        """Whether the head merges into the base, by tree rather than by GitHub's opinion."""
-        self._present(target)
-        result = run(["git", "merge-tree", "--write-tree", f"origin/{target.base}", target.sha], cwd=self.root)
+        self._fetch(target)
+        if not self._has_commit(target.sha):
+            return Fact(name="merge", ok=False, detail="no head sha to merge")
+        result = run(["git", "merge-tree", "--write-tree", target.base_ref, target.sha], cwd=self.root)
         if result.returncode == 0:
-            return Fact(name="merge", ok=True, detail=f"merges cleanly into origin/{target.base}")
+            return Fact(name="merge", ok=True, detail=f"merges cleanly into {target.base_ref}")
         first = (result.stdout.strip().splitlines() or ["no detail"])[0]
-        return Fact(name="merge", ok=False, detail=f"conflicts with origin/{target.base}: {first}")
+        return Fact(name="merge", ok=False, detail=f"conflicts with {target.base_ref}: {first}")
 
     def base(self, target: Target) -> Fact:
-        """Whether the head contains the base tip. A PR behind its base is not ready.
-
-        The base is `origin/<base>`, never a local branch of the same name: local
-        `main` is whatever the last checkout left there, so it would pass a PR
-        that is behind the real base.
-        """
-        if not self._present(target):
+        self._fetch(target)
+        if not self._has_commit(target.sha):
             return Fact(name="base", ok=False, detail="no head sha to compare with the base")
-        origin_base = f"origin/{target.base}"
-        contains = run(["git", "merge-base", "--is-ancestor", origin_base, target.sha], cwd=self.root)
+        contains = run(["git", "merge-base", "--is-ancestor", target.base_ref, target.sha], cwd=self.root)
         if contains.returncode == 0:
-            return Fact(name="base", ok=True, detail=f"contains {origin_base}")
+            return Fact(name="base", ok=True, detail=f"contains {target.base_ref}")
         if contains.returncode != 1:
             first = (contains.stderr.strip().splitlines() or ["no detail"])[0]
-            return Fact(name="base", ok=False, detail=f"cannot compare with {origin_base}: {first}")
-        behind = run(["git", "rev-list", "--count", f"{target.sha}..{origin_base}"], cwd=self.root)
+            return Fact(name="base", ok=False, detail=f"cannot compare with {target.base_ref}: {first}")
+        behind = run(["git", "rev-list", "--count", f"{target.sha}..{target.base_ref}"], cwd=self.root)
         count = behind.stdout.strip() if behind.returncode == 0 else "unknown number of"
         commits = f"{count} commit" if count == "1" else f"{count} commits"
-        return Fact(name="base", ok=False, detail=f"behind {origin_base} by {commits} — merge the base first")
+        return Fact(name="base", ok=False, detail=f"behind {target.base_ref} by {commits} — merge the base first")
 
-    def _required_names(self, target: Target) -> set[str]:
-        """The required check contexts for the base branch, or empty when unreadable."""
+    def _required_contexts(self, target: Target) -> set[str]:
         query = (
             "query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){"
             "ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}"
@@ -205,12 +159,11 @@ class PullRequest:
         return set(rule.get("requiredStatusCheckContexts") or [])
 
     def checks(self, target: Target) -> Fact:
-        """Whether every check on the head passed, with zero checks a failure."""
         if not target.sha:
             return Fact(name="checks", ok=False, detail="no head sha to read checks from")
         nodes = gh_json(["api", f"repos/{self.repo}/commits/{target.sha}/check-runs?per_page=100"])
         checks = [Check.from_api(node) for node in nodes.get("check_runs", [])]
-        required = self._required_names(target)
+        required = self._required_contexts(target)
         if required:
             checks = [
                 Check(name=c.name, status=c.status, conclusion=c.conclusion,
@@ -231,7 +184,6 @@ class PullRequest:
         return Fact(name="checks", ok=True, detail=f"{len(current)} check(s), latest run of each, all successful")
 
     def threads(self, wait: bool) -> Fact:
-        """Whether any review thread is waiting for an answer, asked of pr-threads."""
         tool = shutil.which("pr-threads")
         if not tool:
             return Fact(name="threads", ok=False, detail="pr-threads is not on PATH: run `make install`")
@@ -246,12 +198,10 @@ class PullRequest:
 
 
 def verdict(facts: list[Fact]) -> Verdict:
-    """READY is the conjunction of the facts, never a majority."""
     return Verdict.READY if all(fact.ok for fact in facts) else Verdict.BLOCKED
 
 
 def next_step(facts: list[Fact]) -> str:
-    """What to do about the facts that failed."""
     fixes = {
         "merge": "resolve the conflict against the base and push",
         "base": "merge the base branch into this one and push — a PR behind its base is not ready",
@@ -265,7 +215,6 @@ def next_step(facts: list[Fact]) -> str:
 
 
 def report(pr: PullRequest, target: Target, facts: list[Fact]) -> str:
-    """Each fact with its evidence, then the verdict and the next step."""
     lines = [f"PR {pr.number} ({pr.repo}) @ {target.sha[:12] or 'unknown'}"]
     lines += [f"  {fact.name:7} {'ok   ' if fact.ok else 'FAIL '} {fact.detail}" for fact in facts]
     lines += [f"{verdict(facts).value}: {next_step(facts)}"]

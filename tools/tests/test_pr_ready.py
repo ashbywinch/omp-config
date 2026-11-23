@@ -1,5 +1,3 @@
-"""The failures a READY verdict must never hide: absence, a superseded run, a head behind its base."""
-
 import subprocess
 import unittest
 from pathlib import Path
@@ -11,6 +9,7 @@ from tools.pr_ready import (
     PullRequest,
     Target,
     Verdict,
+    blocking,
     failed,
     latest_by_name,
     next_step,
@@ -18,46 +17,35 @@ from tools.pr_ready import (
 )
 
 
-def check(name: str = "ci", status: str = "completed", conclusion: str | None = "success") -> Check:
-    return Check(name=name, status=status, conclusion=conclusion)
+def check(name: str = "ci", status: str = "completed", conclusion: str | None = "success", required: bool = False) -> Check:
+    return Check(name=name, status=status, conclusion=conclusion, required=required)
 
 
 def facts(*oks: bool) -> list[Fact]:
     names = ("merge", "base", "checks", "threads")
-    return [Fact(name=name, ok=ok, detail="") for name, ok in zip(names, oks)]
-
-
-class Completed:
-    """The slice of CompletedProcess the tool reads."""
-
-    def __init__(self, args: list[str], returncode: int = 0, stdout: str = "", stderr: str = ""):
-        self.args = args
-        self.returncode = returncode
-        self.stdout = stdout
-        self.stderr = stderr
+    return [Fact(name=name, ok=ok, detail="evidence") for name, ok in zip(names, oks)]
 
 
 class FakeGit:
-    """Answer git like a checkout would, and keep every command it was asked."""
-
-    def __init__(self, *, ancestor: int = 0, behind: str = "0", stderr: str = ""):
+    def __init__(self, *, ancestor: int = 0, behind: str = "0", stderr: str = "", head: str = "abc123"):
         self.ancestor = ancestor
         self.behind = behind
         self.stderr = stderr
+        self.head = head
         self.calls: list[list[str]] = []
 
-    def __call__(self, args: list[str], cwd: Path | None = None) -> Completed:
+    def __call__(self, args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
         self.calls.append(args)
+        if args[1:2] == ["cat-file"]:
+            return subprocess.CompletedProcess(args, 0 if args[-1] == f"{self.head}^{{commit}}" else 1)
         if args[1:2] == ["merge-base"]:
-            return Completed(args, self.ancestor, "", self.stderr)
+            return subprocess.CompletedProcess(args, self.ancestor, "", self.stderr)
         if args[1:2] == ["rev-list"]:
-            return Completed(args, 0, f"{self.behind}\n")
-        return Completed(args, 0)
+            return subprocess.CompletedProcess(args, 0, f"{self.behind}\n")
+        return subprocess.CompletedProcess(args, 0)
 
 
-class BaseTest(unittest.TestCase):
-    """A PR behind its base is blocked, and the base is origin/<ref>."""
-
+class BehindBaseTest(unittest.TestCase):
     def base(self, fake: FakeGit, sha: str = "abc123") -> Fact:
         original = pr_ready.run
         pr_ready.run = fake
@@ -86,6 +74,9 @@ class BaseTest(unittest.TestCase):
         self.assertIn(["git", "merge-base", "--is-ancestor", "origin/main", "abc123"], fake.calls)
         self.assertIn(["git", "rev-list", "--count", "abc123..origin/main"], fake.calls)
 
+    def test_the_base_ref_is_built_from_origin(self):
+        self.assertEqual(Target(sha="abc123", base="main").base_ref, "origin/main")
+
     def test_an_unreadable_base_fails_rather_than_passing(self):
         fact = self.base(FakeGit(ancestor=128, stderr="fatal: bad revision 'origin/main'"))
         self.assertFalse(fact.ok)
@@ -94,18 +85,21 @@ class BaseTest(unittest.TestCase):
     def test_no_head_sha_fails_the_fact(self):
         self.assertFalse(self.base(FakeGit(), sha="").ok)
 
+    def test_an_unfetched_head_fails_the_fact(self):
+        self.assertFalse(self.base(FakeGit(head="abc123"), sha="def456").ok)
+
     def test_behind_blocks_even_when_the_merge_is_clean(self):
-        """The reported bug: clean merge, green checks, no threads — and behind."""
         state = facts(True, False, True, True)
         self.assertEqual(verdict(state), Verdict.BLOCKED)
         self.assertIn("behind", next_step(state))
 
 
 class ChecksTest(unittest.TestCase):
-    """A check passes only when it is completed and successful."""
-
     def test_a_completed_success_passes(self):
         self.assertEqual(failed([check()]), [])
+
+    def test_neutral_and_skipped_pass(self):
+        self.assertEqual(failed([check(conclusion="neutral"), check(name="docs", conclusion="skipped")]), [])
 
     def test_a_running_check_does_not_pass(self):
         self.assertEqual(len(failed([check(status="in_progress", conclusion=None)])), 1)
@@ -117,15 +111,25 @@ class ChecksTest(unittest.TestCase):
         self.assertIn("ci", failed([check(conclusion="failure")])[0])
 
 
-class SupersededTest(unittest.TestCase):
-    """A re-run replaces the run before it; a cancelled run is the replaced one."""
+class RequiredTest(unittest.TestCase):
+    def test_a_check_the_branch_does_not_require_cannot_block(self):
+        checks = [check(name="ci", required=True), check(name="lint", conclusion="failure", required=False)]
+        self.assertEqual(failed(checks), [])
 
+    def test_an_unreadable_required_list_makes_every_check_count(self):
+        self.assertEqual(len(blocking([check(conclusion="failure")])), 1)
+
+    def test_only_the_required_checks_are_judged(self):
+        checks = [check(name="ci", conclusion="failure", required=True), check(name="lint", required=False)]
+        self.assertEqual(len(blocking(checks)), 1)
+
+
+class SupersededTest(unittest.TestCase):
     def test_a_later_success_supersedes_an_earlier_cancelled_run(self):
         runs = [check(conclusion="cancelled"), check(conclusion="success")]
         self.assertEqual(failed(latest_by_name(runs)), [])
 
     def test_a_run_cancelled_after_a_success_still_reports_the_latest(self):
-        """The PR head that ran arm six times: cancelled, success, cancelled, success."""
         runs = [
             Check(name="arm", status="completed", conclusion="cancelled", started="13:26:45"),
             Check(name="arm", status="completed", conclusion="success", started="13:26:49"),
@@ -144,8 +148,6 @@ class SupersededTest(unittest.TestCase):
 
 
 class ZeroChecksTest(unittest.TestCase):
-    """Nothing ran is not the same as everything passed, and the cause matters."""
-
     def report(self, check_runs: list[dict], sha: str = "abc123") -> Fact:
         original = pr_ready.gh_json
         pr_ready.gh_json = lambda args: {"check_runs": check_runs}
@@ -168,9 +170,13 @@ class ZeroChecksTest(unittest.TestCase):
         self.assertTrue(fact.ok)
 
 
-class VerdictTest(unittest.TestCase):
-    """READY needs every fact; one failure blocks the rest."""
+class EvidenceTest(unittest.TestCase):
+    def test_a_fact_without_evidence_is_refused(self):
+        with self.assertRaises(ValueError):
+            Fact(name="merge", ok=True, detail="   ")
 
+
+class VerdictTest(unittest.TestCase):
     def test_all_four_hold_is_ready(self):
         self.assertEqual(verdict(facts(True, True, True, True)), Verdict.READY)
 
