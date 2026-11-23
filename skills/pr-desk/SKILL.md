@@ -66,9 +66,8 @@ a bug.
 ## Readiness is pr-ready's verdict
 
 `pr-ready <n> --repo <owner/name> --no-wait` decides it; `pr-threads <n>` says
-what is still unanswered. Do not overrule the verdict with a check's colour: a
-red required check is blocked — never "inherited", never "the same on main",
-never "someone else's failure".
+what is still unanswered. Do not report against it: "inherited", "the same on
+main" and "someone else's failure" never turn a red required check green.
 
 Re-rank after every merge. Report the queue, the chosen PR, and why. When the
 queue is empty, say "archive me" and stop.
