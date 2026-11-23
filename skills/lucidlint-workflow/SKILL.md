@@ -102,10 +102,14 @@ Read the reason in the stderr file the Makefile writes, `lucidlint-dist/.last.er
 unreadable — ignoring`, then runs with an empty baseline: no keys, empty ledger.
 `[]`, `{}`, a truncated file and a missing file are all accepted, and the run
 still exits 0. It also prints `config-ignored '<rule>' grew 0 -> N` for every
-rule the missing ledger cannot compare. Treat those lines as warnings, never as
-the failure. Restore the file with `--update-baseline --baseline lucidlint.json`.
-That command writes `{actions, config_ignored}`, so read what the new baseline
-acknowledges. Then trace the crash, not the file.
+rule the empty ledger cannot compare. Treat those lines as warnings, never as
+the failure.
+
+**The baseline records accepted debt, so repairing it is a decision.**
+`--update-baseline --baseline lucidlint.json` writes today's tree as the new
+baseline, and every action it finds becomes acknowledged debt. Run that command
+only when you accept the debt. Otherwise fix the actions first, then regenerate
+the file.
 
 Under the pre-commit hook the tree is transient: the hook stashes unstaged
 changes, runs, then restores them, so a scan can read a half-applied edit. Rule
