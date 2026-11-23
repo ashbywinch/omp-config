@@ -56,21 +56,16 @@ require_security_review = true
 # Each finding becomes an inline thread, so a reviewer can resolve it one at a
 # time and nothing stays hidden in the summary comment.
 inline_key_issues = true
+# The review comment is the record the verify job reads, kept current with no
+# "updated to latest commit" note on every push.
+final_update_message = false
+# Derive findings from the diff every run; cached wording goes stale when a fix
+# rewrites the sentence a finding quoted.
+persistent_finding_state = false
 # Response-size budget, not a target. Too high truncates the review and fails
 # the check. Too low hides findings. 10 is the house balance.
 num_max_findings = 10
 extra_instructions = "Check the PR against each file in repo_context_files. Before checking compliance, derive the domain glossary from docs/PRD.md and docs/TECHSPEC.md (entities, actions, personas, states, object model), then read the diff against it two ways. Vocabulary: a domain-level name (class, module, public entry point, domain-typed field) using technical or vague words instead of the documented term is a finding. Latent concepts: domain behaviour smeared across several functions or buried inside one, owned by no identifier, is equally a finding — draw it out under a glossary name, proposing a new glossary term where none fits. Generic helper, plumbing, and config-key names are not glossary checks.  Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (docs failing the documentation-quality checklist — context efficiency, density, no-duplication, one topic per file), folder-structure deviations from docs/documentation-structure.md (missing or malformed required docs — PRD with JTBD/personas/constraints/user requirements, TECHSPEC with choices/spikes/diagrams, UX.md, PLAN with the software's phase inputs/outputs and quality gates — every doc discoverable from AGENTS.md, skills exempt from reachability since the harness discovers them), and UX deviations from docs/ux-standards.md. Structural findings the standards name are findings too: a missed class (bare dict/tuple/list in a record position), a name that violates the object model or domain-noun rules, and separation-of-concerns violations. Suppression comments are findings when their why fails the evidence bar in docs/coding-standards.md ('Suppressions carry checkable evidence') — review every exemption form that section names (`lucidlint: ignore`, `ignore-file`, `# type: ignore`, `#[allow(...)]`, `# noqa`), not only the lucidlint ones."
-
-[pr_code_suggestions]
-# Documentation is reviewed like code: a doc finding lands on the line that
-# breaks the rule, not only in the review summary.
-extra_instructions = """
-Apply docs/writing-documentation.md to every markdown file the diff changes.
-Propose a concrete replacement line for each rule the file breaks.
-Anchor every suggestion to the line it replaces.
-"""
-persistent_comment = true
-commitable_code_suggestions = true  # inline mode: the summarized table comment is never published; a posting failure degrades to verified one-line comments, never a table
 
 [github_action_config]
 handle_push_trigger = true
