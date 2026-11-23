@@ -24,6 +24,9 @@
 #   to review.
 # - extra_instructions demands a per-doc Compliance section — this is what
 #   makes the bot enforce the standards instead of rubber-stamping.
+# - Code suggestions stay off (auto_improve = false): the pass can fail the
+#   whole run on a large diff. Doc enforcement does not depend on it; it lives
+#   in this file's [pr_reviewer] extra_instructions above.
 
 [openai]
 custom_llm_provider = "openai"
