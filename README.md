@@ -40,18 +40,37 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 
 ## GitHub App auth for gh (omp vs your terminal)
 
-omp shells out to `gh` for GitHub work. The `tools/gh-app-shim` makes omp
-authenticate as the **omp-harness GitHub App** while your own terminal `gh`
-keeps your personal credentials:
+omp shells out to `gh` for GitHub work. The `tools/gh-app-shim` makes an
+**agent session** authenticate as the **omp-harness GitHub App**, while your
+own terminal keeps your personal credentials:
 
-- **stdin is a TTY** (you in a terminal) → pass through to real gh (your creds)
-- **`GH_TOKEN`/`GITHUB_TOKEN` set** (your scripts) → pass through untouched
-- **neither** (omp, no TTY) → mint a fresh app installation token, export `GH_TOKEN`, exec real gh
+- **agent session** — any of `PASEO_AGENT_ID`, `OMP_GIT_IDENTITY=bot`,
+  `OPENCODE=1`, `AI_AGENT` is set → mint a fresh app installation token,
+  override any inherited `GH_TOKEN`/`GITHUB_TOKEN` (a user token must not leak
+  into agent calls), export `GH_TOKEN` for that call, exec real `gh`
+- **otherwise** (your terminal, scripts, cron) → pass through to real `gh`
 
-The app id, key file path, and installation id live in `~/.secrets`
-(`GITHUB_APP_ID`, `GITHUB_APP_KEY_FILE`, `GITHUB_APP_INSTALLATION_ID`), sourced
-by the shim at runtime — so it works under the Paseo daemon and a bare
-terminal alike, without the daemon holding a stale token.
+The OpenCode markers are load-bearing. The daemon sets `PASEO_AGENT_ID` only on
+a *dedicated* agent server; a session served by the shared one carries no agent
+id, so those shells fell through to the stored human account and created PRs as
+the human. GitHub greys out **Approve** on your own PR, so that PR can never be
+approved by that human — the one identity the desk's gate depends on. The same
+predicate gates `tools/git-app-shim` (commits and pushes), so both halves of a
+session agree.
+
+**No literal secret, anywhere.** The only secret is the App private key, at the
+path in `GITHUB_APP_KEY_FILE` (`chmod 600`, outside the repo). The shim mints a
+token per call from it — so no token is stored, none can go stale, and no
+tracked file, shell profile or daemon env holds a value to leak. The app id and
+installation id are public identifiers and live beside it in `~/.secrets`
+(`GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`), sourced by the shim at runtime
+— so it works under the Paseo daemon and a bare terminal alike.
+
+Verify the identity in a shell started the way an agent's is:
+
+```bash
+env OPENCODE=1 zsh -c 'gh auth status'   # Active account: omp-harness[bot] (GH_TOKEN)
+```
 
 New machine: `make install-gh-shim` symlinks the shim to `~/.local/bin/gh`
 and creates `~/.secrets` from `tools/secrets.template` if missing. Fill in

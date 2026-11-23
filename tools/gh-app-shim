@@ -3,17 +3,28 @@
 # the user's own terminal keeps their personal credentials.
 #
 # Rules (contract, not TTY heuristic — mirror tools/git-app-shim):
-#   - PASEO_AGENT_ID set   -> agent mode: mint a fresh app installation
-#                             token, OVERRIDING any inherited
-#                             GH_TOKEN/GITHUB_TOKEN (an exported user token
-#                             must not leak into agent calls), exec real gh
-#   - otherwise            -> pass through to real gh (the user's terminal,
-#                             scripts, cron — their own gh auth and any
-#                             explicit GH_TOKEN/GITHUB_TOKEN override)
+#   - agent session       -> agent mode: mint a fresh app installation token,
+#                            OVERRIDING any inherited GH_TOKEN/GITHUB_TOKEN (an
+#                            exported user token must not leak into agent
+#                            calls), export GH_TOKEN, exec real gh
+#   - otherwise           -> pass through to real gh (the user's terminal,
+#                            scripts, cron — their own gh auth and any explicit
+#                            GH_TOKEN/GITHUB_TOKEN override)
+#
+# An agent session is any of:
+#   PASEO_AGENT_ID set, OMP_GIT_IDENTITY=bot   (the daemon / the agent wrapper)
+#   OPENCODE=1 or AI_AGENT set                 (any shell OpenCode spawns)
+#
+# The OpenCode markers are load-bearing: the daemon sets PASEO_AGENT_ID only on
+# a *dedicated* agent server, and a session served by the shared one carries no
+# agent id at all. Those sessions' gh fell through to the stored human account,
+# so a PR was created as the human — who then cannot approve it.
 #
 # The app key, app id, and installation id come from ~/.secrets at runtime
-# (sourced here so this works under the Paseo daemon AND a bare terminal).
-# Key material never leaves the key file; nothing here prints it.
+# (sourced here so this works under the Paseo daemon AND a bare terminal). No
+# token is stored anywhere: it is minted per call, so it cannot go stale and no
+# tracked file ever holds a secret. Key material never leaves the key file;
+# nothing here prints it.
 #
 # Source-controlled: tools/gh-app-shim in omp-config. Install via
 # `make install-gh-shim` (see omp-config Makefile).
@@ -49,8 +60,12 @@ if [ -z "$REAL_GH" ]; then
     exit 1
 fi
 
-# ---- pass-through: everything that is NOT an agent process ----
-if [ -z "${PASEO_AGENT_ID:-}" ]; then
+# ---- the session predicate: agent session, or the human's own shell? ----
+# Both shims carry this same list; tests/test_agent_session_identity.py pins it.
+if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ] \
+    || [ "${OPENCODE:-}" = "1" ] || [ -n "${AI_AGENT:-}" ]; then
+    :
+else
     exec "$REAL_GH" "$@"
 fi
 

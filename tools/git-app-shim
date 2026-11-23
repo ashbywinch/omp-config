@@ -5,7 +5,10 @@
 #   - OMP_GIT_IDENTITY=bot  -> agent mode (exported by the paseo agent
 #                              wrapper, ~/.paseo/omp-yolo.sh)
 #   - PASEO_AGENT_ID        -> agent mode (compatibility bridge; the daemon
-#                              sets it only on agent processes)
+#                              sets it only on a dedicated agent server)
+#   - OPENCODE=1 / AI_AGENT -> agent mode (any shell OpenCode spawns; the
+#                              shared OpenCode server carries no agent id, so
+#                              PASEO_AGENT_ID alone misses those sessions)
 #   - OMP_GIT_IDENTITY=user -> explicit human (outside agent context)
 #   - otherwise             -> pass through
 #
@@ -45,8 +48,9 @@ if [ -z "$REAL_GIT" ]; then
 fi
 
 # ---- identity decision (contract only; no TTY heuristics) ----
-# Agent context falls through to agent mode below; the other branches exec.
-if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+# The session predicate mirrors tools/gh-app-shim; tests pin the pair.
+if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ] \
+    || [ "${OPENCODE:-}" = "1" ] || [ -n "${AI_AGENT:-}" ]; then
     :
 elif [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
     exec "$REAL_GIT" "$@"
