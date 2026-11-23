@@ -55,8 +55,7 @@ handle_push_trigger = true
 # Don't skip push synchronize events from bot senders: omp-harness's
 # commits get the same review as human ones.
 push_trigger_ignore_bot_commits = false
-# Code suggestions are off: on a large diff the suggestion pass can fail the
-# run, and the review and its findings are the part that matters.
+# Code suggestions are off: the pass can fail the whole run on a large diff.
 auto_improve = false
 push_commands = ["/review"]
 
