@@ -24,8 +24,9 @@
 #   to review.
 # - extra_instructions demands a per-doc Compliance section — this is what
 #   makes the bot enforce the standards instead of rubber-stamping.
-# - Code suggestions stay off: `auto_improve = false`. Doc enforcement does not
-#   depend on it; it lives in [pr_reviewer] extra_instructions above.
+# - Code suggestions stay off: `auto_improve = false`. Doc enforcement lives in
+#   [pr_reviewer] extra_instructions, which names docs/writing-documentation.md
+#   and requires a Compliance section per doc; the rules stay in that doc.
 
 [openai]
 custom_llm_provider = "openai"
