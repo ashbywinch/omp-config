@@ -13,6 +13,7 @@ import json
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -104,33 +105,39 @@ def failure_lines(checks: list[Check], required: set[str] | None) -> list[str]:
     return broken
 
 
+Runner = Callable[..., subprocess.CompletedProcess[str]]
+Api = Callable[[list[str]], dict]
+
+
 @dataclass(frozen=True)
 class PullRequest:
     repo: str
     number: str
     root: Path
+    run: Runner = run
+    api: Api = gh_json
 
     def target(self) -> Target:
-        data = gh_json(["api", f"repos/{self.repo}/pulls/{self.number}"])
+        data = self.api(["api", f"repos/{self.repo}/pulls/{self.number}"])
         return Target(
             sha=data.get("head", {}).get("sha", ""),
             base=data.get("base", {}).get("ref", "main"),
         )
 
     def _has_commit(self, sha: str) -> bool:
-        return bool(sha) and run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=self.root).returncode == 0
+        return bool(sha) and self.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=self.root).returncode == 0
 
     def _fetch(self, target: Target) -> None:
         refspec = f"+refs/heads/{target.base}:refs/remotes/origin/{target.base}"
-        run(["git", "fetch", "origin", refspec], cwd=self.root)
+        self.run(["git", "fetch", "origin", refspec], cwd=self.root)
         if not self._has_commit(target.sha):
-            run(["git", "fetch", "origin", target.sha], cwd=self.root)
+            self.run(["git", "fetch", "origin", target.sha], cwd=self.root)
 
     def merge(self, target: Target) -> Fact:
         self._fetch(target)
         if not self._has_commit(target.sha):
             return Fact(name="merge", ok=False, detail="no head sha to merge")
-        result = run(["git", "merge-tree", "--write-tree", target.origin_base, target.sha], cwd=self.root)
+        result = self.run(["git", "merge-tree", "--write-tree", target.origin_base, target.sha], cwd=self.root)
         if result.returncode == 0:
             return Fact(name="merge", ok=True, detail=f"merges cleanly into {target.origin_base}")
         if result.returncode == 1:
@@ -143,13 +150,13 @@ class PullRequest:
         self._fetch(target)
         if not self._has_commit(target.sha):
             return Fact(name="base", ok=False, detail="no head sha to compare with the base")
-        contains = run(["git", "merge-base", "--is-ancestor", target.origin_base, target.sha], cwd=self.root)
+        contains = self.run(["git", "merge-base", "--is-ancestor", target.origin_base, target.sha], cwd=self.root)
         if contains.returncode == 0:
             return Fact(name="base", ok=True, detail=f"contains {target.origin_base}")
         if contains.returncode != 1:
             first = (contains.stderr.strip().splitlines() or [f"`git merge-base` exited {contains.returncode}"])[0]
             return Fact(name="base", ok=False, detail=f"cannot compare with {target.origin_base}: {first}")
-        behind = run(["git", "rev-list", "--count", f"{target.sha}..{target.origin_base}"], cwd=self.root)
+        behind = self.run(["git", "rev-list", "--count", f"{target.sha}..{target.origin_base}"], cwd=self.root)
         if behind.returncode != 0:
             return Fact(
                 name="base",
@@ -167,7 +174,7 @@ class PullRequest:
             "ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}"
         )
         owner, _, name = self.repo.partition("/")
-        data = gh_json([
+        data = self.api([
             "api", "graphql",
             "-f", f"query={query}",
             "-f", f"o={owner}", "-f", f"n={name}", "-f", f"b=refs/heads/{target.base}",
@@ -182,7 +189,7 @@ class PullRequest:
     def checks(self, target: Target) -> Fact:
         if not target.sha:
             return Fact(name="checks", ok=False, detail="no head sha to read checks from")
-        nodes = gh_json(["api", f"repos/{self.repo}/commits/{target.sha}/check-runs?per_page=100"])
+        nodes = self.api(["api", f"repos/{self.repo}/commits/{target.sha}/check-runs?per_page=100"])
         checks = [Check.from_api(node) for node in nodes.get("check_runs", [])]
         if not checks:
             return Fact(
@@ -209,7 +216,7 @@ class PullRequest:
         if not tool:
             return Fact(name="threads", ok=False, detail="pr-threads is not on PATH: run `make install`")
         args = [tool, self.number, "--repo", self.repo] + (["--wait"] if wait else [])
-        result = run(args)
+        result = self.run(args)
         first = (result.stdout.strip().splitlines() or ["no output"])[0]
         return Fact(name="threads", ok=result.returncode == 0, detail=first)
 

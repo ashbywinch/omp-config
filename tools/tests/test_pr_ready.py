@@ -4,7 +4,6 @@ import subprocess
 import unittest
 from pathlib import Path
 
-import tools.pr_ready as pr_ready
 from tools.pr_ready import (
     Check,
     Fact,
@@ -63,12 +62,8 @@ class FakeGit:
 
 class BehindBaseTest(unittest.TestCase):
     def base(self, fake: FakeGit, sha: str = "abc123") -> Fact:
-        original = pr_ready.run
-        pr_ready.run = fake
-        try:
-            return PullRequest(repo="owner/name", number="1", root=Path(".")).base(Target(sha=sha, base="main"))
-        finally:
-            pr_ready.run = original
+        pr = PullRequest(repo="owner/name", number="1", root=Path("."), run=fake)
+        return pr.base(Target(sha=sha, base="main"))
 
     def test_a_head_containing_the_base_tip_passes(self):
         fact = self.base(FakeGit(ancestor=0))
@@ -127,12 +122,8 @@ class BehindBaseTest(unittest.TestCase):
 
 class MergeTest(unittest.TestCase):
     def merge(self, fake: FakeGit, sha: str = "abc123") -> Fact:
-        original = pr_ready.run
-        pr_ready.run = fake
-        try:
-            return PullRequest(repo="owner/name", number="1", root=Path(".")).merge(Target(sha=sha, base="main"))
-        finally:
-            pr_ready.run = original
+        pr = PullRequest(repo="owner/name", number="1", root=Path("."), run=fake)
+        return pr.merge(Target(sha=sha, base="main"))
 
     def test_a_clean_merge_passes(self):
         self.assertTrue(self.merge(FakeGit()).ok)
@@ -220,13 +211,9 @@ class ZeroChecksTest(unittest.TestCase):
         graphql: dict = {} if graphql_fails else {
             "data": {"repository": {"ref": {"branchProtectionRule": {"requiredStatusCheckContexts": list(rule)}}}}
         }
-        original = pr_ready.gh_json
-        pr_ready.gh_json = lambda args: graphql if "graphql" in args else {"check_runs": check_runs}
-        try:
-            pr = PullRequest(repo="owner/name", number="1", root=Path("."))
-            return pr.checks(Target(sha=sha, base="main"))
-        finally:
-            pr_ready.gh_json = original
+        api = lambda args: graphql if "graphql" in args else {"check_runs": check_runs}
+        pr = PullRequest(repo="owner/name", number="1", root=Path("."), api=api)
+        return pr.checks(Target(sha=sha, base="main"))
 
     def test_no_check_runs_fails_the_fact(self):
         fact = self.report([])
@@ -262,13 +249,8 @@ class ZeroChecksTest(unittest.TestCase):
 
 class WireTest(unittest.TestCase):
     def required(self, envelope: dict) -> set[str] | None:
-        original = pr_ready.gh_json
-        pr_ready.gh_json = lambda args: envelope
-        try:
-            pr = PullRequest(repo="owner/name", number="1", root=Path("."))
-            return pr._required_contexts(Target(sha="abc123", base="main"))
-        finally:
-            pr_ready.gh_json = original
+        pr = PullRequest(repo="owner/name", number="1", root=Path("."), api=lambda args: envelope)
+        return pr._required_contexts(Target(sha="abc123", base="main"))
 
     def test_a_null_repository_reads_as_no_required_contexts(self):
         self.assertEqual(self.required({"data": {"repository": None}}), set())
