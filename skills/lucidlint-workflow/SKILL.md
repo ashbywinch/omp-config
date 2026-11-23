@@ -94,8 +94,9 @@ python3 lucidlint.py --file path/to/file.py
 ## When the gate fails with no findings
 
 `make lucidlint` exits above 1 while printing no action list when the scanner
-itself failed — a crash or a bad flag. Read the reason in the stderr file the
-Makefile writes, `lucidlint-dist/.last.err`.
+itself failed — a crash or a bad flag.
+
+Read the reason in the stderr file the Makefile writes, `lucidlint-dist/.last.err`.
 
 **A corrupt baseline does not fail the gate.** The loader logs `baseline <path>
 unreadable — ignoring`, then runs with an empty baseline: no keys, empty ledger.
