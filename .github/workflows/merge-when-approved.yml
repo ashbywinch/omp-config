@@ -177,6 +177,7 @@ jobs:
           # Checks usually finish after the approval that started this job, and the
           # last one to finish is often the review the PR is waiting on. Wait for
           # them rather than deciding on a snapshot.
+          updated=0
           for attempt in $(seq 1 15); do
             read -r decision state head_repo < <(read_state)
             checks=$(read_checks) || exit 3
@@ -193,6 +194,32 @@ jobs:
             if [ "$open_threads" != "0" ]; then
               echo "$open_threads review thread(s) unresolved — not merging"; exit 0
             fi
+
+            # A branch behind the base cannot merge, and this job is the only
+            # actor that updates it. The update commits with GITHUB_TOKEN, and a
+            # push made with that token starts no workflow runs, so the new head
+            # would carry no checks: dispatch the required one by hand, then
+            # keep waiting in this same run for it to finish.
+            if [ "$state" = "BEHIND" ]; then
+              if [ "$updated" = "1" ]; then
+                echo "branch updated; waiting for the dispatched check"
+              else
+                updated=1
+                head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
+                if ! gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null; then
+                  echo "::error::update-branch failed for $head_ref" >&2
+                  exit 3
+                fi
+                if ! gh workflow run ci.yml --repo "$REPO" --ref "$head_ref"; then
+                  echo "::error::could not dispatch ci.yml on $head_ref — the required check will never run" >&2
+                  exit 3
+                fi
+                echo "branch updated and ci.yml dispatched on $head_ref; waiting for its check"
+              fi
+              sleep 60
+              continue
+            fi
+
             if [ "$checks" = "SUCCESS" ]; then
               break
             fi
@@ -226,14 +253,18 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              # update-branch commits with GITHUB_TOKEN, and a push made with
-              # that token starts no workflow runs: the new head would have no
-              # checks and this gate would wait on them forever. Dispatch the
-              # required check for the new head by hand.
-              head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref)
-              gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
-              gh workflow run ci.yml --repo "$REPO" --ref "$head_ref" >/dev/null
-              echo "branch updated and ci.yml dispatched; the next run merges"
+              # The base moved after the wait loop. Update it, dispatch the
+              # required check, and let the next run finish the merge.
+              head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || exit 3
+              if ! gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null; then
+                echo "::error::update-branch failed for $head_ref" >&2
+                exit 3
+              fi
+              if ! gh workflow run ci.yml --repo "$REPO" --ref "$head_ref"; then
+                echo "::error::could not dispatch ci.yml on $head_ref — the required check will never run" >&2
+                exit 3
+              fi
+              echo "branch went behind after the wait; updated and dispatched, the next run merges"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
