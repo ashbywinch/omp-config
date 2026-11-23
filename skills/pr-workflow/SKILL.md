@@ -395,9 +395,7 @@ git push origin <branch>
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
 
-**Land every code change before you answer a thread.** A change you accepted in a reply and then deferred is an open finding.
-
-**Work in the branch's own worktree.** A claim about the code comes from the branch under review, never the default checkout.
+The order for answering findings across review rounds is in `skill://pr-loop`.
 
 **Read what you changed whole before the push.** Zoom out from the diff and read
 it as a reader meets it, then fix what that shows (§11c).
@@ -465,6 +463,11 @@ rejected the span. The question was neither — the walk was standing on the
 `return` and searching the body for it, so passing the statement kind down
 removed both objections at once.
 
+**Give a concern its own home; never fold it into another file's sections.** A
+finding that a section sits in the wrong file is answered by moving the concern
+into its own file, linked from where readers arrive. Spreading it across the
+neighbouring file's parts is the same defect with no single place to read it.
+
 ### 11c. Zoom out on every comment
 
 Every comment is evidence of confusion: the code's if the reviewer is right, the
@@ -487,10 +490,8 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 ## Part 4b: Before you report a PR's state
 
 Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
-resolve none (`skill://pr-state`).
-
-`pr-threads` is the authority on "answered"; neither a hand-rolled query nor a
-login comparison is. `watch-pr.sh` reports the checks, not the threads.
+resolve none (`skill://pr-state`). `skill://pr-loop` holds the order that gets
+there and which tool answers what.
 
 ## Part 5: Handing the merge to the user
 
