@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Prove a PR's state and say whether it can be handed over.
+"""Prove a PR's state before anyone calls it ready.
 
     pr_ready.py <pr-number> [--repo owner/name] [--root path] [--no-wait]
+
+Each fact is its own failure, and a fact the tool cannot read is a failure, not
+a pass.
 """
 
 from __future__ import annotations
@@ -15,6 +18,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+# Branch protection accepts these as passing: `neutral` finished without a
+# verdict, `skipped` did not apply. Only a failure conclusion blocks.
 PASSING_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
 
 
@@ -40,7 +45,7 @@ class Target:
     base: str
 
     @property
-    def base_ref(self) -> str:
+    def origin_base(self) -> str:
         return f"origin/{self.base}"
 
 
@@ -62,6 +67,7 @@ class Check:
 
     @property
     def passed(self) -> bool:
+        """Completed, with a conclusion branch protection accepts."""
         return self.status == "completed" and self.conclusion in PASSING_CONCLUSIONS
 
 
@@ -83,14 +89,14 @@ def latest_by_name(checks: list[Check]) -> list[Check]:
     return list(latest.values())
 
 
-def describe(check: Check) -> str:
+def describe_failure(check: Check) -> str:
     return f"{check.name} is {check.status.lower()} {check.conclusion or ''}".strip()
 
 
-def failed(checks: list[Check], required: set[str] | None) -> list[str]:
+def failure_lines(checks: list[Check], required: set[str] | None) -> list[str]:
     latest = latest_by_name(checks)
     if not required:
-        return [describe(check) for check in latest if not check.passed]
+        return [describe_failure(check) for check in latest if not check.passed]
     by_name = {check.name: check for check in latest}
     broken = []
     for name in sorted(required):
@@ -98,7 +104,7 @@ def failed(checks: list[Check], required: set[str] | None) -> list[str]:
         if check is None:
             broken.append(f"{name} has no run on this sha")
         elif not check.passed:
-            broken.append(describe(check))
+            broken.append(describe_failure(check))
     return broken
 
 
@@ -127,26 +133,36 @@ class PullRequest:
         self._fetch(target)
         if not self._has_commit(target.sha):
             return Fact(name="merge", ok=False, detail="no head sha to merge")
-        result = run(["git", "merge-tree", "--write-tree", target.base_ref, target.sha], cwd=self.root)
+        result = run(["git", "merge-tree", "--write-tree", target.origin_base, target.sha], cwd=self.root)
         if result.returncode == 0:
-            return Fact(name="merge", ok=True, detail=f"merges cleanly into {target.base_ref}")
-        first = (result.stdout.strip().splitlines() or [f"git exited {result.returncode}"])[0]
-        return Fact(name="merge", ok=False, detail=f"conflicts with {target.base_ref}: {first}")
+            return Fact(name="merge", ok=True, detail=f"merges cleanly into {target.origin_base}")
+        if result.returncode == 1:
+            first = (result.stdout.strip().splitlines() or ["no detail"])[0]
+            return Fact(name="merge", ok=False, detail=f"conflicts with {target.origin_base}: {first}")
+        first = (result.stderr.strip().splitlines() or [f"`git merge-tree` exited {result.returncode}"])[0]
+        return Fact(name="merge", ok=False, detail=f"cannot merge against {target.origin_base}: {first}")
 
     def base(self, target: Target) -> Fact:
         self._fetch(target)
         if not self._has_commit(target.sha):
             return Fact(name="base", ok=False, detail="no head sha to compare with the base")
-        contains = run(["git", "merge-base", "--is-ancestor", target.base_ref, target.sha], cwd=self.root)
+        contains = run(["git", "merge-base", "--is-ancestor", target.origin_base, target.sha], cwd=self.root)
         if contains.returncode == 0:
-            return Fact(name="base", ok=True, detail=f"contains {target.base_ref}")
+            return Fact(name="base", ok=True, detail=f"contains {target.origin_base}")
         if contains.returncode != 1:
-            first = (contains.stderr.strip().splitlines() or [f"git exited {contains.returncode}"])[0]
-            return Fact(name="base", ok=False, detail=f"cannot compare with {target.base_ref}: {first}")
-        behind = run(["git", "rev-list", "--count", f"{target.sha}..{target.base_ref}"], cwd=self.root)
-        count = behind.stdout.strip() if behind.returncode == 0 else "unknown number of"
+            first = (contains.stderr.strip().splitlines() or [f"`git merge-base` exited {contains.returncode}"])[0]
+            return Fact(name="base", ok=False, detail=f"cannot compare with {target.origin_base}: {first}")
+        behind = run(["git", "rev-list", "--count", f"{target.sha}..{target.origin_base}"], cwd=self.root)
+        if behind.returncode != 0:
+            return Fact(
+                name="base",
+                ok=False,
+                detail=f"behind {target.origin_base} — merge the base first "
+                f"(`git rev-list` exited {behind.returncode})",
+            )
+        count = behind.stdout.strip()
         commits = f"{count} commit" if count == "1" else f"{count} commits"
-        return Fact(name="base", ok=False, detail=f"behind {target.base_ref} by {commits} — merge the base first")
+        return Fact(name="base", ok=False, detail=f"behind {target.origin_base} by {commits} — merge the base first")
 
     def _required_contexts(self, target: Target) -> set[str] | None:
         query = (
@@ -180,7 +196,7 @@ class PullRequest:
             )
         required = self._required_contexts(target)
         current = latest_by_name(checks)
-        broken = failed(current, required)
+        broken = failure_lines(current, required)
         if broken:
             return Fact(name="checks", ok=False, detail="; ".join(broken))
         if required is None:

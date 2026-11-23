@@ -9,7 +9,7 @@ from tools.pr_ready import (
     PullRequest,
     Target,
     Verdict,
-    failed,
+    failure_lines,
     latest_by_name,
     next_step,
     verdict,
@@ -26,11 +26,24 @@ def facts(*oks: bool) -> list[Fact]:
 
 
 class FakeGit:
-    def __init__(self, *, ancestor: int = 0, behind: str = "0", stderr: str = "", head: str = "abc123"):
+    def __init__(
+        self,
+        *,
+        ancestor: int = 0,
+        behind: str = "0",
+        stderr: str = "",
+        head: str = "abc123",
+        merge_tree: int = 0,
+        merge_stdout: str = "",
+        rev_list: int = 0,
+    ):
         self.ancestor = ancestor
         self.behind = behind
         self.stderr = stderr
         self.head = head
+        self.merge_tree = merge_tree
+        self.merge_stdout = merge_stdout
+        self.rev_list = rev_list
         self.calls: list[list[str]] = []
 
     def __call__(self, args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -40,7 +53,9 @@ class FakeGit:
         if args[1:2] == ["merge-base"]:
             return subprocess.CompletedProcess(args, self.ancestor, "", self.stderr)
         if args[1:2] == ["rev-list"]:
-            return subprocess.CompletedProcess(args, 0, f"{self.behind}\n")
+            return subprocess.CompletedProcess(args, self.rev_list, f"{self.behind}\n", self.stderr)
+        if args[1:2] == ["merge-tree"]:
+            return subprocess.CompletedProcess(args, self.merge_tree, self.merge_stdout, self.stderr)
         return subprocess.CompletedProcess(args, 0)
 
 
@@ -73,17 +88,28 @@ class BehindBaseTest(unittest.TestCase):
         self.assertIn(["git", "merge-base", "--is-ancestor", "origin/main", "abc123"], fake.calls)
         self.assertIn(["git", "rev-list", "--count", "abc123..origin/main"], fake.calls)
 
-    def test_the_base_ref_is_built_from_origin(self):
-        self.assertEqual(Target(sha="abc123", base="main").base_ref, "origin/main")
+    def test_the_origin_base_is_built_from_origin(self):
+        self.assertEqual(Target(sha="abc123", base="main").origin_base, "origin/main")
+
+    def test_the_base_is_fetched_on_every_call(self):
+        fake = FakeGit()
+        self.base(fake)
+        self.assertIn(["git", "fetch", "origin", "main"], fake.calls)
 
     def test_an_unreadable_base_fails_rather_than_passing(self):
         fact = self.base(FakeGit(ancestor=128, stderr="fatal: bad revision 'origin/main'"))
         self.assertFalse(fact.ok)
         self.assertIn("cannot compare", fact.detail)
 
-    def test_a_silent_git_failure_names_the_exit_code(self):
+    def test_a_silent_git_failure_names_the_command_and_exit_code(self):
         fact = self.base(FakeGit(ancestor=128))
-        self.assertIn("git exited 128", fact.detail)
+        self.assertIn("git merge-base` exited 128", fact.detail)
+
+    def test_a_failed_count_still_blocks_and_names_the_reason(self):
+        fact = self.base(FakeGit(ancestor=1, rev_list=3))
+        self.assertFalse(fact.ok)
+        self.assertIn("git rev-list` exited 3", fact.detail)
+        self.assertIn("merge the base first", fact.detail)
 
     def test_no_head_sha_fails_the_fact(self):
         self.assertFalse(self.base(FakeGit(), sha="").ok)
@@ -109,46 +135,59 @@ class MergeTest(unittest.TestCase):
     def test_a_clean_merge_passes(self):
         self.assertTrue(self.merge(FakeGit()).ok)
 
+    def test_a_conflict_reads_the_tree_output(self):
+        fact = self.merge(FakeGit(merge_tree=1, merge_stdout="CONFLICT (content): letter.txt"))
+        self.assertIn("conflicts with origin/main", fact.detail)
+        self.assertIn("CONFLICT", fact.detail)
+
+    def test_a_merge_that_is_not_a_conflict_names_the_error(self):
+        fact = self.merge(FakeGit(merge_tree=2, stderr="fatal: not a valid object name"))
+        self.assertIn("cannot merge against origin/main", fact.detail)
+        self.assertIn("not a valid object name", fact.detail)
+
     def test_a_head_that_is_not_present_fails_the_merge_fact(self):
         self.assertIn("no head sha to merge", self.merge(FakeGit(head="abc123"), sha="def456").detail)
 
 
 class ChecksTest(unittest.TestCase):
     def test_a_completed_success_passes(self):
-        self.assertEqual(failed([check()], None), [])
+        self.assertEqual(failure_lines([check()], None), [])
 
     def test_neutral_and_skipped_pass(self):
-        self.assertEqual(failed([check(conclusion="neutral"), check(name="docs", conclusion="skipped")], None), [])
+        self.assertEqual(failure_lines([check(conclusion="neutral"), check(name="docs", conclusion="skipped")], None), [])
 
     def test_a_running_check_does_not_pass(self):
-        self.assertEqual(len(failed([check(status="in_progress", conclusion=None)], None)), 1)
+        self.assertEqual(len(failure_lines([check(status="in_progress", conclusion=None)], None)), 1)
 
     def test_a_cancelled_check_does_not_pass(self):
-        self.assertEqual(len(failed([check(conclusion="cancelled")], None)), 1)
+        self.assertEqual(len(failure_lines([check(conclusion="cancelled")], None)), 1)
 
     def test_a_failure_is_named(self):
-        self.assertIn("ci", failed([check(conclusion="failure")], None)[0])
+        self.assertIn("ci", failure_lines([check(conclusion="failure")], None)[0])
 
 
 class RequiredTest(unittest.TestCase):
     def test_a_check_the_branch_does_not_require_cannot_block(self):
         checks = [check(name="ci"), check(name="lint", conclusion="failure")]
-        self.assertEqual(failed(checks, {"ci"}), [])
+        self.assertEqual(failure_lines(checks, {"ci"}), [])
 
     def test_a_required_context_that_did_not_pass_is_named(self):
-        self.assertIn("ci is completed failure", failed([check(conclusion="failure")], {"ci"})[0])
+        self.assertIn("ci is completed failure", failure_lines([check(conclusion="failure")], {"ci"})[0])
 
     def test_a_required_context_with_no_run_fails(self):
-        self.assertIn("ci has no run on this sha", failed([check(name="lint")], {"ci"})[0])
+        self.assertIn("ci has no run on this sha", failure_lines([check(name="lint")], {"ci"})[0])
 
     def test_an_unreadable_required_list_makes_every_check_count(self):
-        self.assertEqual(len(failed([check(conclusion="failure")], None)), 1)
+        self.assertEqual(len(failure_lines([check(conclusion="failure")], None)), 1)
+
+    def test_an_empty_required_set_makes_every_check_count(self):
+        self.assertEqual(len(failure_lines([check(conclusion="failure")], set())), 1)
 
 
 class SupersededTest(unittest.TestCase):
     def test_a_later_success_supersedes_an_earlier_cancelled_run(self):
         runs = [check(conclusion="cancelled"), check(conclusion="success")]
-        self.assertEqual(failed(latest_by_name(runs), None), [])
+        self.assertEqual(failure_lines(latest_by_name(runs), None), [])
 
     def test_a_run_cancelled_after_a_success_still_reports_the_latest(self):
         runs = [
@@ -157,11 +196,11 @@ class SupersededTest(unittest.TestCase):
             Check(name="arm", status="completed", conclusion="cancelled", started="13:26:58"),
             Check(name="arm", status="completed", conclusion="success", started="13:27:03"),
         ]
-        self.assertEqual(failed(latest_by_name(runs), None), [])
+        self.assertEqual(failure_lines(latest_by_name(runs), None), [])
 
     def test_a_cancelled_run_with_no_successor_fails(self):
         runs = [check(name="arm", conclusion="success"), check(name="arm", conclusion="cancelled")]
-        self.assertEqual(len(failed(latest_by_name(runs), None)), 1)
+        self.assertEqual(len(failure_lines(latest_by_name(runs), None)), 1)
 
     def test_one_entry_per_name(self):
         runs = [check(name="arm", conclusion="success"), check(name="arm", conclusion="success")]
