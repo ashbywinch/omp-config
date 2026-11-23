@@ -24,9 +24,8 @@
 #   to review.
 # - extra_instructions demands a per-doc Compliance section — this is what
 #   makes the bot enforce the standards instead of rubber-stamping.
-# - Code suggestions stay off (auto_improve = false): the pass can fail the
-#   whole run on a large diff. Doc enforcement does not depend on it; it lives
-#   in this file's [pr_reviewer] extra_instructions above.
+# - Code suggestions stay off: `auto_improve = false`. Doc enforcement does not
+#   depend on it; it lives in [pr_reviewer] extra_instructions above.
 
 [openai]
 custom_llm_provider = "openai"
@@ -66,7 +65,6 @@ extra_instructions = "Check the PR against each file in repo_context_files. Befo
 
 [github_action_config]
 handle_push_trigger = true
-# Code suggestions are off: the pass can fail the whole run on a large diff.
 auto_improve = false
 push_commands = ["/review"]
 # A human posting "/skip" on the PR skips the AI review for that PR
