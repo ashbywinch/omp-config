@@ -124,13 +124,14 @@ gh_read() {  # gh_read <gh args...>
 }
 
 # A failed send returns non-zero so the caller leaves its signature unset: the
-# notice is re-sent next pass instead of being recorded as delivered. The
-# sender's own words come with it — "agent not found" is the line that explains
-# a notice that never lands.
+# notice is re-sent next pass instead of being recorded as delivered. Both of
+# the sender's streams are captured, so "agent not found" survives whichever one
+# it is written to; on success the text is simply not used.
 notify() {  # notify <agent-id> <message>
-  local err
-  err=$(paseo send "$1" "$2" 2>&1 >/dev/null) && return 0
-  echo "pr-desk-watch: send to $1 failed — ${err:-no message} — retrying next pass" >&2
+  local said
+  # `pipefail` is set, so the pipeline still reports the sender's failure.
+  said=$(paseo send "$1" "$2" 2>&1 | tr '\n' ' ') && return 0
+  echo "pr-desk-watch: send to $1 failed — ${said:-no message} — retrying next pass" >&2
   return 1
 }
 
@@ -161,9 +162,15 @@ required_contexts() {  # <owner/name> <base>
 #   {"blocked": [...], "failed": [...]}
 #
 #   blocked   every required check that is not a completed success — running,
-#             queued and cancelled included. Readiness needs it empty.
+#             queued and cancelled included — plus every required context that
+#             has no run on the head at all. Readiness needs it empty.
 #   failed    the blocked ones with a failure conclusion. This is the list
 #             worth a message, because it names something to fix.
+#
+# A required context with no run is the case GitHub shows as "expected": no
+# workflow reported it, so nothing has verified it, and the head cannot be
+# called green. It sits in `blocked` rather than `failed` because there is no
+# failing step to read.
 #
 # The state is an object of arrays, not a delimited line, so no check name can
 # be mistaken for a separator. The caller gates on `blocked | length`, never on
@@ -201,14 +208,15 @@ check_state() {  # <owner/name> <head> <newline-separated contexts>
       elif ($runs | map(.name) | length) != ($runs | map(.name) | unique | length)
         then error("two runs for one name — filter=latest was not honoured")
       else $runs end
+    | ($required | map(select(. as $r | any($runs[]; .name == $r) | not))) as $missing
     | map(select((.status == "completed" and .conclusion == "success") | not)) as $blocked
-    | { blocked: ($blocked | map(.name) | unique),
+    | { blocked: (($blocked | map(.name)) + $missing | unique),
         failed:  ($blocked
                   | map(select(.conclusion
                         | IN("failure", "timed_out", "action_required", "startup_failure")))
                   | map(.name) | unique) }
   ' || {
-    echo "pr-desk-watch: the check state above cannot be trusted on ${2:0:7} — holding readiness" >&2
+    echo "pr-desk-watch: the check state above is not usable on ${2:0:7} — holding readiness" >&2
     return 1
   }
 }
