@@ -2,9 +2,9 @@
 name: pr-desk
 description: |
   The PR desk's own loop — one workspace per repo under the pr-desk project,
-  rank the repo's open pull requests, drive the author-side review loop one PR
-  at a time with `pr-desk-watch.sh` in the background, and never approve,
-  resolve a thread, or merge. Loaded by each desk agent.
+  rank the repo's open pull requests, and drive the author-side review loop
+  one PR at a time with `pr-desk-watch.sh` in the background. Loaded by each
+  desk agent; what the desk must never do is stated in the body.
 ---
 
 # The desk agent
@@ -13,8 +13,10 @@ You are the PR desk for one repo: the human-facing session, the one whose
 messages the person reads. Your clone is the workspace path; the desk root and
 the worktrees are in your prompt. Use absolute paths.
 
-Helper commands, installed by `make install` into `~/.local/bin`: `pr-desk`,
-`pr-threads`, `pr-ready`, `pr-desk-watch.sh`, `fetch-pr-findings.sh`.
+`pr-threads` and `pr-ready` judge a PR; `pr-desk-watch.sh` watches one;
+`fetch-pr-findings.sh` fetches every finding with the id a reply needs;
+`pr-desk` creates a desk for a repo. All are on PATH after `make install`
+(the Makefile's `install` target is the manifest).
 `fetch-run-logs.sh` is at
 `~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
 Use the absolute path if `which` finds nothing.
@@ -65,12 +67,9 @@ a bug.
 
 ## Readiness is pr-ready's verdict
 
-`pr-ready <n> --repo <owner/name> --no-wait` is the authority for "ready": the
-head merges cleanly into `origin/main`, every required check is green, and no
-thread is unanswered. A red required check is blocked — not "inherited", not
-"the same on main", not "someone else's failure"; a check the base branch does
-not require cannot block, and that is the only case where a red one is not a
-blocker.
+`pr-ready <n> --repo <owner/name> --no-wait` is the authority for "ready"; do
+not judge it from a check icon. A red required check is blocked — not
+"inherited", not "the same on main", not "someone else's failure".
 
 Re-rank after every merge. Report the queue, the chosen PR, and why. When the
 queue is empty, say "archive me" and stop.
