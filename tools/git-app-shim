@@ -4,12 +4,9 @@
 # Contract (documented in AGENTS.md):
 #   - OMP_GIT_IDENTITY=bot  -> agent mode (exported by the paseo agent
 #                              wrapper, ~/.paseo/omp-yolo.sh)
-#   - PASEO_AGENT_ID        -> agent mode (a Paseo agent; set per *session*
-#                              through OpenCode's environment, not per process)
-#   - OPENCODE=1 / AI_AGENT -> agent mode (any shell OpenCode spawns; a
-#                              subagent is a child session Paseo never sets an
-#                              environment for, so PASEO_AGENT_ID alone misses
-#                              it)
+#   - PASEO_AGENT_ID        -> agent mode (a Paseo session)
+#   - OPENCODE=1 / AI_AGENT -> agent mode (any shell OpenCode spawns, a subagent
+#                              included, so PASEO_AGENT_ID alone misses it)
 #   - OMP_GIT_IDENTITY=user -> explicit human (outside agent context)
 #   - otherwise             -> pass through
 #
