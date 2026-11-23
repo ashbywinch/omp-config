@@ -459,10 +459,6 @@ rejected the span. The question was neither — the walk was standing on the
 `return` and searching the body for it, so passing the statement kind down
 removed both objections at once.
 
-**Give a concern its own home; never fold it into another file's sections.** A
-finding that a section sits in the wrong file is answered by moving the concern
-into its own file, linked from where readers arrive. Spreading it across the
-neighbouring file's parts is the same defect with no single place to read it.
 
 ### 11c. Zoom out on every comment
 
@@ -589,7 +585,6 @@ The sections above are the how-to; these are the one-line reminders.
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
 - **An unlinked PR or issue number** — write it as a link (§4).
-- **A PR number inside a description** — leave the `#` off (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).

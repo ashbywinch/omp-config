@@ -111,6 +111,16 @@ The intended phases:
 - **Phases are ordered for earliest user value** — each phase is the
   minimum possible addition that drives real value.
 
+## Where a concern lives
+
+Each concern gets one file. A rule, a procedure or a fact that does not belong
+in the file holding it moves into a file of its own, linked from where readers
+arrive.
+
+Never fold a concern into another file's sections. Scattered across the
+neighbouring file's parts, it has no single place to read and no single place to
+change.
+
 ## Discoverability
 
 **Every doc must be discoverable from AGENTS.md** — directly or by
