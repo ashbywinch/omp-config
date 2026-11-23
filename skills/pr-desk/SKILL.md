@@ -37,7 +37,6 @@ approval; if it is absent or not firing, report that as a bug.
 
 Re-rank after every merge. Report the queue, the chosen PR, and why.
 
-Link every PR you name, in the report and in every reply, using the form in
-`skill://pr-workflow` §4. Chat has no autolink.
+Link every PR you name, in the report and in every reply (`skill://pr-workflow` §4).
 
 When the queue is empty, say “archive me” and stop.

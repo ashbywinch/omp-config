@@ -29,11 +29,6 @@ If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
 thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
 approval. Report it as a bug when it is absent or not firing.
 
-Every comment and every bug hides a confusion, in the reviewer or in the author
-whose code drew it.
-
-Find the confusion. Refactor the code to remove it. Reply with the new shape.
-
 ## Prerequisites
 
 - `gh` CLI installed and authenticated
@@ -396,7 +391,7 @@ git push origin <branch>
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
 
-The order for answering findings across review rounds is in `skill://pr-loop`.
+Answer findings across review rounds in the order `skill://pr-loop` gives.
 
 **Read what you changed whole before the push.** Zoom out from the diff and read
 it as a reader meets it, then fix what that shows (§11c).
@@ -533,11 +528,12 @@ The sections above are the how-to; these are the one-line reminders.
   check is `success`, the head is unchanged across two polls, and no thread's last
   voice is the reviewer; it exits with `NEW THREADS n` when one is. Use it; do not
   re-derive the conditions in a one-off loop.
-- **The watcher exits with work in hand.** Answer it as the next action, not a wait.
-  `watch-pr.sh` prints `NEW THREADS` with each thread's `file:line` and exits. It never
-  waits for threads to be *resolved*, because only the reviewer resolves.
-  Read those threads, refactor what they found, reply to each, then run the
-  watcher again. Never sit on a running watcher while a thread has no reply.
+- **The watcher exits with work in hand.** `watch-pr.sh` prints `NEW THREADS`
+  with each thread's `file:line` and exits. It never waits for threads to be
+  *resolved*, because only the reviewer resolves.
+- **Answer what the watcher returned.** Read those threads, refactor what they
+  found, reply to each, then run the watcher again. Never sit on a running
+  watcher while a thread has no reply.
 - **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
 - **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
@@ -592,8 +588,8 @@ The sections above are the how-to; these are the one-line reminders.
 - **Terse thread replies** (`Fixed` / `No`) — every reply names its
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
-- **An unlinked PR or issue number** — use the forms in §4.
-- **A PR number inside a description** — drop the `#` (§3).
+- **An unlinked PR or issue number** — write it as a link (§4).
+- **A PR number inside a description** — leave the `#` off (§3).
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).

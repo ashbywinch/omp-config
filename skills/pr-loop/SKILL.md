@@ -13,7 +13,8 @@ Work in one pass per review.
 
 1. Land every code change before you answer. A change you accepted in a reply
    and then deferred is an open finding.
-2. Run `pr-threads <pr>`. Answer every thread on the current head.
+2. Run `pr-threads <pr>`. Answer every thread on the current head, linking
+   each PR or issue as `skill://pr-workflow` §4 requires.
 3. Push once.
 4. Run `pr-threads --wait <pr>`. Answer the batch it lists.
 5. Push again only when an answer needed a code change.
@@ -26,6 +27,3 @@ head is settled. It is not a thread authority.
 
 Work in the branch's own worktree. A claim about the code comes from the branch
 under review, never the default checkout.
-
-Every finding is answered by a refactor. `skill://pr-workflow` §11b holds that
-rule; this skill holds only the order.
