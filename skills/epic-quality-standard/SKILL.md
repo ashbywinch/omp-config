@@ -29,7 +29,8 @@ An Epic is a tactical work package that converts a Top Level Epic into actionabl
 **Auditing a branch**:
 - Walk each epic up to its root.
 - A child epic carries `Parent Epic` and no value stream, and inherits the value stream through its parent.
-- A blank `Parent Value Stream` on a child is correct, not a gap. Only a root can be missing one.
+- A blank `Parent Value Stream` on a child is correct, not a gap.
+- Only a root can be missing one.
 - Show the epic name, its description and its tasks before recommending a change.
 - A question about a branch the user cannot see is unanswerable.
 
