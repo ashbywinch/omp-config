@@ -25,5 +25,9 @@ login comparison is. Run it fresh on the head you describe.
 `watch-pr.sh` reports whether the checks are finished and green, and whether the
 head is settled. It is not a thread authority.
 
+The watcher exits with `NEW THREADS` when a thread needs an answer. Answer it as
+the next action, not a wait: it never waits for a thread to be resolved, because
+only the reviewer resolves.
+
 Work in the branch's own worktree. A claim about the code comes from the branch
 under review, never the default checkout.

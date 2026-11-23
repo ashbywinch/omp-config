@@ -523,12 +523,6 @@ The sections above are the how-to; these are the one-line reminders.
   check is `success`, the head is unchanged across two polls, and no thread's last
   voice is the reviewer; it exits with `NEW THREADS n` when one is. Use it; do not
   re-derive the conditions in a one-off loop.
-- **The watcher exits with work in hand.** `watch-pr.sh` prints `NEW THREADS`
-  with each thread's `file:line` and exits. It never waits for threads to be
-  *resolved*, because only the reviewer resolves.
-- **Answer what the watcher returned.** Read those threads, refactor what they
-  found, reply to each, then run the watcher again. Never sit on a running
-  watcher while a thread has no reply.
 - **Count replies by who spoke last, not by how many comments.** The bot posts under its own login (this repo: `github-actions`, not `github-actions[bot]`), and the agent's replies appear under the token's login, which is not the repo owner's — so `totalCount < 2` and `author != <owner>` both report answered threads as unanswered and vice versa. Unanswered means: the last comment on the thread is the bot's.
 - **The review bot has a context budget, and the failure names the wrong thing.** `custom_model_max_tokens` is the model's CONTEXT (set it to the model's real size — a 1M-token model with 128k here made "the required prompt leaves no input capacity" look like a diff-size problem), `max_model_tokens` caps the INPUT so output has room, and "Review response was truncated" means the answer's budget, not the diff. Check the config before splitting a PR.
 - **Reply when the thread lands, not when the pass ends.** A finding gets its reply the
