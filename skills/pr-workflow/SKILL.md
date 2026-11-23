@@ -489,7 +489,8 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 ## Part 4b: Before you report a PR's state
 
 Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
-resolve none (`skill://pr-state`).
+resolve none; if the head is behind its base, merge the base in and push before
+asking again (`skill://pr-state`).
 
 ## Part 5: Handing the merge to the user
 
@@ -568,9 +569,9 @@ The sections above are the how-to; these are the one-line reminders.
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
-- **Calling a PR ready on two of the three facts** — a clean merge, a green head and answered threads
-  are separate claims; a red required check or an unresolved conflict means **blocked**, never
-  "ready" (§4b).
+- **Calling a PR ready on some of the facts** — a clean merge, a current base, a green head and
+  answered threads are separate claims; a red required check, an unresolved conflict, or a branch
+  behind `origin/<base>` means **blocked**, never "ready" (§4b).
 - **Reporting state before `pr-threads --wait`** — a list, a "ready to approve", a handover: all of
   them are claims the reviewer has finished. Unanswered threads make the state "awaiting reply" (§4b).
 - **Treating a cancelled check as either verdict** — cancelled means superseded by a newer run (§4b).

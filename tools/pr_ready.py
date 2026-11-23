@@ -3,10 +3,16 @@
 
     pr_ready.py <pr-number> [--repo owner/name] [--root path] [--no-wait]
 
-Three facts decide it: the head merges into the base, every check-run on the
-head is completed and successful, and no review thread is waiting for an answer.
-The tool prints each fact with its evidence, then READY or BLOCKED and the next
+Four facts decide it: the head merges into the base, the head contains the base
+tip (a PR behind its base is not ready), every check-run on the head is
+completed and successful, and no review thread is waiting for an answer. The
+tool prints each fact with its evidence, then READY or BLOCKED and the next
 step. Exit 0 when ready, 1 when blocked.
+
+Merging cleanly and being current are separate claims. GitHub can report
+MERGEABLE for a branch that is behind its base, and the merge it would make
+silently drops the base's newer commits, so "behind" blocks on its own even
+while the merge fact stays true.
 
 Absence is not success. Zero check-runs is BLOCKED, and the reason matters: a
 conflicted PR cannot build its merge ref, so the `pull_request` event never
@@ -38,7 +44,7 @@ class Verdict(Enum):
 
 @dataclass(frozen=True)
 class Fact:
-    """One of the three things a reader needs before the PR is handed over."""
+    """One of the things a reader needs before the PR is handed over."""
 
     name: str
     ok: bool
@@ -132,16 +138,48 @@ class PullRequest:
             base=data.get("base", {}).get("ref", "main"),
         )
 
+    def _present(self, target: Target) -> bool:
+        """Fetch the base and the head, so both sides of every comparison exist locally."""
+        run(["git", "fetch", "origin", target.base], cwd=self.root)
+        if not target.sha:
+            return False
+        if run(["git", "cat-file", "-e", f"{target.sha}^{{commit}}"], cwd=self.root).returncode != 0:
+            run(["git", "fetch", "origin", target.sha], cwd=self.root)
+        return True
+
     def merge(self, target: Target) -> Fact:
         """Whether the head merges into the base, by tree rather than by GitHub's opinion."""
-        run(["git", "fetch", "origin", target.base], cwd=self.root)
-        if target.sha and run(["git", "cat-file", "-e", f"{target.sha}^{{commit}}"], cwd=self.root).returncode != 0:
-            run(["git", "fetch", "origin", target.sha], cwd=self.root)
+        self._present(target)
         result = run(["git", "merge-tree", "--write-tree", f"origin/{target.base}", target.sha], cwd=self.root)
         if result.returncode == 0:
             return Fact(name="merge", ok=True, detail=f"merges cleanly into origin/{target.base}")
         first = (result.stdout.strip().splitlines() or ["no detail"])[0]
         return Fact(name="merge", ok=False, detail=f"conflicts with origin/{target.base}: {first}")
+
+    def base(self, target: Target) -> Fact:
+        """Whether the head contains the base tip. A PR behind its base is not ready.
+
+        Being behind is its own failure, not a merge conflict: GitHub still calls
+        such a PR MERGEABLE, and merging it drops the base's newer commits — the
+        PR's diff was proved against a base that has since moved.
+
+        The base is `origin/<base>`, never a local branch of the same name: local
+        `main` is whatever the last checkout left there, so it would pass a PR
+        that is behind the real base.
+        """
+        if not self._present(target):
+            return Fact(name="base", ok=False, detail="no head sha to compare with the base")
+        origin_base = f"origin/{target.base}"
+        contains = run(["git", "merge-base", "--is-ancestor", origin_base, target.sha], cwd=self.root)
+        if contains.returncode == 0:
+            return Fact(name="base", ok=True, detail=f"contains {origin_base}")
+        if contains.returncode != 1:
+            first = (contains.stderr.strip().splitlines() or ["no detail"])[0]
+            return Fact(name="base", ok=False, detail=f"cannot compare with {origin_base}: {first}")
+        behind = run(["git", "rev-list", "--count", f"{target.sha}..{origin_base}"], cwd=self.root)
+        count = behind.stdout.strip() if behind.returncode == 0 else "unknown number of"
+        commits = f"{count} commit" if count == "1" else f"{count} commits"
+        return Fact(name="base", ok=False, detail=f"behind {origin_base} by {commits} — merge the base first")
 
     def checks(self, target: Target) -> Fact:
         """Whether every check on the head passed, with zero checks a failure."""
@@ -173,13 +211,13 @@ class PullRequest:
         return Fact(name="threads", ok=result.returncode == 0, detail=first)
 
     def facts(self, wait: bool) -> list[Fact]:
-        """The three facts, in the order a reader asks them."""
+        """The four facts, in the order a reader asks them."""
         target = self.target()
-        return [self.merge(target), self.checks(target), self.threads(wait=wait)]
+        return [self.merge(target), self.base(target), self.checks(target), self.threads(wait=wait)]
 
 
 def verdict(facts: list[Fact]) -> Verdict:
-    """READY only when all three hold. One failure is blocked, whatever the rest say."""
+    """READY only when every fact holds. One failure is blocked, whatever the rest say."""
     return Verdict.READY if all(fact.ok for fact in facts) else Verdict.BLOCKED
 
 
@@ -187,6 +225,7 @@ def next_step(facts: list[Fact]) -> str:
     """What to do about the facts that failed."""
     fixes = {
         "merge": "resolve the conflict against the base and push",
+        "base": "merge the base branch into this one and push — a PR behind its base is not ready",
         "checks": "run the failing check again, or fix what it reports",
         "threads": "answer every thread the reviewer opened, and resolve none of them",
     }
@@ -205,7 +244,7 @@ def report(pr: PullRequest, target: Target, facts: list[Fact]) -> str:
 
 
 def main() -> int:
-    """Print the three facts and the verdict; exit non-zero when blocked."""
+    """Print the four facts and the verdict; exit non-zero when blocked."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("pr", help="pull request number")
     parser.add_argument("--repo", default=None, help="owner/name (default: this checkout)")
