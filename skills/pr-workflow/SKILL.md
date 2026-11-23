@@ -459,7 +459,6 @@ rejected the span. The question was neither — the walk was standing on the
 `return` and searching the body for it, so passing the statement kind down
 removed both objections at once.
 
-
 ### 11c. Zoom out on every comment
 
 Every comment is evidence of confusion: the code's if the reviewer is right, the
