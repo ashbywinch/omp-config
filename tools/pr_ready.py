@@ -3,7 +3,7 @@
 
     pr_ready.py <pr-number> [--repo owner/name] [--root path] [--no-wait]
 
-The four facts, and what each one means: `skill://pr-state`.
+Procedure: `skill://pr-state`.
 """
 
 from __future__ import annotations

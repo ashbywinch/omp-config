@@ -1,8 +1,8 @@
 ---
 name: pr-state
 description: |
-  Decide whether a pull request is ready to report, and say blocked when it is
-  not. Load this before saying "ready for approval" or "blocked".
+  Never say a PR is "ready for approval" or "blocked" without running
+  `pr-ready` first and reporting what it printed.
 ---
 
 # A PR's state
