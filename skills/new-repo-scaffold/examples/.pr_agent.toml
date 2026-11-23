@@ -53,14 +53,8 @@ repo_context_files = [
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
-# Each finding becomes an inline thread, so a reviewer can resolve it one at a
-# time and nothing stays hidden in the summary comment.
 inline_key_issues = true
-# The review comment is the record the verify job reads, kept current with no
-# "updated to latest commit" note on every push.
 final_update_message = false
-# Derive findings from the diff every run; cached wording goes stale when a fix
-# rewrites the sentence a finding quoted.
 persistent_finding_state = false
 # Response-size budget, not a target. Too high truncates the review and fails
 # the check. Too low hides findings. 10 is the house balance.
