@@ -47,6 +47,13 @@ Never derive a date from the plan:
 - "today, because it sounds urgent"
 - "the end of the week" as a stand-in for having no idea
 
+**A meeting at which the work will be done is not a deadline.**
+
+"We'll do the reconciliation in Tuesday's meeting" records a plan, not a due date.
+
+Write the plan in the task body or the calendar. Leave `Relevant Deadlines` empty
+unless something outside the task sets a finish date.
+
 If a date would be useful and there isn't one, say so in conversation and let the
 user give it. Do not record a date you invented. A task can sit Ready and undated
 indefinitely.
