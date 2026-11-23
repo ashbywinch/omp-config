@@ -16,6 +16,13 @@ name: Merge when approved
 #
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
+#
+# A branch behind the base is updated by this job, because the ruleset's strict
+# up-to-date policy will not merge it otherwise. The update commits with
+# GITHUB_TOKEN, and a push made with that token starts no workflow runs: the
+# new head would carry no checks and the gate would wait on them forever. So the
+# same run dispatches ci.yml on the new head. That dispatch is the reason this
+# workflow asks for `actions: write`; no other permission is needed for it.
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
