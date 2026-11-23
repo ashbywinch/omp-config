@@ -87,3 +87,12 @@ mystery.
 
 Follow `skill://background-jobs` whenever you launch a long-running command
 and intend to report when it finishes.
+
+## Finishing a turn
+
+A turn ends when you stop calling tools and reply. Work described in that reply
+does not happen.
+
+Either keep working until the work is done, or stop without a promise. Never
+make the next step the last thing you write: "I'll continue with the next batch"
+ends the turn and leaves the batch undone.
