@@ -8,9 +8,11 @@
 # need, one message per state change and nothing while the state holds:
 #
 #   agent work    a review thread whose last voice is not ours (pr-threads),
-#                 and a failing REQUIRED check on the current head. That
-#                 signature is the head plus the failing names, so a fixed
-#                 re-run clears it and a fresh breakage notifies again.
+#                 and a failing REQUIRED check on the current head. The thread
+#                 signature is the unanswered threads' ids, so a push that only
+#                 moves their lines notifies nothing; the check signature is the
+#                 head plus the failing names, so a fixed re-run clears it and a
+#                 fresh breakage notifies again.
 #   human action  the PR is ready for approval: pr-ready says READY — the head
 #                 merges into origin/main, every required check is green, no
 #                 thread is unanswered — and GitHub's reviewDecision is not
@@ -138,14 +140,15 @@ while :; do
     required_for="$base"
   fi
 
-  threads=$(pr-threads "$pr" --repo "$repo" 2>/dev/null)
-  pending=$(printf '%s\n' "$threads" | grep "UNANSWERED" || true)
+  # The key is the threads' identities, not their printed position: a push
+  # moves path:line for a thread nobody answered, and a listing-shaped key
+  # reports that unchanged work as new.
+  pending=$(pr-threads "$pr" --repo "$repo" --ids 2>/dev/null | sed '/^$/d' | sort)
   if [ -n "$pending" ]; then
-    signature=$(printf '%s\n' "$pending" | sort)
-    if [ "$signature" != "$notified_threads" ]; then
+    if [ "$pending" != "$notified_threads" ]; then
       count=$(printf '%s\n' "$pending" | wc -l | tr -d ' ')
       notify "$agent" "PR $slug: $count unanswered review thread(s) on ${head:0:7}. Run: pr-threads $pr --repo $repo — answer each with evidence, fix what is real, push once."
-      notified_threads="$signature"
+      notified_threads="$pending"
     fi
   else
     notified_threads=""
