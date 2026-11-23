@@ -27,7 +27,7 @@ from memory. General applies to every repo; take exactly one language section.
 - [ ] every doc reachable from AGENTS.md (per `docs/documentation-structure.md`)
 - [ ] Repo self-checks: a docs-links test (every relative markdown link resolves — houses' `test_docs_links.py` is the pattern), the merge-marker check (`tools/check-merge-markers.sh`, wired into `check`), and an architecture-layer test (current layers, archunitpython, patterns per `skill://archunitpython-glob-rules` — never the vacuous `./`-glob form)
 - [ ] PR review wired: `.pr_agent.toml` + pr-agent workflow with standards docs **and PRD/TECHSPEC/PLAN/ux-standards** in `repo_context_files`; the `pr-agent-config` branch created holding the `.pr_agent.toml`; `<PROJECT>_API_KEY` secret (Cloudflare AI Gateway token) set BEFORE the first PR
-- [ ] review workflow placeholders substituted (`{ACCOUNT_ID}/{GATEWAY}`, the secret name) and `push_trigger_ignore_bot_commits = false` in the config branch
+- [ ] review workflow placeholders substituted (`{ACCOUNT_ID}/{GATEWAY}`, the secret name) and the config branch set to `push_trigger_ignore_bot_commits = false`, `auto_improve = false`, `push_commands = ["/review"]`
 - [ ] First PR proves the review: a "## PR Reviewer Guide" comment posted and the check passed (the check only catches a missing review AFTER a run — an empty/red run on the first PR means the config/key is wrong; see the failure modes above)
 - [ ] dependabot configured per the 'Dependency updates are automated, with a human boundary' rule in standards/coding-standards.md — grouping and auto-merge as in the examples
 - [ ] Branch workflow: never commit to main, PRs required, protected main
