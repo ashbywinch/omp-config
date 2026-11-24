@@ -2,10 +2,8 @@
 # git shim: agent-mode git authenticates as omp-harness[bot], never the user.
 #
 # Contract (documented in AGENTS.md):
-#   - OMP_GIT_IDENTITY=bot  -> agent mode (exported by the paseo agent
-#                              wrapper, ~/.paseo/omp-yolo.sh)
-#   - PASEO_AGENT_ID        -> agent mode (compatibility bridge; the daemon
-#                              sets it only on agent processes)
+#   - OMP_GIT_IDENTITY=bot  -> agent mode (exported once by the Paseo daemon,
+#                              inherited by servers, sessions and subagents)
 #   - OMP_GIT_IDENTITY=user -> explicit human (outside agent context)
 #   - otherwise             -> pass through
 #
@@ -45,8 +43,8 @@ if [ -z "$REAL_GIT" ]; then
 fi
 
 # ---- identity decision (contract only; no TTY heuristics) ----
-# Agent context falls through to agent mode below; the other branches exec.
-if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
+# The session predicate mirrors tools/gh-app-shim; tests pin the pair.
+if [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
     :
 elif [ "${OMP_GIT_IDENTITY:-}" = "user" ]; then
     exec "$REAL_GIT" "$@"
