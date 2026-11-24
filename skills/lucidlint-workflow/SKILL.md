@@ -91,6 +91,30 @@ compound:
 python3 lucidlint.py --file path/to/file.py
 ```
 
+## When the gate fails with no findings
+
+`make lucidlint` exits above 1 while printing no action list when the scanner
+itself failed — a crash or a bad flag.
+
+Read the reason in the stderr file the Makefile writes, `lucidlint-dist/.last.err`.
+
+**A corrupt baseline does not fail the gate.** The loader logs `baseline <path>
+unreadable — ignoring`, then runs with an empty baseline: no keys, empty ledger.
+`[]`, `{}`, a truncated file and a missing file are all accepted, and the run
+still exits 0. It also prints `config-ignored '<rule>' grew 0 -> N` for every
+rule the empty ledger cannot compare. Treat those lines as warnings, never as
+the failure.
+
+**The baseline records accepted debt, so repairing it is a decision.**
+`--update-baseline --baseline lucidlint.json` writes today's tree as the new
+baseline, and every action it finds becomes acknowledged debt. Run that command
+only when you accept the debt. Otherwise fix the actions first, then regenerate
+the file.
+
+Under the pre-commit hook the tree is transient: the hook stashes unstaged
+changes, runs, then restores them, so a scan can read a half-applied edit. Rule
+that out before blaming the baseline: re-run `make lucidlint` on a clean tree.
+
 ## Baseline conventions
 
 - `--update-baseline --baseline lucidlint.json` locks today's debt so the

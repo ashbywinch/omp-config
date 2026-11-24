@@ -28,6 +28,9 @@ repo_context_files = [
 [pr_reviewer]
 enable_incremental = true
 persistent_comment = true  # update the same review comment instead of posting a new one
+inline_key_issues = true
+final_update_message = false
+persistent_finding_state = false
 require_tests_review = true
 require_security_review = true
 # Response-size budget, not a target. Too high truncates the review and fails
@@ -44,14 +47,8 @@ handle_push_trigger = true
 # Don't skip push synchronize events from bot senders: omp-harness's
 # commits get the same review as human ones.
 push_trigger_ignore_bot_commits = false
-push_commands = ["/review", "/improve"]
+auto_improve = false
+push_commands = ["/review"]
 
 [litellm]
 extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"omp-config\"}"}'
-
-[pr_code_suggestions]
-extra_instructions = """
-Documentation is reviewed like code. For each markdown file in the diff, check it against docs/writing-documentation.md. Propose a concrete replacement line for every rule it breaks, and quote the rule you are enforcing. Anchor each suggestion to the line it replaces.
-"""
-persistent_comment = true
-commitable_code_suggestions = true  # inline mode: the summarized table comment is never published (pr_code_suggestions.py:139); posting failures degrade to verified one-line comments, never a table

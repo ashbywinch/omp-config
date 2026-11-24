@@ -100,6 +100,43 @@ echo '{"properties": {"Status": {"select": {"name": "Completed"}}}}' | \
 echo "Updated content" | ntn pages edit <PAGE_ID>
 ```
 
+## Changing the schema
+
+`notion-write.sh` changes one page's property values; it cannot add, rename or
+remove a property. A schema change is a `PATCH /v1/data_sources/<id>` with
+`properties`.
+
+**Remove a property in this order.** Removal deletes every value the property
+holds.
+
+1. **Back up the schema and every value.** Write a dated JSON file outside the
+   repository: the property definition (type, options, ids) and, for every page,
+   the page id, the object's title/id, and the property's value. Mode `0600`.
+2. **Check the views.** Retrieve each view on the database and look for the
+   property in filters, sorts and visible columns. Ask the user before removing a
+   property that a filter or sort uses. A visible column alone does not stop the
+   removal.
+3. **Remove it** with `PATCH /v1/data_sources/<id>` and
+   `{"properties": {"<Name>": null}}`.
+4. **Verify**: the property is absent from the schema, the views no longer list
+   it, a page that held a value no longer has the property, and the row count is
+   unchanged.
+5. **Say where the backup is** and how to restore it: recreate the property from
+   the saved definition, then write each page's value back.
+
+Never delete a page to remove a property; the page is the record.
+
+## When asking about a row
+
+**Show the row before asking about it.** Carry the item in the question:
+
+- its name
+- what it is for
+- the rows or tasks that depend on it
+
+A user cannot answer about an item they cannot see. This covers epics and value
+streams as much as interactions.
+
 ## Key Rule: Use Property Names, Not Internal IDs
 
 Notion properties have both a **display name** (e.g. `"Status"`) and an internal property ID (e.g. `"Q%5B%3FR"`). Always use the display name in API calls. Using internal IDs causes "Couldn't find editable properties" errors.
