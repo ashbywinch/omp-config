@@ -142,6 +142,11 @@ Chat and thread replies have no extractor, so `PR#2` is fine there.
 
 ### 4. Create PR
 
+**Create it as the bot; never export a token to do it.** `gh` here is a shim:
+it mints the App token in an agent session and passes through to the user's own
+account in their terminal, subagent sessions included. A PR authored as the
+human cannot be approved by that human — GitHub greys "Approve" on your own PR.
+
 ```bash
 gh pr create \
   --title "type: description" \
