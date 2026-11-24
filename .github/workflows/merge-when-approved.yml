@@ -16,6 +16,7 @@ name: Merge when approved
 #
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
+#
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
@@ -49,10 +50,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write       # update-branch, merge
+  contents: write       # merge
   pull-requests: write  # read the PR, merge it
   checks: read          # the PR's check runs
   statuses: read        # the legacy commit statuses, where a repo uses those
+  actions: write        # dispatch the required check after update-branch
 
 jobs:
   merge:
@@ -62,9 +64,33 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     steps:
+      - name: Mint an app token when the app is configured
+        id: app
+        env:
+          APP_ID: ${{ vars.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -n "${APP_ID}" ] && [ -n "${APP_PRIVATE_KEY}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::App credentials are not configured; falling back to GITHUB_TOKEN, whose pushes need approval"
+          fi
+
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        if: steps.app.outputs.configured == 'true'
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-actions: write
+
       - name: Merge if approved, resolved and green
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          HAS_APP_TOKEN: ${{ steps.app.outputs.configured }}
           REPO: ${{ github.repository }}
           PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || github.event.workflow_run.pull_requests[0].number || '' }}
           SHA: ${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
@@ -85,6 +111,8 @@ jobs:
           # fifteen minutes, and an approval, a check or a thread can change in
           # that time. Deciding on a stale value is how a PR merges on an approval
           # that was withdrawn.
+
+          CI_WORKFLOW=ci.yml
 
           read_state() {
             gh api graphql -f query='
@@ -143,6 +171,19 @@ jobs:
           # more than a hundred, and merges it with threads still open. A failed
           # query is fatal, not zero — an unreadable answer must never read as
           # "no unresolved threads".
+          update_and_dispatch() {
+            local head_ref
+            head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || return 1
+            gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null || {
+              echo "::error::update-branch failed for $head_ref" >&2
+              return 1
+            }
+            gh workflow run "$CI_WORKFLOW" --repo "$REPO" --ref "$head_ref" || {
+              echo "::error::could not dispatch $CI_WORKFLOW on $head_ref" >&2
+              return 1
+            }
+          }
+
           count_threads() {
             local total=0 cursor="" page
             while : ; do
@@ -176,6 +217,7 @@ jobs:
           # Checks usually finish after the approval that started this job, and the
           # last one to finish is often the review the PR is waiting on. Wait for
           # them rather than deciding on a snapshot.
+          updated=0
           for attempt in $(seq 1 15); do
             read -r decision state head_repo < <(read_state)
             checks=$(read_checks) || exit 3
@@ -192,6 +234,23 @@ jobs:
             if [ "$open_threads" != "0" ]; then
               echo "$open_threads review thread(s) unresolved — not merging"; exit 0
             fi
+
+            if [ "$state" = "BEHIND" ]; then
+              if [ "${HAS_APP_TOKEN:-false}" != "true" ]; then
+                echo "::error::branch is behind and no app token is configured — update the branch, then approve again"
+                exit 1
+              fi
+              if [ "$updated" = "1" ]; then
+                echo "branch updated; waiting for the dispatched check"
+              else
+                updated=1
+                update_and_dispatch || exit 3
+                echo "branch updated and $CI_WORKFLOW dispatched; waiting for its check"
+              fi
+              sleep 60
+              continue
+            fi
+
             if [ "$checks" = "SUCCESS" ]; then
               break
             fi
@@ -225,8 +284,7 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              gh api -X PUT "repos/$REPO/pulls/$pr/update-branch" >/dev/null
-              echo "branch updated; the next run merges"
+              echo "::warning::base moved during the wait — the next run updates the branch"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;

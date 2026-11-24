@@ -133,6 +133,11 @@ issue to fetch and a PR number crashes the review.
 
 ### 4. Create PR
 
+**Create it as the bot; never export a token to do it.** `gh` here is a shim:
+it mints the App token in an agent session and passes through to the user's own
+account in their terminal, subagent sessions included. A PR authored as the
+human cannot be approved by that human — GitHub greys "Approve" on your own PR.
+
 ```bash
 gh pr create \
   --title "type: description" \
@@ -482,8 +487,9 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 ## Part 4b: Before you report a PR's state
 
 Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
-resolve none (`skill://pr-state`). `skill://pr-loop` holds the order that gets
-there and which tool answers what.
+resolve none; what each fact means, and what to do about a failed one, is
+`skill://pr-state`.
+The order that gets there is `skill://pr-loop`.
 
 ## Part 5: Handing the merge to the user
 
@@ -562,9 +568,8 @@ The sections above are the how-to; these are the one-line reminders.
 - **A `pr-review` run failing with `Failed to parse AI prediction`** — that is
   the model's own output, not your diff; re-run the job once and report it only
   if it recurs.
-- **Calling a PR ready on two of the three facts** — a clean merge, a green head and answered threads
-  are separate claims; a red required check or an unresolved conflict means **blocked**, never
-  "ready" (§4b).
+- **Calling a PR ready on some of the facts** — a partial reading is not a verdict; the
+  four facts and their failures are `skill://pr-state` (§4b).
 - **Reporting state before `pr-threads --wait`** — a list, a "ready to approve", a handover: all of
   them are claims the reviewer has finished. Unanswered threads make the state "awaiting reply" (§4b).
 - **Treating a cancelled check as either verdict** — cancelled means superseded by a newer run (§4b).
