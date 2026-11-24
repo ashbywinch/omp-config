@@ -17,11 +17,9 @@ name: Merge when approved
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
 #
-# A branch behind the base is updated by this job, then the required check is
-# dispatched on the new head. The update and the dispatch both use the app
-# token when `vars.APP_ID` and `secrets.APP_PRIVATE_KEY` are set: a push made by
-# the app runs its own checks, while one made with GITHUB_TOKEN is held for
-# approval and starts nothing.
+# A branch behind the base is updated here, and the required check is dispatched
+# on the new head. Both run as the app when vars.APP_ID and secrets.APP_PRIVATE_KEY
+# are set; a GITHUB_TOKEN push starts no runs of its own.
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
@@ -79,7 +77,7 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::APP_ID/APP_PRIVATE_KEY unset — falling back to GITHUB_TOKEN, whose pushes are held for approval"
+            echo "::warning::App credentials are not configured; falling back to GITHUB_TOKEN, whose pushes need approval"
           fi
 
       - uses: actions/create-github-app-token@v1
@@ -116,8 +114,7 @@ jobs:
           # that time. Deciding on a stale value is how a PR merges on an approval
           # that was withdrawn.
 
-          # The workflow whose check the ruleset requires. Named once: the
-          # update path dispatches it, and the dispatch must match the ruleset.
+          # The workflow the ruleset requires, named once.
           CI_WORKFLOW=ci.yml
 
           read_state() {
@@ -177,8 +174,7 @@ jobs:
           # more than a hundred, and merges it with threads still open. A failed
           # query is fatal, not zero — an unreadable answer must never read as
           # "no unresolved threads".
-          # Update the branch and start the required check on the new head, so
-          # the merge can happen in this repo whatever token the push carried.
+          # Update the branch, then start the required check on the new head.
           update_and_dispatch() {
             local head_ref
             head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || return 1
