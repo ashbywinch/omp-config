@@ -1,10 +1,12 @@
 """The session predicate both shims share: who does this shell belong to?
 
-Every agent process must reach the bot, and a subagent's shell may carry no
-agent id at all, so the predicate matches any agent marker.
+The Paseo daemon exports `OMP_GIT_IDENTITY=bot` once, and every process below it
+inherits the flag. The predicate reads that flag and nothing else, so a host
+marker such as `OPENCODE` or `PASEO_AGENT_ID` neither grants nor denies agent
+mode.
 
 These tests run the real shims against a fake `gh`/`git` on PATH: pass-through
-must reach the fake, and every agent marker must stop short of it.
+must reach the fake, and the flag must stop short of it.
 """
 
 import subprocess
@@ -19,11 +21,15 @@ SHIMS = {
     "helper": REPO / "tools" / "omp-bot-credential-helper",
 }
 
-AGENT_MARKERS = (
+AGENT_MARKERS = ({"OMP_GIT_IDENTITY": "bot"},)
+
+# Host and tool markers that must NOT imply an agent: the identity is the
+# daemon's export, not a guess from what happens to be set.
+NOT_AGENT_MARKERS = (
     {"OPENCODE": "1"},
+    {"OPENCODE": "1", "OPENCODE_SESSION_ID": "ses_123"},
     {"AI_AGENT": "opencode"},
     {"PASEO_AGENT_ID": "agent-123"},
-    {"OMP_GIT_IDENTITY": "bot"},
 )
 
 
@@ -101,6 +107,26 @@ class PassThroughTest(unittest.TestCase):
         self.assertIn("real-gh", result.stdout)
 
 
+class HostMarkerIsNotIdentityTest(unittest.TestCase):
+    """A tool or host marker alone leaves the shell human."""
+
+    def setUp(self) -> None:
+        self.tools = FakeTools()
+        self.addCleanup(self.tools.close)
+
+    def test_a_host_marker_alone_reaches_the_real_gh(self):
+        for marker in NOT_AGENT_MARKERS:
+            with self.subTest(marker=marker):
+                result = self.tools.run("gh", marker)
+                self.assertIn("real-gh", result.stdout)
+
+    def test_a_host_marker_alone_reaches_the_real_git(self):
+        for marker in NOT_AGENT_MARKERS:
+            with self.subTest(marker=marker):
+                result = self.tools.run("git", marker)
+                self.assertIn("real-git", result.stdout)
+
+
 class AgentSessionTest(unittest.TestCase):
     """Every marker the launch environment sets takes the shell to the bot.
 
@@ -142,7 +168,7 @@ class AgentSessionTest(unittest.TestCase):
         self.assertEqual(result.stdout, "")
 
     def test_agent_mode_says_what_is_missing_rather_than_falling_back(self):
-        result = self.tools.run("gh", {"OPENCODE": "1"})
+        result = self.tools.run("gh", {"OMP_GIT_IDENTITY": "bot"})
         self.assertIn("GITHUB_APP_ID", result.stderr)
 
 

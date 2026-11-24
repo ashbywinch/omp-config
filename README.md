@@ -44,28 +44,24 @@ omp shells out to `gh` for GitHub work. The `tools/gh-app-shim` makes an
 **agent session** authenticate as the **omp-harness GitHub App**, while your
 own terminal keeps your personal credentials:
 
-- **agent session** — any of `PASEO_AGENT_ID`, `OMP_GIT_IDENTITY=bot`,
-  `OPENCODE=1`, `AI_AGENT` is set → mint a fresh app installation token,
-  override any inherited `GH_TOKEN`/`GITHUB_TOKEN` (a user token must not leak
-  into agent calls), export `GH_TOKEN` for that call, exec real `gh`
+- **agent process** — `OMP_GIT_IDENTITY=bot` → mint a fresh app installation
+  token, override any inherited `GH_TOKEN`/`GITHUB_TOKEN` (a user token must
+  not leak into agent calls), export `GH_TOKEN` for that call, exec real `gh`
 - **otherwise** (your terminal, scripts, cron) → pass through to real `gh`
 
-Every agent process must carry the bot identity, not only a top-level one. An
-agent's shell is not the whole story: a subagent runs as a child process whose
-environment the host built, so it may carry no `PASEO_AGENT_ID` and still be an
-agent. The predicate therefore matches any agent marker — `PASEO_AGENT_ID`,
-`OMP_GIT_IDENTITY=bot`, `OPENCODE=1`, `AI_AGENT` — and a process is a bot when
-any one of them is set.
+The flag is exported once, by the daemon (`~/.paseo/start.sh`), and inherited by
+everything below it: the OpenCode servers, their sessions, subagents, and every
+shell those spawn. One export therefore covers every agent process, at any
+depth, and the shim reads only that flag.
+
+Keying on one flag rather than on host markers is what makes it hold for a
+subagent, which carries no agent id, and for any other agent host, which would
+carry none of this harness's variables.
 
 A PR opened by the human's account cannot be approved by that human: GitHub
 greys out **Approve** on your own PR, and the approval is the one action the
 desk's gate cannot supply. The same predicate gates `tools/git-app-shim`
 (commits and pushes), so both halves of a session agree.
-
-Key on markers your own shell does not carry. The Paseo terminal worker sets
-`PASEO_TERMINAL_ID` and `PASEO_WORKSPACE_ID` and no agent marker, so an
-interactive shell keeps the human's `gh`. A marker your own shell also carried
-would turn your `gh` into the bot's.
 
 **No literal secret, anywhere.** The only secret is the App private key, at the
 path in `GITHUB_APP_KEY_FILE` (`chmod 600`, outside the repo). The shim mints a

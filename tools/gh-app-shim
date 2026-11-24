@@ -12,19 +12,14 @@
 #                            GH_TOKEN/GITHUB_TOKEN override)
 #
 # An agent session is any of:
-#   PASEO_AGENT_ID set, OMP_GIT_IDENTITY=bot   (a Paseo agent / the wrapper)
-#   OPENCODE=1 or AI_AGENT set                 (any shell OpenCode spawns)
+#   OMP_GIT_IDENTITY=bot                       (an agent process)
 #
-# Every agent process must carry a marker, not only a Paseo agent session.
-# Paseo sets PASEO_AGENT_ID per session through OpenCode's environment; a
-# subagent is a child session it does not create, so its shells carry
-# OPENCODE=1 and no agent id. A PR created as the human cannot be approved by
-# that human, so the predicate matches any agent marker.
+# The daemon exports OMP_GIT_IDENTITY=bot, so every process below it — the
+# OpenCode servers, their sessions, subagents, and every shell — carries the
+# flag. The shim checks that one flag: no host-specific marker is consulted, so
+# a different agent host needs only the same export.
 #
-# The markers are safe to key on because the human's own shell carries none of
-# them: the Paseo terminal worker sets PASEO_TERMINAL_ID and
-# PASEO_WORKSPACE_ID. A marker the interactive shell also carried would turn
-# the user's own `gh` into the bot's.
+# The human's shell inherits none of it: the daemon never starts one.
 #
 # The app key, app id, and installation id come from ~/.secrets at runtime
 # (sourced here so this works under the Paseo daemon AND a bare terminal). No
@@ -68,8 +63,7 @@ fi
 
 # ---- the session predicate: agent session, or the human's own shell? ----
 # Both shims carry this same list; tests/test_agent_session_identity.py pins it.
-if [ -n "${PASEO_AGENT_ID:-}" ] || [ "${OMP_GIT_IDENTITY:-}" = "bot" ] \
-    || [ "${OPENCODE:-}" = "1" ] || [ -n "${AI_AGENT:-}" ]; then
+if [ "${OMP_GIT_IDENTITY:-}" = "bot" ]; then
     :
 else
     exec "$REAL_GH" "$@"
