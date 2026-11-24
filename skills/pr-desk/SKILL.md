@@ -30,6 +30,15 @@ Rank them with a reason for the order: age, check state, review state,
 unresolved threads, size, labels, mergeability, and whether one blocks another.
 Do not use a fixed oldest-first queue.
 
+**The bot's dependency PRs are in the queue.** A dependabot bump is open work
+like any other, and the kind that rots unnoticed: nothing reviews it, so nobody
+misses it. Rank a lockfile or workflow bump on CI alone — the suite is the whole
+review. Read a *major* version bump before trusting the suite, because it can
+pass while the behaviour moves. Rebase it onto the base before believing any
+check: a check on a head that does not contain the base was run against
+different code, so an inherited red is not evidence of a break and an inherited
+green is not evidence of a fix.
+
 Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
 the clone's main checkout, and do not have two PRs in flight. Drive the
 author-side loop: read the findings (`fetch-pr-findings.sh <n>`), fix them,
@@ -67,7 +76,8 @@ Relay the "ready for your approval" message to the person with the PR link and
 what stands behind it.
 
 Never approve, never resolve a review thread, never merge, and do not run
-`gh pr merge`.
+`gh pr merge`. The author identity is handled by the `gh` shim; the desk does
+not check it.
 
 The repo's `merge-when-approved` workflow merges on the person's approval.
 

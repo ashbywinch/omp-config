@@ -1,9 +1,8 @@
 ---
 name: pr-state
 description: |
-  Decide whether a pull request is ready to report — clean merge, checks green on
-  the head, every thread answered — and say blocked when one fails. Load this
-  before saying "ready for approval" or "blocked".
+  Never say a PR is "ready for approval" or "blocked" without running
+  `pr-ready` first and reporting what it printed.
 ---
 
 # A PR's state
@@ -15,6 +14,16 @@ someone else's next action.
 
 Run `pr-ready <pr>` and report what it printed. Do not summarise an earlier run:
 the user's last message can have changed the answer.
+
+## Four facts, each its own failure
+
+A clean merge, a current base, a green head and answered threads are separate
+claims. One failing blocks the PR whatever the others say.
+
+**Behind the base is not ready.** The base is `origin/<base>`, never a local
+branch of that name. A PR behind its base is not ready: merging it drops the
+base's newer commits. The fix is the branch's: merge the base in, resolve, push,
+then ask again.
 
 ## What the script cannot decide
 

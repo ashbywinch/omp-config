@@ -24,6 +24,9 @@
 #   to review.
 # - extra_instructions demands a per-doc Compliance section — this is what
 #   makes the bot enforce the standards instead of rubber-stamping.
+# - Code suggestions stay off: `auto_improve = false`. Doc enforcement lives in
+#   [pr_reviewer] extra_instructions, which names docs/writing-documentation.md
+#   and requires a Compliance section per doc; the rules stay in that doc.
 
 [openai]
 custom_llm_provider = "openai"
@@ -53,23 +56,20 @@ repo_context_files = [
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
+inline_key_issues = true
+final_update_message = false
+persistent_finding_state = false
 # Response-size budget, not a target. Too high truncates the review and fails
 # the check. Too low hides findings. 10 is the house balance.
 num_max_findings = 10
-extra_instructions = "Check the PR against each file in repo_context_files. Before checking compliance, derive the domain glossary from docs/PRD.md and docs/TECHSPEC.md (entities, actions, personas, states, object model), then read the diff against it two ways. Vocabulary: a domain-level name (class, module, public entry point, domain-typed field) using technical or vague words instead of the documented term is a finding. Latent concepts: domain behaviour smeared across several functions or buried inside one, owned by no identifier, is equally a finding — draw it out under a glossary name, proposing a new glossary term where none fits. Generic helper, plumbing, and config-key names are not glossary checks.  Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (docs failing the documentation-quality checklist — context efficiency, density, no-duplication, one topic per file), folder-structure deviations from docs/documentation-structure.md (missing or malformed required docs — PRD with JTBD/personas/constraints/user requirements, TECHSPEC with choices/spikes/diagrams, UX.md, PLAN with the software's phase inputs/outputs and quality gates — every doc discoverable from AGENTS.md, skills exempt from reachability since the harness discovers them), and UX deviations from docs/ux-standards.md. Structural findings the standards name are findings too: a missed class (bare dict/tuple/list in a record position), a name that violates the object model or domain-noun rules, and separation-of-concerns violations. Suppression comments are findings when their why fails the evidence bar in docs/coding-standards.md ('Suppressions carry checkable evidence') — review every exemption form that section names (`lucidlint: ignore`, `ignore-file`, `# type: ignore`, `#[allow(...)]`, `# noqa`), not only the lucidlint ones."
-
-[pr_code_suggestions]
-# Documentation is reviewed like code: a doc finding lands on the line that
-# breaks the rule, not only in the review summary.
-extra_instructions = """
-Documentation is reviewed like code. For each markdown file in the diff, propose a concrete replacement line when it breaks docs/writing-documentation.md: a sentence over 30 words; a fact and a command in one sentence; a history lesson (a date, "we confirmed", "proven", "the former X is gone"); a fact stated twice; an undefined acronym. Anchor every suggestion to the line it replaces.
-"""
-persistent_comment = true
-commitable_code_suggestions = true  # inline mode: the summarized table comment is never published; a posting failure degrades to verified one-line comments, never a table
+extra_instructions = "Every markdown file this PR changes is a doc under review: check each one against docs/writing-documentation.md and docs/documentation-structure.md, and report every violation as its own finding with path:line and the rule it breaks, quoting the rule's words. Check the PR against each file in repo_context_files. Before checking compliance, derive the domain glossary from docs/PRD.md and docs/TECHSPEC.md (entities, actions, personas, states, object model), then read the diff against it two ways. Vocabulary: a domain-level name (class, module, public entry point, domain-typed field) using technical or vague words instead of the documented term is a finding. Latent concepts: domain behaviour smeared across several functions or buried inside one, owned by no identifier, is equally a finding — draw it out under a glossary name, proposing a new glossary term where none fits. Generic helper, plumbing, and config-key names are not glossary checks.  Add a 'Compliance' section per doc, listing any violations found or 'No violations'. Flag violations as findings, not just notes: style and semantic deviations from docs/coding-standards.md, test-standard deviations from docs/testing-standards.md, requirement deviations from docs/PRD.md (a change that violates a stated requirement, constraint, persona, or JTBD is a finding), documentation-standard deviations from docs/writing-documentation.md (docs failing the documentation-quality checklist — context efficiency, density, no-duplication, one topic per file), folder-structure deviations from docs/documentation-structure.md (missing or malformed required docs — PRD with JTBD/personas/constraints/user requirements, TECHSPEC with choices/spikes/diagrams, UX.md, PLAN with the software's phase inputs/outputs and quality gates — every doc discoverable from AGENTS.md, skills exempt from reachability since the harness discovers them), and UX deviations from docs/ux-standards.md. Structural findings the standards name are findings too: a missed class (bare dict/tuple/list in a record position), a name that violates the object model or domain-noun rules, and separation-of-concerns violations. Suppression comments are findings when their why fails the evidence bar in docs/coding-standards.md ('Suppressions carry checkable evidence') — review every exemption form that section names (`lucidlint: ignore`, `ignore-file`, `# type: ignore`, `#[allow(...)]`, `# noqa`), not only the lucidlint ones."
 
 [github_action_config]
 handle_push_trigger = true
-push_commands = ["/review", "/improve"]
+auto_improve = false
+# -i is what makes a push review only the commits since the last review:
+# the image triggers incremental review from the argument, not a setting.
+push_commands = ["/review -i"]
 # A human posting "/skip" on the PR skips the AI review for that PR
 # (the check-review step passes on it). Deliberate opt-out only — the
 # default is that every PR gets reviewed. Do NOT use /skip on your own
