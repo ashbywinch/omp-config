@@ -192,6 +192,17 @@ fact and decision.
   name exactly one file"). A sentence that only reports what happens — "two rows
   for one file split the record" — leaves the reader to infer the rule, so give
   it as the reason if it earns a reason. A metaphor cannot be acted on.
+- **Write the instruction, not an aphorism about it.** "When a task's date has
+  passed, ask whether the work is still owed" is the rule. "A passed date is a
+  question" is a sentence about the rule, and the reader cannot act on it.
+- **Name the actor and the action.** Do not open a sentence with an article for
+  something the reader has not met — "a passed date", "the urgent set". Say who
+  does what, or name the concrete object. A dangling article makes the reader
+  work out what the sentence is about before they can obey it.
+- **Tell the reader what to do, and only what they need.** A doc earns its place
+  by the action it enables: run this, set that, answer this question. Cut the
+  rest, including the sentence that explains why the rule exists when the reason
+  is plain.
 - **Tables over prose.** A rule per row beats a paragraph per rule, when a
   fact has consistent fields.
 - **Canonical ✗/✓ examples over exhaustive enumeration.** One right/wrong
@@ -319,4 +330,6 @@ Canonical pairs:
 - [ ] No sentence starts with "There is" or "There are"
 - [ ] No weasel words (enable, leverage, robust, seamless, transparent)
 - [ ] No history lessons: no account of what changed, who decided, or what failed before
+- [ ] No aphorisms: each rule says what to do, not what it means
+- [ ] No dangling articles: every sentence names its actor or its concrete object
 - [ ] Always-loaded files within the ~150–200 line ceiling
