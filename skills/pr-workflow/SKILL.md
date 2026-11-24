@@ -28,7 +28,8 @@ and works the chosen one.
 If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
 thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
 approval. Report it as a bug when it is absent or not firing. A finding is
-answered by a refactor, never by an argument: §11b is that rule.
+answered by a refactor, never by an argument (§11b), because every comment
+hides a confusion — the reviewer's or the author's whose code drew it.
 
 ## Prerequisites
 
@@ -580,6 +581,8 @@ The sections above are the how-to; these are the one-line reminders.
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
 - **An unlinked PR or issue number** — write it as a link (§4).
+- **A watcher that exits with work in hand** — answer it now; the rule and the
+  tool's contract are in `skill://pr-loop`.
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).
