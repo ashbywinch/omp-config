@@ -392,6 +392,8 @@ git push origin <branch>
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
 
+**Work in the branch's own worktree.** A claim about the code comes from the branch under review, never the default checkout.
+
 **Read what you changed whole before the push.** Zoom out from the diff and read
 it as a reader meets it, then fix what that shows (§11c).
 
