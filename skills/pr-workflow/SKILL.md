@@ -27,9 +27,7 @@ and works the chosen one.
 
 If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
 thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
-approval. Report it as a bug when it is absent or not firing. A finding is
-answered by a refactor, never by an argument (§11b), because every comment
-hides a confusion — the reviewer's or the author's whose code drew it.
+approval. Report it as a bug when it is absent or not firing.
 
 ## Prerequisites
 
@@ -393,8 +391,6 @@ git push origin <branch>
 ```
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
-
-Answer findings across review rounds in the order `skill://pr-loop` gives.
 
 **Read what you changed whole before the push.** Zoom out from the diff and read
 it as a reader meets it, then fix what that shows (§11c).
