@@ -27,7 +27,8 @@ and works the chosen one.
 
 If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
 thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
-approval. Report it as a bug when it is absent or not firing.
+approval. Report it as a bug when it is absent or not firing. A finding is
+answered by a refactor, never by an argument: §11b is that rule.
 
 ## Prerequisites
 
@@ -52,7 +53,8 @@ the kind and the number**:
 
 This holds on **every surface**, and a summary is not an exception:
 
-- the chat reply — including "five PRs are green, awaiting your approval";
+- the chat reply — including "five PRs are green, awaiting your approval". Chat
+  has no autolink, so the form is required there too;
 - the PR description (`pr_description.md`) — see §3 for the one form the
   ticket extractor forces on a PR number;
 - every review-thread reply.
