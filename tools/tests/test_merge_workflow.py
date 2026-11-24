@@ -1,11 +1,5 @@
 # lucidlint: ignore-file fakefs this reads the repo's real workflow file.
-"""The merge gate's own contract, asserted as text.
-
-The workflow cannot be run in a test: it needs the GitHub API, a live PR and an
-approval. What a test can pin is the shape that keeps the gate correct — one
-place updates the branch, one place dispatches the required check, and the
-merge call is reached only after the loop accepted every condition.
-"""
+"""The merge gate's contract, asserted on the workflow file."""
 
 import unittest
 from pathlib import Path
@@ -19,7 +13,6 @@ class MergeWorkflowTest(unittest.TestCase):
         self.text = WORKFLOW.read_text(encoding="utf-8")
 
     def test_the_branch_is_updated_in_one_place(self):
-        """A second update site is a second policy: one will drift."""
         self.assertEqual(self.text.count('update-branch"'), 1)
 
     def test_the_required_check_is_dispatched_in_one_place(self):
@@ -29,7 +22,6 @@ class MergeWorkflowTest(unittest.TestCase):
         self.assertEqual(self.text.count("CI_WORKFLOW=ci.yml"), 1)
 
     def test_the_update_path_reports_failure(self):
-        """A failed update or dispatch must fail the run, not exit 0."""
         start = self.text.index("update_and_dispatch()")
         body = self.text[start:self.text.index("count_threads()")]
         self.assertGreaterEqual(body.count("return 1"), 2)
