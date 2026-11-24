@@ -247,8 +247,8 @@ jobs:
               # Without the app token the update is a GITHUB_TOKEN push, whose
               # runs are held for approval: leave the update to a person.
               if [ "${HAS_APP_TOKEN:-false}" != "true" ]; then
-                echo "::warning::branch is behind and no app token is configured — update it, then approve again"
-                exit 0
+                echo "::error::branch is behind and no app token is configured — update the branch, then approve again"
+                exit 1
               fi
               if [ "$updated" = "1" ]; then
                 echo "branch updated; waiting for the dispatched check"
@@ -294,8 +294,9 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              update_and_dispatch || exit 3
-              echo "base moved during the wait; updated and $CI_WORKFLOW dispatched"
+              # The base moved after the wait. The loop owns the update, so this
+              # run ends here and the next one takes the loop path.
+              echo "::warning::base moved during the wait — the next run updates the branch"
               exit 0 ;;
             *)
               echo "merge state is $state — not merging"; exit 0 ;;
