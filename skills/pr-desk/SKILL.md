@@ -41,7 +41,8 @@ the clone's main checkout. Drive the author-side loop: read the findings, fix
 them, reply to every inline comment with evidence, push once per review pass,
 wait for the next review, and repeat. Run `make check` before each push.
 
-Never approve a PR, never resolve a review thread, and never merge. Do not run
+Never approve a PR, never resolve a review thread, and never merge. The author
+identity is handled by the `gh` shim; the desk does not check it. Do not run
 `gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's
 approval; if it is absent or not firing, report that as a bug.
 
