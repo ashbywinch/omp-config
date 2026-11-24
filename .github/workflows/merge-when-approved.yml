@@ -17,9 +17,6 @@ name: Merge when approved
 # Same-repo branches only: a fork PR cannot be merged by this token, and should
 # not merge itself anyway.
 #
-# A branch behind the base is updated here, and the required check is dispatched
-# on the new head. Both run as the app when vars.APP_ID and secrets.APP_PRIVATE_KEY
-# are set; a GITHUB_TOKEN push starts no runs of its own.
 
 on:
   # For client repos that cannot use GitHub's own auto-merge — a private repo
@@ -115,7 +112,6 @@ jobs:
           # that time. Deciding on a stale value is how a PR merges on an approval
           # that was withdrawn.
 
-          # The workflow the ruleset requires, named once.
           CI_WORKFLOW=ci.yml
 
           read_state() {
@@ -175,7 +171,6 @@ jobs:
           # more than a hundred, and merges it with threads still open. A failed
           # query is fatal, not zero — an unreadable answer must never read as
           # "no unresolved threads".
-          # Update the branch, then start the required check on the new head.
           update_and_dispatch() {
             local head_ref
             head_ref=$(gh api "repos/$REPO/pulls/$pr" --jq .head.ref) || return 1
@@ -240,12 +235,7 @@ jobs:
               echo "$open_threads review thread(s) unresolved — not merging"; exit 0
             fi
 
-            # Behind the base: update, then make sure the required check exists
-            # on the new head. The dispatch covers the GITHUB_TOKEN fallback,
-            # where the update starts no runs.
             if [ "$state" = "BEHIND" ]; then
-              # Without the app token the update is a GITHUB_TOKEN push, whose
-              # runs are held for approval: leave the update to a person.
               if [ "${HAS_APP_TOKEN:-false}" != "true" ]; then
                 echo "::error::branch is behind and no app token is configured — update the branch, then approve again"
                 exit 1
@@ -294,8 +284,6 @@ jobs:
           case "$state" in
             CLEAN|UNSTABLE) ;;
             BEHIND)
-              # The base moved after the wait. The loop owns the update, so this
-              # run ends here and the next one takes the loop path.
               echo "::warning::base moved during the wait — the next run updates the branch"
               exit 0 ;;
             *)
