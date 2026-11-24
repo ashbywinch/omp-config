@@ -93,6 +93,7 @@ jobs:
       - name: Merge if approved, resolved and green
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          HAS_APP_TOKEN: ${{ steps.app.outputs.configured }}
           REPO: ${{ github.repository }}
           PR_FROM_EVENT: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number || github.event.workflow_run.pull_requests[0].number || '' }}
           SHA: ${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha || github.event.status.sha || github.sha }}
@@ -243,6 +244,12 @@ jobs:
             # on the new head. The dispatch covers the GITHUB_TOKEN fallback,
             # where the update starts no runs.
             if [ "$state" = "BEHIND" ]; then
+              # Without the app token the update is a GITHUB_TOKEN push, whose
+              # runs are held for approval: leave the update to a person.
+              if [ "${HAS_APP_TOKEN:-false}" != "true" ]; then
+                echo "::warning::branch is behind and no app token is configured — update it, then approve again"
+                exit 0
+              fi
               if [ "$updated" = "1" ]; then
                 echo "branch updated; waiting for the dispatched check"
               else
