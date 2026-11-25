@@ -339,9 +339,11 @@ class EnsureIsSafeToRepeat(unittest.TestCase):
     """
 
     def test_a_desk_does_not_ensure_itself(self):
-        with mock.patch.dict(pr_desk.os.environ, {"PR_DESK": "1"}):
-            with self.assertRaises(pr_desk.DeskError):
-                pr_desk.ensure("ashbywinch/inbox")
+        out = io.StringIO()
+        with mock.patch.dict(pr_desk.os.environ, {"PR_DESK": "1"}), \
+                redirect_stdout(out):
+            self.assertEqual(pr_desk.ensure("ashbywinch/inbox"), 0)
+        self.assertEqual(out.getvalue(), "")
 
     def test_an_existing_desk_is_left_alone(self):
         desk = mock.Mock()

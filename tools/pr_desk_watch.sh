@@ -24,10 +24,10 @@
 # Two recipients, and they are not interchangeable:
 #
 #   PR_DESK_WORK_AGENT    the agent that owns this PR; receives agent work.
-#                         Defaults to PASEO_AGENT_ID, which is wrong inside a
-#                         subagent: a spawned session inherits its parent's
-#                         value, so the notices would go to the parent. The
-#                         spawning agent passes its own id here instead.
+#                         Named, never inherited: a spawned session inherits
+#                         PASEO_AGENT_ID from its parent, so a default taken
+#                         from the environment would post a worker's notices
+#                         to the agent that spawned it.
 #   PR_DESK_HUMAN_AGENT   the top-level desk agent, the one the person talks
 #                         to; receives the approval notice.
 #
@@ -52,7 +52,7 @@ set -uo pipefail
 pr="${1:?usage: pr-desk-watch.sh <pr> [owner/name] [interval-seconds]}"
 repo="${2:-}"
 interval="${3:-60}"
-agent="${PR_DESK_WORK_AGENT:-${PASEO_AGENT_ID:-}}"
+agent="${PR_DESK_WORK_AGENT:-}"
 human="${PR_DESK_HUMAN_AGENT:-}"
 root="${PR_READY_ROOT:-$PWD}"
 
@@ -66,7 +66,7 @@ if ! printf '%s' "$interval" | grep -Eq '^[1-9][0-9]*$'; then
 fi
 
 if [ -z "$agent" ]; then
-  echo "pr-desk-watch: neither PR_DESK_WORK_AGENT nor PASEO_AGENT_ID is set — no agent would receive the work notices" >&2
+  echo "pr-desk-watch: PR_DESK_WORK_AGENT is not set — name the agent that owns this PR" >&2
   exit 2
 fi
 if [ -z "$human" ]; then
