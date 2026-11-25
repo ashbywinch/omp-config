@@ -53,10 +53,19 @@ PR_DESK_WORK_AGENT="$PASEO_AGENT_ID" PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" \
 ```
 
 Both recipients are named explicitly, and the watcher refuses to start without
-them. `PASEO_AGENT_ID` is right here because a desk is a top-level agent; a
-worker passes the id of the agent that owns the PR, which may be the agent that
-spawned it — an agent that is not a Paseo agent cannot receive a message at all,
-so its notices belong to whichever agent does own the work.
+them.
+
+A PR is watched from one of two places, and the recipients follow it:
+
+- **the desk**, when the PR must not interrupt that repo's own work. The desk
+  agent receives the work notices, and `PR_DESK_HUMAN_AGENT` is the desk too,
+  because the desk is the session the person is talking to;
+- **the agent doing the repo's work**, when that agent owns the PR itself. It
+  receives the work notices, and it is also the person's channel.
+
+A spawned session must pass the owning agent's id: it inherits
+`PASEO_AGENT_ID` from its parent, and a message sent to a session that is not a
+Paseo agent reaches nobody the person talks to.
 
 `PASEO_AGENT_ID` receives the work notices — unanswered threads, a failing
 required check. It is this session, because the desk owns the PR.
