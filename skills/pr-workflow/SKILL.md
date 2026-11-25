@@ -29,10 +29,10 @@ and works the chosen one.
 `merge-when-approved` workflow merges on the person's approval. Report it as a
 bug when it is absent or not firing.
 
-With `PR_DESK=1` you are the desk, which adds two rules. Do not run `pr-desk
-ensure`: it creates the repo's desk and its top-level agent, and a desk that
-does so makes another desk. You are the channel to the person, so the desk's
-messages reach them; a worker's do not.
+With `PR_DESK=1` you are the desk, which adds two rules. `pr-desk ensure`
+refuses inside a desk: there it would create another desk or reload the one
+asking. You are the channel to the person, so the desk's messages reach them; a
+worker's do not.
 
 ## Prerequisites
 
