@@ -54,11 +54,11 @@ PR_DESK_WORK_AGENT="$PASEO_AGENT_ID" PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" \
   pr-desk-watch.sh <n> <owner/name>
 ```
 
-A worker that is not the desk starts it with its own id in `PR_DESK_WORK_AGENT`
-and the desk's id in `PR_DESK_HUMAN_AGENT`. `PASEO_AGENT_ID` alone cannot be
-trusted inside a spawned session: it inherits the parent's value, so the work
-notices would arrive at the agent that spawned the worker instead of at the
-worker.
+Both recipients are named explicitly, and the watcher refuses to start without
+them. `PASEO_AGENT_ID` is right here because a desk is a top-level agent; a
+worker passes the id of the agent that owns the PR, which may be the agent that
+spawned it — an agent that is not a Paseo agent cannot receive a message at all,
+so its notices belong to whichever agent does own the work.
 
 `PASEO_AGENT_ID` receives the work notices — unanswered threads, a failing
 required check. It is this session, because the desk owns the PR.
