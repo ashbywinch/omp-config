@@ -18,6 +18,7 @@ GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
+WATCH_PR_DST := $(H)/.local/bin/watch-pr.sh
 LEXICON_DST       := $(H)/.paseo/lexicon.central
 PR_THREADS_DST := $(H)/.local/bin/pr-threads
 PR_DESK_DST := $(H)/.local/bin/pr-desk
@@ -63,6 +64,7 @@ install:
 		fi; \
 	done
 	ln -sf $(CURDIR)/tools/fetch-pr-findings.sh $(FETCH_FINDINGS_DST)
+	ln -sf $(CURDIR)/skills/pr-workflow/scripts/watch-pr.sh $(WATCH_PR_DST)
 	mkdir -p $(dir $(LEXICON_DST))
 	ln -sf $(CURDIR)/lexicon/central.lexicon $(LEXICON_DST)
 	ln -sf $(CURDIR)/tools/pr_threads.py $(PR_THREADS_DST)

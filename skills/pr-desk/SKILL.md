@@ -40,10 +40,8 @@ different code, so an inherited red is not evidence of a break and an inherited
 green is not evidence of a fix.
 
 Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
-the clone's main checkout, and do not have two PRs in flight. Drive the
-author-side loop: read the findings (`fetch-pr-findings.sh <n>`), fix them,
-reply to every inline comment with evidence, push once per review pass, wait
-for the next review, and repeat. Run `make check` before each push.
+the clone's main checkout. Run the loop in `skill://pr-loop`, answering threads
+with `pr-threads <pr>`, and run `make test` before each push.
 
 ## Keep the watcher running
 
@@ -98,5 +96,8 @@ what is still unanswered.
 Do not report against it: "inherited", "the same on main" and "someone else's
 failure" never turn a red required check green.
 
-Re-rank after every merge. Report the queue, the chosen PR, and why. When the
-queue is empty, say "archive me" and stop.
+Re-rank after every merge. Report the queue, the chosen PR, and why.
+
+Link every PR you name, in the report and in every reply (`skill://pr-workflow` §4).
+
+When the queue is empty, say “archive me” and stop.
