@@ -89,7 +89,8 @@ install:
 # this, so `make -j2` still produces one write and one value.
 stamp-shims:
 	@mkdir -p $(dir $(SHIMS_COMMIT))
-	@git -C $(CURDIR) rev-parse --short HEAD > $(SHIMS_COMMIT) 2>/dev/null || true
+	@sha=$$(git -C $(CURDIR) rev-parse --short HEAD) || { echo "stamp-shims: cannot read HEAD — write no stamp at all" >&2; exit 1; }; \
+	 printf '%s\n' "$$sha" > $(SHIMS_COMMIT)
 
 install-gh-shim: stamp-shims
 	@mkdir -p $(dir $(GH_SHIM_DST))
