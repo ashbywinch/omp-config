@@ -50,8 +50,15 @@ for the next review, and repeat. Run `make check` before each push.
 Start it once per PR, in the background, for the life of the PR:
 
 ```
-PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" pr-desk-watch.sh <n> <owner/name>
+PR_DESK_WORK_AGENT="$PASEO_AGENT_ID" PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" \
+  pr-desk-watch.sh <n> <owner/name>
 ```
+
+A worker that is not the desk starts it with its own id in `PR_DESK_WORK_AGENT`
+and the desk's id in `PR_DESK_HUMAN_AGENT`. `PASEO_AGENT_ID` alone cannot be
+trusted inside a spawned session: it inherits the parent's value, so the work
+notices would arrive at the agent that spawned the worker instead of at the
+worker.
 
 `PASEO_AGENT_ID` receives the work notices — unanswered threads, a failing
 required check. It is this session, because the desk owns the PR.
