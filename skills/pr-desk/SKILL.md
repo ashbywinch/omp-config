@@ -55,23 +55,15 @@ PR_DESK_WORK_AGENT="$PASEO_AGENT_ID" PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" \
 Both recipients are named explicitly, and the watcher refuses to start without
 them.
 
-A PR is watched from one of two places, and the recipients follow it:
+- **The owner** is the agent doing the PR's work: this repo's own agent when the
+  PR is part of that work, or the desk when the work must not interrupt it.
+- **The person's channel** is the session the person is talking to: the same
+  agent in the common case, and the desk when the desk put the work on a worker.
 
-- **the desk**, when the PR must not interrupt that repo's own work. The desk
-  agent receives the work notices, and `PR_DESK_HUMAN_AGENT` is the desk too,
-  because the desk is the session the person is talking to;
-- **the agent doing the repo's work**, when that agent owns the PR itself. It
-  receives the work notices, and it is also the person's channel.
-
-A spawned session must pass the owning agent's id: it inherits
-`PASEO_AGENT_ID` from its parent, and a message sent to a session that is not a
-Paseo agent reaches nobody the person talks to.
-
-`PASEO_AGENT_ID` receives the work notices — unanswered threads, a failing
-required check. It is this session, because the desk owns the PR.
-`PR_DESK_HUMAN_AGENT` receives "ready for your approval"; it is this session
-too, because this session is the desk the person talks to. The watcher refuses
-to start when `PR_DESK_HUMAN_AGENT` is unset.
+The owner receives *a comment arrived* and *a required check failed*, and must
+answer or fix. The person's channel receives *this PR is ready to approve*, with
+the link, and must tell the person. Neither address may be taken from
+`PASEO_AGENT_ID`: a spawned session inherits its parent's value.
 
 The two addresses are not interchangeable. A subagent you spawn is a worker
 with no channel to the person.
