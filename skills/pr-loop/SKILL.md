@@ -18,10 +18,9 @@ The reviewer reviews every push. One pass per review, in this order:
 
 ## Answering a finding
 
-An answer is a change to the code, not an argument about it. A comment that is
-right means the code confused its author, and one that is wrong means it
-confused the reviewer. Either way the code did not carry the fact. Make it carry
-the fact, so the question cannot come back.
+**Never argue with a finding; change the code instead.** A comment that is right
+means the code failed to explain itself to its author, and one that is wrong
+means it failed to explain itself to the reviewer.
 
 - Make it structural first: a name, a type, a branch, one decision function.
 - Use a doc line, comment or test only when the code cannot express the fact.
