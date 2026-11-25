@@ -48,7 +48,9 @@ handle_push_trigger = true
 # commits get the same review as human ones.
 push_trigger_ignore_bot_commits = false
 auto_improve = false
-push_commands = ["/review"]
+# -i is what makes a push review only the commits since the last review: this
+# image triggers incremental review from the argument, not from a setting.
+push_commands = ["/review -i"]
 
 
 [litellm]
