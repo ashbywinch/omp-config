@@ -444,20 +444,12 @@ that question twice:
 - Or is the comment simply wrong? Then the code is fine, and the reply says why
   with the test or source line that settles it.
 
-Then act once: fix the smell if there is one, or refute with evidence and leave
-the code. Do not churn the implementation to satisfy a sequence of objections. A
-reviewer that rejects a change and then its reversal is describing two weaknesses
-of one design, not asking for a third version. Nor dismiss a comment because a
-bot wrote it. The bot stands in for a reader with less context than you, and that
-is exactly the reader the code has to work for.
+A reviewer that rejects a change and then its reversal is describing two
+weaknesses of one design, not asking for a third version. Never dismiss a
+comment because a bot wrote it: the bot stands in for a reader with less context
+than you, and that is the reader the code has to work for.
 
-**Treat every comment as evidence of confusion and refactor the code, then
-reply.** A bug in the diff means the authoring agent was confused by the code;
-a comment that is wrong means the reviewer was confused. Both cases mean the
-code did not carry the fact:
-make it structural — a name, a type, a branch, one decision function — so the
-next reader does not need the explanation. Use a doc line, comment or test only
-when the code cannot express the fact. Refactor first; reply with the new shape.
+The instruction for answering one is `skill://pr-loop`.
 
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two

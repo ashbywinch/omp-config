@@ -114,8 +114,8 @@ The intended phases:
 ## Where a concern lives
 
 Each concern gets one file. A rule, a procedure or a fact that does not belong
-in the file holding it moves into a file of its own, linked from where readers
-arrive.
+in the file holding it moves to the file that owns it. When no file owns it, it
+gets one, linked from wherever a reader will look for it.
 
 Never fold a concern into another file's sections. Scattered across the
 neighbouring file's parts, it has no single place to read and no single place to
