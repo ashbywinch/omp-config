@@ -16,6 +16,7 @@ HOOKS_DIR  := .githooks
 GH_SHIM_DST := $(H)/.local/bin/gh
 GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
+SHIMS_COMMIT := $(H)/.local/libexec/omp-shims.installed-commit
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
 LEXICON_DST       := $(H)/.paseo/lexicon.central
@@ -32,8 +33,8 @@ help:
 	@echo "omp-config — available commands:"
 	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks + gh/git shims"
 	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM"
-	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
-	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
+	@echo "  ${GREEN}make install-gh-shim${NC} Install tools/gh-app-shim as ~/.local/bin/gh (a copy, not a link); create ~/.secrets from template if missing"
+	@echo "  ${GREEN}make install-git-shim${NC} Install tools/git-app-shim as ~/.local/bin/git (a copy, not a link) + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
 	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
 	@echo "  ${GREEN}make test${NC}           Repo self-check"
@@ -73,9 +74,21 @@ install:
 	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
+# The shims are INSTALLED COPIES, not symlinks into this checkout.
+#
+# A symlink makes the installed `gh` behave as whichever branch this checkout
+# happens to be on: measured 2026-11-25, a two-day-old branch's shim still keyed
+# on PASEO_AGENT_ID, so a subagent (which carries none) fell through to the
+# human's account and a PR was authored by them — unapprovable by that human and
+# invisible to every check that assumes the bot authors. A copy is whatever
+# `main` was when you last ran `make install`; drift is then a thing you did,
+# and `.installed-commit` records which commit that was.
 install-gh-shim:
 	@mkdir -p $(dir $(GH_SHIM_DST))
-	@ln -sf $(CURDIR)/tools/gh-app-shim $(GH_SHIM_DST)
+	@rm -f $(GH_SHIM_DST)
+	@cp $(CURDIR)/tools/gh-app-shim $(GH_SHIM_DST)
+	@chmod 700 $(GH_SHIM_DST)
+	@git -C $(CURDIR) rev-parse --short HEAD > $(SHIMS_COMMIT) 2>/dev/null || true
 	@if [ ! -f $(H)/.secrets ]; then \
 		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
 		echo "Created ~/.secrets from template — fill in the values, then chmod 600."; \
@@ -87,9 +100,12 @@ install-gh-shim:
 
 install-git-shim:
 	@mkdir -p $(dir $(GIT_SHIM_DST)) $(dir $(GIT_HELPER_DST)) $(dir $(GIT_AGENT_CFG))
-	@ln -sf $(CURDIR)/tools/git-app-shim $(GIT_SHIM_DST)
-	@ln -sf $(CURDIR)/tools/omp-bot-credential-helper $(GIT_HELPER_DST)
+	@rm -f $(GIT_SHIM_DST)
+	@cp $(CURDIR)/tools/git-app-shim $(GIT_SHIM_DST)
+	@rm -f $(GIT_HELPER_DST)
+	@cp $(CURDIR)/tools/omp-bot-credential-helper $(GIT_HELPER_DST)
 	@chmod 700 $(GIT_SHIM_DST) $(GIT_HELPER_DST)
+	@git -C $(CURDIR) rev-parse --short HEAD > $(SHIMS_COMMIT) 2>/dev/null || true
 	@python3 $(CURDIR)/tools/gen-agent-gitconfig.py $(GIT_AGENT_CFG) $(GIT_HELPER_DST)
 	@if [ ! -f $(H)/.secrets ]; then \
 		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
@@ -110,7 +126,7 @@ uninstall:
 		rm -rf $(SKILLS_DIR)/$$name/examples; \
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
-	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
+	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG) $(SHIMS_COMMIT)
 	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(NOTION_WRITE_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@echo "Removed omp-config symlinks."
 
