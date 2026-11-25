@@ -19,7 +19,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -28,6 +28,14 @@ SPEC = importlib.util.spec_from_file_location(
 pr_desk = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = pr_desk
 SPEC.loader.exec_module(pr_desk)
+
+
+@contextmanager
+def not_a_desk():
+    """Run as an ordinary session: `ensure` refuses inside a desk."""
+    with mock.patch.dict(pr_desk.os.environ):
+        pr_desk.os.environ.pop("PR_DESK", None)
+        yield
 
 
 def proc(stdout="", returncode=0, stderr=""):
@@ -263,7 +271,8 @@ class Ensure(unittest.TestCase):
              mock.patch.object(pr_desk.RepoDesk, "ensure_clone") as clone:
             out = io.StringIO()
             with redirect_stdout(out):
-                self.assertEqual(pr_desk.ensure("ashbywinch/inbox"), 0)
+                with not_a_desk():
+                    self.assertEqual(pr_desk.ensure("ashbywinch/inbox"), 0)
         clone.assert_not_called()
         self.assertIn("no open PRs", out.getvalue())
 
@@ -280,7 +289,8 @@ class Ensure(unittest.TestCase):
                                return_value="created agent"):
             out = io.StringIO()
             with redirect_stdout(out):
-                self.assertEqual(pr_desk.ensure("ashbywinch/inbox"), 0)
+                with not_a_desk():
+                    self.assertEqual(pr_desk.ensure("ashbywinch/inbox"), 0)
         self.assertIn("created agent", out.getvalue())
 
 
@@ -319,3 +329,26 @@ class Verify(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EnsureIsSafeToRepeat(unittest.TestCase):
+    """`ensure` from an ordinary session is idempotent; from a desk it refuses.
+
+    Both halves matter: a desk that called it would make another desk, and the
+    existing desk must not be replaced when the command is run again.
+    """
+
+    def test_a_desk_does_not_ensure_itself(self):
+        with mock.patch.dict(pr_desk.os.environ, {"PR_DESK": "1"}):
+            with self.assertRaises(pr_desk.DeskError):
+                pr_desk.ensure("ashbywinch/inbox")
+
+    def test_an_existing_desk_is_left_alone(self):
+        desk = mock.Mock()
+        desk.repo = "ashbywinch/inbox"
+        with mock.patch.object(pr_desk, "desk_agents",
+                               return_value=[{"id": "agt_existing"}]), \
+                mock.patch.object(pr_desk, "run") as run:
+            said = pr_desk.RepoDesk.ensure_agent(desk, "prj_test")
+        self.assertIn("already exists", said)
+        run.assert_not_called()

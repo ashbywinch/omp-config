@@ -404,6 +404,11 @@ def agent_is_archived(agent_id: str) -> bool:
 
 
 def ensure(repo_arg: str | None) -> int:
+    if os.environ.get("PR_DESK") == "1":
+        raise DeskError(
+            "a desk does not ensure itself: run `pr-desk ensure` from an "
+            "ordinary session. Inside a desk it would create another desk, or "
+            "reload the one asking.")
     repo = repo_slug(repo_arg)
     config = load_config() or DeskConfig()
     config.write_files()
