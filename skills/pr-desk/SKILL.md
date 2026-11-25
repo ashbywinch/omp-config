@@ -65,12 +65,6 @@ answer or fix. The person's channel receives *this PR is ready to approve*, with
 the link, and must tell the person. Neither address may be taken from
 `PASEO_AGENT_ID`: a spawned session inherits its parent's value.
 
-The two addresses are not interchangeable. A subagent you spawn is a worker
-with no channel to the person.
-
-Do not hand the watcher to a subagent, and do not point the human notice at
-one.
-
 The check signature is keyed on the head and the thread signature on the
 threads' ids, so a push notifies once and a fixed re-run clears itself.
 
