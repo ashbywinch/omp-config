@@ -85,12 +85,17 @@ install:
 # invisible to every check that assumes the bot authors. A copy is whatever
 # `main` was when you last ran `make install`; drift is then a thing you did,
 # and `.installed-commit` records which commit that was.
-install-gh-shim:
+# The commit the copies came from, written once: both shim targets depend on
+# this, so `make -j2` still produces one write and one value.
+stamp-shims:
+	@mkdir -p $(dir $(SHIMS_COMMIT))
+	@git -C $(CURDIR) rev-parse --short HEAD > $(SHIMS_COMMIT) 2>/dev/null || true
+
+install-gh-shim: stamp-shims
 	@mkdir -p $(dir $(GH_SHIM_DST))
 	@rm -f $(GH_SHIM_DST)
 	@cp $(CURDIR)/tools/gh-app-shim $(GH_SHIM_DST)
 	@chmod 700 $(GH_SHIM_DST)
-	@git -C $(CURDIR) rev-parse --short HEAD > $(SHIMS_COMMIT) 2>/dev/null || true
 	@if [ ! -f $(H)/.secrets ]; then \
 		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
 		echo "Created ~/.secrets from template — fill in the values, then chmod 600."; \
@@ -100,14 +105,13 @@ install-gh-shim:
 	@chmod 700 $(GH_SHIM_DST)
 	@echo "gh shim installed -> $(GH_SHIM_DST)"
 
-install-git-shim:
+install-git-shim: stamp-shims
 	@mkdir -p $(dir $(GIT_SHIM_DST)) $(dir $(GIT_HELPER_DST)) $(dir $(GIT_AGENT_CFG))
 	@rm -f $(GIT_SHIM_DST)
 	@cp $(CURDIR)/tools/git-app-shim $(GIT_SHIM_DST)
 	@rm -f $(GIT_HELPER_DST)
 	@cp $(CURDIR)/tools/omp-bot-credential-helper $(GIT_HELPER_DST)
 	@chmod 700 $(GIT_SHIM_DST) $(GIT_HELPER_DST)
-	@git -C $(CURDIR) rev-parse --short HEAD > $(SHIMS_COMMIT) 2>/dev/null || true
 	@python3 $(CURDIR)/tools/gen-agent-gitconfig.py $(GIT_AGENT_CFG) $(GIT_HELPER_DST)
 	@if [ ! -f $(H)/.secrets ]; then \
 		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
