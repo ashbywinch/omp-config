@@ -25,17 +25,12 @@ author-side loop to the desk. The desk is a top-level agent in its own workspace
 under the `pr-desk` project, with its own clone; it ranks the repo's open PRs
 and works the chosen one.
 
-If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
-thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
-approval; if it is absent or not firing, report that as a bug.
+**No agent approves, resolves a review thread, or merges.** The repo's
+`merge-when-approved` workflow merges on the person's approval. Report it as a
+bug when it is absent or not firing.
 
-Assume confusion behind every comment and every bug — the reviewer's, or the
-author's whose code drew it. Identify the confusion and refactor the code to
-remove it, then reply.
-
-**Before you report a PR's state** (ready / blocked / mergeable), run
-`watch-pr.sh <n>`. When one area has collected refutations, stop
-refuting and refactor it before answering.
+With `PR_DESK=1` you are the desk, which adds one rule. You are the channel to
+the person, so the desk's messages reach them; a worker's do not.
 
 ## Prerequisites
 
@@ -60,7 +55,8 @@ the kind and the number**:
 
 This holds on **every surface**, and a summary is not an exception:
 
-- the chat reply — including "five PRs are green, awaiting your approval";
+- the chat reply — including "five PRs are green, awaiting your approval". Chat
+  has no autolink, so the form is required there too;
 - the PR description (`pr_description.md`) — see §3 for the one form the
   ticket extractor forces on a PR number;
 - every review-thread reply.
@@ -137,8 +133,6 @@ issue to fetch and a PR number crashes the review.
 | Pull request | `[PR 51](https://github.com/<owner>/<repo>/pull/51)` | a `#` here makes the review job fail |
 | Issue | `[Issue#3](https://github.com/<owner>/<repo>/issues/3)` | the extractor can fetch it |
 | Anything else | name it, don't number it | a placeholder or a run is not a ticket |
-
-Chat and thread replies have no extractor, so `PR#2` is fine there.
 
 ### 4. Create PR
 
@@ -406,6 +400,8 @@ git push origin <branch>
 
 **Always run lint and tests locally before pushing.** CI takes minutes per cycle. Broken pushes waste time.
 
+**Work in the branch's own worktree.** The default checkout may sit on another branch, so a claim about the code would describe something the PR does not contain.
+
 **Read what you changed whole before the push.** Zoom out from the diff and read
 it as a reader meets it, then fix what that shows (§11c).
 
@@ -451,20 +447,13 @@ that question twice:
 - Or is the comment simply wrong? Then the code is fine, and the reply says why
   with the test or source line that settles it.
 
-Then act once: fix the smell if there is one, or refute with evidence and leave
-the code. Do not churn the implementation to satisfy a sequence of objections. A
-reviewer that rejects a change and then its reversal is describing two weaknesses
-of one design, not asking for a third version. Nor dismiss a comment because a
-bot wrote it. The bot stands in for a reader with less context than you, and that
-is exactly the reader the code has to work for.
+A reviewer that rejects a change and then its reversal is describing two
+weaknesses of one design. Never propose a third version that answers neither of
+them. Never dismiss a
+comment because a bot wrote it: the bot stands in for a reader with less context
+than you, and that is the reader the code has to work for.
 
-**Treat every comment as evidence of confusion and refactor the code, then
-reply.** A bug in the diff means the authoring agent was confused by the code;
-a comment that is wrong means the reviewer was confused. Both cases mean the
-code did not carry the fact:
-make it structural — a name, a type, a branch, one decision function — so the
-next reader does not need the explanation. Use a doc line, comment or test only
-when the code cannot express the fact. Refactor first; reply with the new shape.
+The instruction for answering one is `skill://pr-loop`.
 
 One instance, to show the shape: identity versus span comparison for "is this
 the node the function returns". Round one rejected the address, round two
@@ -496,6 +485,7 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
 resolve none; what each fact means, and what to do about a failed one, is
 `skill://pr-state`.
+The order that gets there is `skill://pr-loop`.
 
 ## Part 5: Handing the merge to the user
 
@@ -589,10 +579,9 @@ The sections above are the how-to; these are the one-line reminders.
 - **Terse thread replies** (`Fixed` / `No`) — every reply names its
   referent: the commit + file:line (or the evidence that refutes the
   claim). A reply with no checkable referent is a non-reply (§7b).
-- **An unlinked PR or issue number** — in chat, in a status summary, in a
-  description, in a reply: link it as `PR#2` or `Issue#3`, never a bare `#2`. A
-  PR number in a *description* takes the `#`-free text `PR 2`, because the ticket
-  extractor reads `#N` as an issue and a PR number crashes the review (§3).
+- **An unlinked PR or issue number** — write it as a link (§4).
+- **A watcher that exits with work in hand** — answer it now; the rule and the
+  tool's contract are in `skill://pr-loop`.
 - **Posting `/skip` on your own initiative** — the review-skip command is
   a user decision, never the agent's; only use it when the user explicitly
   asks (§5c).

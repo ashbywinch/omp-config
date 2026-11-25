@@ -37,14 +37,16 @@ different code, so an inherited red is not evidence of a break and an inherited
 green is not evidence of a fix.
 
 Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
-the clone's main checkout. Drive the author-side loop: read the findings, fix
-them, reply to every inline comment with evidence, push once per review pass,
-wait for the next review, and repeat. Run `make check` before each push.
+the clone's main checkout. Run the loop in `skill://pr-loop`, answering threads
+with `pr-threads <pr>`, and run `make test` before each push.
 
 Never approve a PR, never resolve a review thread, and never merge. The author
 identity is handled by the `gh` shim; the desk does not check it. Do not run
 `gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's
 approval; if it is absent or not firing, report that as a bug.
 
-Re-rank after every merge. Report the queue, the chosen PR, and why. When the
-queue is empty, say “archive me” and stop.
+Re-rank after every merge. Report the queue, the chosen PR, and why.
+
+Link every PR you name, in the report and in every reply (`skill://pr-workflow` §4).
+
+When the queue is empty, say “archive me” and stop.
