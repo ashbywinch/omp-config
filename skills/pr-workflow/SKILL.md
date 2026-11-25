@@ -25,9 +25,14 @@ author-side loop to the desk. The desk is a top-level agent in its own workspace
 under the `pr-desk` project, with its own clone; it ranks the repo's open PRs
 and works the chosen one.
 
-If `PR_DESK=1`, you are the desk: do not call `ensure`; never approve, resolve a
-thread, or merge. The repo's `merge-when-approved` workflow merges on the user's
-approval. Report it as a bug when it is absent or not firing.
+**No agent approves, resolves a review thread, or merges.** The repo's
+`merge-when-approved` workflow merges on the person's approval. Report it as a
+bug when it is absent or not firing.
+
+With `PR_DESK=1` you are the desk, which adds two rules. Do not run `pr-desk
+ensure`: it creates the repo's desk and its top-level agent, and a desk that
+does so makes another desk. You are the channel to the person, so the desk's
+messages reach them; a worker's do not.
 
 ## Prerequisites
 
