@@ -254,7 +254,7 @@ while :; do
   # The key is the threads' identities, not their printed position: a push
   # moves path:line for a thread nobody answered, and a listing-shaped key
   # reports that unchanged work as new.
-  pending=$(pr-threads "$pr" --repo "$repo" --ids 2>/dev/null | sed '/^$/d' | sort)
+  pending=$(timeout "$read_timeout" pr-threads "$pr" --repo "$repo" --ids 2>/dev/null | sed '/^$/d' | sort)
   if [ -n "$pending" ]; then
     if [ "$pending" != "$notified_threads" ]; then
       count=$(printf '%s\n' "$pending" | wc -l | tr -d ' ')
@@ -290,7 +290,7 @@ while :; do
   # a running one included, and 1 when the list could not be read, so no pass
   # asks pr-ready about a state it cannot vouch for.
   if [ -z "$pending" ] && [ "$blocked" -eq 0 ] && [ "$decision" != "APPROVED" ]; then
-    ready_out=$(pr-ready "$pr" --repo "$repo" --root "$root" --no-wait 2>&1)
+    ready_out=$(timeout "$read_timeout" pr-ready "$pr" --repo "$repo" --root "$root" --no-wait 2>&1)
     rc=$?
     # pr-ready's verdict is its own line, `READY: <next step>` — the prefix and
     # the colon are the format (`tools/pr_ready.py:197-202`), so a longer word
