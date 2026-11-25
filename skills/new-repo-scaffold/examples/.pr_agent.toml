@@ -67,7 +67,9 @@ extra_instructions = "Every markdown file this PR changes is a doc under review:
 [github_action_config]
 handle_push_trigger = true
 auto_improve = false
-push_commands = ["/review"]
+# -i is what makes a push review only the commits since the last review:
+# the image triggers incremental review from the argument, not a setting.
+push_commands = ["/review -i"]
 # A human posting "/skip" on the PR skips the AI review for that PR
 # (the check-review step passes on it). Deliberate opt-out only — the
 # default is that every PR gets reviewed. Do NOT use /skip on your own
