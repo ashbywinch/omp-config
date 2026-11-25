@@ -48,9 +48,7 @@ handle_push_trigger = true
 # commits get the same review as human ones.
 push_trigger_ignore_bot_commits = false
 auto_improve = false
-# -i is what makes a push review only the commits since the last review:
-# the image triggers incremental review from the argument, not a setting.
-push_commands = ["/review -i"]
+push_commands = ["/review"]
 
 [litellm]
 extra_headers = '{"cf-aig-request-timeout": "1800000", "cf-aig-max-attempts": "0", "cf-aig-backoff": "exponential", "cf-aig-metadata": "{\"source\":\"review\",\"repo\":\"omp-config\"}"}'
