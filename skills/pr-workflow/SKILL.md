@@ -445,7 +445,8 @@ that question twice:
   with the test or source line that settles it.
 
 A reviewer that rejects a change and then its reversal is describing two
-weaknesses of one design. A third version answers neither of them. Never dismiss a
+weaknesses of one design. Never propose a third version that answers neither of
+them. Never dismiss a
 comment because a bot wrote it: the bot stands in for a reader with less context
 than you, and that is the reader the code has to work for.
 
