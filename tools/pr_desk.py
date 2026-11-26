@@ -404,6 +404,10 @@ def agent_is_archived(agent_id: str) -> bool:
 
 
 def ensure(repo_arg: str | None) -> int:
+    if os.environ.get("PR_DESK") == "1":
+        # A desk is already the thing `ensure` would create. Say nothing and
+        # succeed: the desk is ensured.
+        return 0
     repo = repo_slug(repo_arg)
     config = load_config() or DeskConfig()
     config.write_files()

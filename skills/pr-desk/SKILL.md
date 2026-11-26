@@ -2,20 +2,23 @@
 name: pr-desk
 description: |
   The PR desk's own loop — one workspace per repo under the pr-desk project,
-  rank the repo's open pull requests, drive the author-side review loop, and
-  never approve, resolve a thread, or merge. Loaded by each desk agent.
+  rank the repo's open pull requests, and drive the author-side review loop
+  one PR at a time with `pr-desk-watch` in the background. Loaded by each
+  desk agent; what the desk must never do is stated in the body.
 ---
 
 # The desk agent
 
-You are the PR desk for one repo. Your clone is the workspace path; the desk
-root and the worktrees are in your prompt. Use absolute paths.
+You are the PR desk for one repo: the human-facing session, the one whose
+messages the person reads. Your clone is the workspace path; the desk root and
+the worktrees are in your prompt. Use absolute paths.
 
-The helper commands are at `~/.local/bin/pr-threads`,
-`~/.local/bin/watch-pr.sh` and `~/.local/bin/fetch-pr-findings.sh`.
-`fetch-run-logs.sh` is at
-`~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`.
-Use the absolute path if `which` finds nothing.
+The loop's tools come from `make install` — the Makefile's `install` target is
+the manifest. `fetch-run-logs.sh` is at
+`~/Documents/code/omp-config/skills/pr-workflow/scripts/fetch-run-logs.sh`;
+use the absolute path if `which` finds nothing.
+
+## One workspace per repo, one PR at a time
 
 Enumerate every open PR:
 
@@ -40,10 +43,41 @@ Work the chosen PR in its own worktree under `<worktrees>/pr-<n>`; never switch
 the clone's main checkout. Run the loop in `skill://pr-loop`, answering threads
 with `pr-threads <pr>`, and run `make test` before each push.
 
-Never approve a PR, never resolve a review thread, and never merge. The author
-identity is handled by the `gh` shim; the desk does not check it. Do not run
-`gh pr merge`. The repo's `merge-when-approved` workflow merges on the user's
-approval; if it is absent or not firing, report that as a bug.
+## Keep the watcher running
+
+Start it once per PR, in the background, for the life of the PR:
+
+```
+PR_DESK_AGENT="$PASEO_AGENT_ID" pr-desk-watch <n> <owner/name>
+```
+
+One recipient: the session that owns the PR — this repo's own agent when the PR
+is part of its work, or the desk when the work must not interrupt it. Every
+message goes there, because that session is also the person's channel.
+
+- **For the agent:** a comment arrived; a required check failed; the branch is
+  behind its base. Answer, fix, or update.
+- **For the person:** the PR is ready except for their review. Relay it with the
+  link; the approval is theirs.
+
+`PR_DESK_AGENT` is never taken from `PASEO_AGENT_ID`: a spawned session inherits
+its parent's value, so the owner is named.
+
+Never approve, never resolve a review thread, never merge, and do not run
+`gh pr merge`. The author identity is handled by the `gh` shim; the desk does
+not check it.
+
+The repo's `merge-when-approved` workflow merges on the person's approval.
+
+If that workflow is absent or not firing, report it as a bug.
+
+## Readiness is pr-ready's verdict
+
+`pr-ready <n> --repo <owner/name> --no-wait` decides it. `pr-threads <n>` says
+what is still unanswered.
+
+Do not report against it: "inherited", "the same on main" and "someone else's
+failure" never turn a red required check green.
 
 Re-rank after every merge. Report the queue, the chosen PR, and why.
 
