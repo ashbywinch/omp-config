@@ -180,6 +180,7 @@ class Settings:
     agent: str
     interval: int
     timeout: int = 30
+    send_timeout: int = 120
     root: Path = Path(".")
 
     @property
@@ -332,9 +333,15 @@ class Watcher:
     # ---- sending ---------------------------------------------------------
 
     def notify(self, body: str) -> bool:
-        """Send one notice; a failure leaves the caller's key unset."""
+        """Send one notice; a failure leaves the caller's key unset.
+
+        A send gets its own, longer bound: `paseo send` waits on the relay, and a
+        message that took longer than a read timeout was being killed after the
+        person had already received it — so the key stayed unset and every pass
+        sent it again.
+        """
         result = run(
-            ["paseo", "send", self.settings.agent, body], self.settings.timeout
+            ["paseo", "send", self.settings.agent, body], self.settings.send_timeout
         )
         if result.returncode == 0:
             return True
@@ -343,11 +350,12 @@ class Watcher:
         return False
 
     def rearm(self, kind: str) -> None:
-        """Forget the last notice of this kind, so the state notifies again.
+        """Forget the last notice of this kind.
 
-        Clearing is what makes a keyed notice repeatable: a thread answered and
-        then re-raised, a head that becomes ready again, a branch that drifts
-        twice. Without it the second occurrence is swallowed by the first key.
+        Only the thread key needs it: thread ids are stable, so a thread answered
+        and then re-raised carries the same key and clearing is what lets it
+        notify again. Every other key holds the head, so a new head differs by
+        itself — and clearing on a transient state repeated the notice.
         """
         setattr(self.keys, kind, "")
 
@@ -417,7 +425,6 @@ class Watcher:
         blocked = len(not_green | never_ran)
         failing = sorted({check.name for check in considered if check.failed})
         if not failing:
-            self.rearm("checks")
             return CheckReport(blocked=blocked, failing=[])
         self.announce(
             "checks",
@@ -430,7 +437,6 @@ class Watcher:
 
     def report_behind(self, pull: PullRequest) -> None:
         if not pull.behind:
-            self.rearm("behind")
             return
         self.announce(
             "behind",
@@ -441,14 +447,15 @@ class Watcher:
         )
 
     def report_ready(self, pull: PullRequest, check_report: CheckReport) -> None:
+        # No rearming: the key is the head, so a new head notifies again by
+        # itself. Clearing on a transient not-ready — a check run in flight, a
+        # pr-ready timeout — sent the same notice on every pass.
         if check_report.blocked or pull.decision == "APPROVED" or pull.behind:
-            self.rearm("ready")
             return
         verdict = self.gh.ready_verdict()
         if not verdict.ready:
             if not verdict.line.startswith("BLOCKED:"):
                 warn(f"pr-ready gave no verdict — {verdict.line}".rstrip(" —"))
-            self.rearm("ready")
             return
         self.announce(
             "ready",
@@ -461,6 +468,16 @@ class Watcher:
         )
 
 
+def env_seconds(name: str, default: int) -> int:
+    """A positive whole number of seconds, from the environment or the default."""
+    raw = os.environ.get(name) or str(default)  # empty is unset, not invalid
+    if not raw.isdigit() or int(raw) < 1:
+        raise WatchError(
+            f"{name} must be a positive whole number of seconds, got {raw!r}"
+        )
+    return int(raw)
+
+
 def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Settings:
     if not pr_arg.isdigit():
         raise WatchError(f"<pr> must be a pull request number, got {pr_arg!r}")
@@ -471,14 +488,11 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
     agent = os.environ.get("PR_DESK_AGENT", "")
     if not agent:
         raise WatchError("PR_DESK_AGENT is not set — name the session that owns this PR")
-    timeout_arg = os.environ.get("PR_DESK_WATCH_TIMEOUT", str(Settings.timeout))
-    if not timeout_arg.isdigit() or int(timeout_arg) < 1:
-        raise WatchError(
-            f"PR_DESK_WATCH_TIMEOUT must be a positive whole number of seconds, got {timeout_arg!r}"
-        )
+    timeout = env_seconds("PR_DESK_WATCH_TIMEOUT", Settings.timeout)
+    send_timeout = env_seconds("PR_DESK_WATCH_SEND_TIMEOUT", Settings.send_timeout)
     repo = repo_arg or ""
     if not repo:
-        result = run(["gh", "repo", "view", "--json", "nameWithOwner"], int(timeout_arg))
+        result = run(["gh", "repo", "view", "--json", "nameWithOwner"], timeout)
         if result.returncode != 0:
             raise WatchError("not in a checkout, and no owner/name given")
         try:
@@ -492,7 +506,8 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
         repo=repo,
         agent=agent,
         interval=int(interval_arg),
-        timeout=int(timeout_arg),
+        timeout=timeout,
+        send_timeout=send_timeout,
         root=Path(os.environ.get("PR_READY_ROOT", ".")).resolve(),
     )
 
