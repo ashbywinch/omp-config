@@ -19,7 +19,6 @@ GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
 SHIMS_COMMIT := $(H)/.local/libexec/omp-shims.installed-commit
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
-WATCH_PR_DST := $(H)/.local/bin/watch-pr.sh
 LEXICON_DST       := $(H)/.paseo/lexicon.central
 PR_THREADS_DST := $(H)/.local/bin/pr-threads
 PR_DESK_DST := $(H)/.local/bin/pr-desk
