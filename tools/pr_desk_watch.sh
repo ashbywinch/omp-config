@@ -1,237 +1,168 @@
 #!/usr/bin/env bash
-# Watch one PR: tell the worker what needs doing, and tell the desk when the PR
-# is ready for the person's approval.
+# Watch one PR and tell its owner what needs doing next.
 #
 #   pr-desk-watch.sh <pr> [owner/name] [interval-seconds]
 #
-# Start it in the background for the life of the PR.
+# One recipient, PR_DESK_AGENT: the session that owns this PR. Every message is
+# addressed to it, because that session is also the person's channel.
 #
-# The watcher exits when the PR merges or closes. It reports two classes of
-# need, one message per state change and nothing while the state holds:
+# The owner is told one of four things, once per state change:
 #
-#   agent work    a review thread whose last voice is not ours (pr-threads),
-#                 and a failing REQUIRED check on the current head. The thread
-#                 signature is the unanswered threads' ids, so a push that only
-#                 moves their lines notifies nothing; the check signature is the
-#                 head plus the failing names, so a fixed re-run clears it and a
-#                 fresh breakage notifies again.
-#   human action  the PR is ready for approval: pr-ready says READY — the head
-#                 merges into origin/main, every required check is green, no
-#                 thread is unanswered — and GitHub's reviewDecision is not
-#                 APPROVED. The message carries the PR link and the words
-#                 "ready for your approval".
+#   a comment arrived      unanswered review threads, keyed by their ids
+#   a check failed         a required check that finished unsuccessfully, keyed
+#                          by the head plus the failing names
+#   the branch is behind   the base moved, so the head must be updated, keyed by
+#                          the head once behind
+#   ready for review       pr-ready says READY and GitHub has not approved it;
+#                          the owner relays this to the person with the link
 #
-# One recipient: PR_DESK_AGENT, the session that owns this PR — this repo's own
-# agent when the PR is part of its work, or the desk when the work must not
-# interrupt it. Named, never inherited: a spawned session inherits
-# PASEO_AGENT_ID from its parent.
+# A steady state sends nothing: each message keeps its key until the state
+# changes, and a failed send leaves the key unset so the next pass retries.
 #
-# Every message goes to that one session, which is also the person's channel.
-# The wording separates the two kinds of thing it must do:
+# Every GitHub read is bounded by PR_DESK_WATCH_TIMEOUT (30s by default). A read
+# that does not answer is reported on stderr — never read as "clean".
 #
-#   for the agent    a comment arrived; a required check failed; the branch is
-#                    behind its base. It answers, fixes, or updates.
-#   for the person   the PR is ready except for the person's review. The agent
-#                    relays it, with the link; it never approves or merges.
-#
-# A notice that could not be sent is not recorded as sent: the signature stays
-# unset and the next pass sends it again.
-#
-# A read that does not answer is not an answer. Every GitHub call is bounded by
-# PR_DESK_WATCH_TIMEOUT seconds (30 by default), and a pass that cannot read the
-# PR says so on stderr rather than looking quiet.
-#
-# It never approves, never resolves a thread, never pushes, never merges. The
-# approval is the person's.
+# It never approves, never resolves a thread, never pushes, never merges.
 set -uo pipefail
 
 pr="${1:?usage: pr-desk-watch.sh <pr> [owner/name] [interval-seconds]}"
 repo="${2:-}"
 interval="${3:-60}"
-agent="${PR_DESK_AGENT:-}"
+owner="${PR_DESK_AGENT:-}"
 root="${PR_READY_ROOT:-$PWD}"
 
+warn() { echo "pr-desk-watch: $*" >&2; }
+
 if ! printf '%s' "$pr" | grep -Eq '^[0-9]+$'; then
-  echo "pr-desk-watch: <pr> must be a pull request number, got '$pr'" >&2
-  exit 2
+  warn "<pr> must be a pull request number, got '$pr'"; exit 2
 fi
 if ! printf '%s' "$interval" | grep -Eq '^[1-9][0-9]*$'; then
-  echo "pr-desk-watch: interval-seconds must be a positive whole number, got '$interval'" >&2
-  exit 2
+  warn "interval-seconds must be a positive whole number, got '$interval'"; exit 2
+fi
+if [ -z "$owner" ]; then
+  warn "PR_DESK_AGENT is not set — name the session that owns this PR"; exit 2
 fi
 
-if [ -z "$agent" ]; then
-  echo "pr-desk-watch: PR_DESK_AGENT is not set — name the session that owns this PR" >&2
-  exit 2
-fi
-
-repo="${repo:-$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)}"
-if [ -z "$repo" ]; then
-  echo "pr-desk-watch: not in a checkout, and no owner/name given" >&2
-  exit 2
-fi
-# The slug is interpolated into API paths, so it is held to the shape GitHub
-# uses. Every use is quoted already; this refuses the value rather than relying
-# on that everywhere.
-if ! printf '%s' "$repo" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-  echo "pr-desk-watch: repo must be owner/name, got '$repo'" >&2
-  exit 2
-fi
-
-# A tool that cannot read the PR's state reports "nothing to do" forever, which
-# looks the same as a quiet PR. Every source of state is required to be here.
-for tool in gh jq pr-threads pr-ready; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "pr-desk-watch: $tool is not on PATH — run 'make install' in omp-config" >&2
-    exit 2
-  fi
+for tool in gh jq pr-threads pr-ready paseo timeout; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    warn "$tool is not on PATH"; exit 2; }
 done
 
-# The sink is required for the same reason: without it every notice fails, and
-# a watcher that cannot deliver is a watcher that never wakes anybody.
-if ! command -v paseo >/dev/null 2>&1; then
-  echo "pr-desk-watch: paseo is not on PATH — no notice could be delivered" >&2
-  exit 2
-fi
+repo="${repo:-$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)}"
+[ -n "$repo" ] || { warn "not in a checkout, and no owner/name given"; exit 2; }
+slug="$repo#$pr"
 
-# A call that hangs is a watcher that stops watching, so every read is bounded.
-if ! command -v timeout >/dev/null 2>&1; then
-  echo "pr-desk-watch: timeout (coreutils) is not on PATH — a hung read would freeze the watcher" >&2
-  exit 2
-fi
 read_timeout="${PR_DESK_WATCH_TIMEOUT:-30}"
 if ! printf '%s' "$read_timeout" | grep -Eq '^[1-9][0-9]*$'; then
-  echo "pr-desk-watch: PR_DESK_WATCH_TIMEOUT must be a positive whole number of seconds, got '$read_timeout'" >&2
+  warn "PR_DESK_WATCH_TIMEOUT must be a positive whole number of seconds, got '$read_timeout'"
   exit 2
 fi
 
-slug="$pr ($repo)"
+# Every GitHub read goes through here, so the bound is in one place. A non-zero
+# exit means "the answer is unknown", and each caller says what it does next.
+gh_read() { timeout "$read_timeout" gh "$@"; }
+
+# Send one notice. A failure is printed and returned, so the caller keeps its
+# key unset and the next pass tries again.
+notify() {
+  local said
+  if said=$(paseo send "$1" "$2" 2>&1 | tr '\n' ' '); then
+    return 0
+  fi
+  warn "send to $1 failed — ${said:-no message} — retrying next pass"
+  return 1
+}
+
+# One field of the PR, or "-" when GitHub leaves it empty.
+pr_field() {
+  printf '%s' "$view" | jq -r --arg k "$1" '.[$k] // "-"'
+}
+
+# The required contexts of a base branch, from branch protection and rulesets.
+# Returns non-zero when either source will not answer: a partial list would
+# silently drop a required check, and the caller then counts every check.
+required_contexts() {
+  local owner_name="${1%%/*}" name="${1#*/}" classic rules
+  classic=$(gh_read api graphql \
+    -f query='query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}' \
+    -f o="$owner_name" -f n="$name" -f b="refs/heads/$2" \
+    --jq '.data.repository.ref.branchProtectionRule.requiredStatusCheckContexts[]?') || return 1
+  rules=$(gh_read api "repos/$1/rules/branches/$2" \
+    --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context') || return 1
+  printf '%s\n%s\n' "$classic" "$rules" | sed '/^$/d' | sort -u
+}
+
+# Load the check runs on a head into `runs`, one JSON object per line and one
+# per check name. Returns non-zero when the state cannot be trusted: the head is
+# not a sha, the read failed, or there are no runs at all.
+load_runs() {
+  local head="$2"
+  if ! printf '%s' "$head" | grep -Eq '^[0-9a-f]{7,40}$'; then
+    warn "'$head' is not a commit sha — check state unknown"; return 1
+  fi
+  # Read the pages raw, so one jq expression can see every page at once.
+  local pages
+  pages=$(gh_read api --paginate "repos/$1/commits/$head/check-runs?per_page=100&filter=latest") || {
+    warn "check-runs unreadable on ${head:0:7} — holding readiness"; return 1; }
+  # `filter=latest` is not reliable: the same name can come back twice (a
+  # reusable workflow's job, or a re-run beside the run it replaced). Keep the
+  # newest run per name, ordered by `started_at`, which a run that never started
+  # leaves null.
+  runs=$(printf '%s' "$pages" \
+    | jq -cs 'map(.check_runs[]) | group_by(.name) | map(sort_by(.started_at // "") | last) | .[]') || {
+    warn "check-runs on ${head:0:7} are not readable JSON — holding readiness"; return 1; }
+  if [ -z "$runs" ]; then
+    warn "no check-runs on ${head:0:7} — holding readiness"; return 1
+  fi
+}
+
+# Names of the required checks that are not a completed success. A required
+# context with no run is included: GitHub shows it as expected, so nothing has
+# verified it.
+blocked_names() {
+  local required="$1" missing
+  printf '%s\n' "$runs" | jq -rs --arg req "$required" '
+    ($req | split("\n") | map(select(. != ""))) as $wanted
+    | map(select(($wanted | length) == 0 or (.name as $n | any($wanted[]; . == $n))))
+    | map(select((.status == "completed" and .conclusion == "success") | not))
+    | map(.name)'
+  missing=$(comm -23 \
+    <(printf '%s\n' "$required" | sed '/^$/d' | sort -u) \
+    <(printf '%s\n' "$runs" | jq -r '.name' | sort -u))
+  [ -n "$missing" ] && printf '%s\n' "$missing"
+}
+
+# Names of the blocked checks that failed, which is the list worth a message.
+failed_names() {
+  printf '%s\n' "$runs" | jq -rs '
+    map(select(.conclusion | IN("failure", "timed_out", "action_required", "startup_failure")))
+    | .[].name'
+}
+
 notified_threads=""
 notified_checks=""
 notified_behind=""
 notified_ready=""
 required=""
 required_for=""
-
-# Every read of GitHub's state goes through here: one place bounds the wait, and
-# a non-zero exit is the caller's to handle as "unknown", never as "clean".
-gh_read() {  # gh_read <gh args...>
-  timeout "$read_timeout" gh "$@"
-}
-
-# A failed send returns non-zero so the caller leaves its signature unset: the
-# notice is re-sent next pass instead of being recorded as delivered. Both of
-# the sender's streams are captured, so "agent not found" survives whichever one
-# it is written to; on success the text is simply not used.
-notify() {  # notify <agent-id> <message>
-  local said
-  # `pipefail` is set, so the pipeline still reports the sender's failure.
-  said=$(paseo send "$1" "$2" 2>&1 | tr '\n' ' ') && return 0
-  echo "pr-desk-watch: send to $1 failed — ${said:-no message} — retrying next pass" >&2
-  return 1
-}
-
-# The contexts this base branch requires, from both places GitHub records them:
-# classic branch protection and rulesets. Empty means the API would not say,
-# and the caller then treats every check as required — the conservative way.
-# A source that fails is the same as a source that will not say: a partial list
-# would silently drop a required check, so either failure returns empty.
-required_contexts() {  # <owner/name> <base>
-  local owner="${1%%/*}" name="${1#*/}" classic rules
-  classic=$(gh_read api graphql \
-    -f query='query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}' \
-    -f o="$owner" -f n="$name" -f b="refs/heads/$2" \
-    --jq '.data.repository.ref.branchProtectionRule.requiredStatusCheckContexts[]?' 2>/dev/null) || {
-    echo "pr-desk-watch: branch protection unreadable — treating every check as required" >&2
-    return 0
-  }
-  rules=$(gh_read api "repos/$1/rules/branches/$2" \
-    --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null) || {
-    echo "pr-desk-watch: rulesets unreadable — treating every check as required" >&2
-    return 0
-  }
-  printf '%s\n%s\n' "$classic" "$rules" | sed '/^$/d' | sort -u
-}
-
-# The required checks on a head, as one JSON object:
-#
-#   {"blocked": [...], "failed": [...]}
-#
-#   blocked   every required check that is not a completed success — running,
-#             queued and cancelled included — plus every required context that
-#             has no run on the head at all. Readiness needs it empty.
-#   failed    the blocked ones with a failure conclusion. This is the list
-#             worth a message, because it names something to fix.
-#
-# A required context with no run is the case GitHub shows as "expected": no
-# workflow reported it, so nothing has verified it, and the head cannot be
-# called green. It sits in `blocked` rather than `failed` because there is no
-# failing step to read.
-#
-# The state is an object of arrays, not a delimited line, so no check name can
-# be mistaken for a separator. The caller gates on `blocked | length`, never on
-# a string being empty.
-#
-# A check is green only when it finished and finished successfully, so the
-# absence of `failed` is not greenness: a run still in flight is in `blocked`.
-# The cheap gate is therefore never more permissive than `pr-ready`, which
-# repeats the check as the authority.
-#
-# An unreadable list is not a clean one, so the function exits non-zero when
-# the answer cannot be trusted: the head is not a commit sha, the call failed,
-# the head has no runs at all (absence is not success — `tools/pr_ready.py:11-14`),
-# or two runs carry one name, which means `filter=latest` did not reduce them.
-#
-# One run per name comes from the API (`filter=latest`), not from sorting here:
-# `started_at` is null on a run that never started, and a sort on it would
-# choose the wrong run for exactly the check that has not begun.
-check_state() {  # <owner/name> <head> <newline-separated contexts>
-  local runs
-  if ! printf '%s' "$2" | grep -Eq '^[0-9a-f]{7,40}$'; then
-    echo "pr-desk-watch: '$2' is not a commit sha — check state unknown" >&2
-    return 1
-  fi
-  runs=$(gh_read api --paginate "repos/$1/commits/$2/check-runs?per_page=100&filter=latest" \
-           --jq '.check_runs[]' 2>/dev/null) || {
-    echo "pr-desk-watch: check-runs unreadable on ${2:0:7} — holding readiness" >&2
-    return 1
-  }
-  printf '%s\n' "$runs" | jq -s -r --arg req "$3" '
-    ($req | split("\n") | map(select(. != ""))) as $required
-    | map(select(($required | length) == 0
-          or (.name as $n | any($required[]; . == $n)))) as $runs
-    | if ($runs | length) == 0 then error("no check-runs on this head")
-      elif ($runs | map(.name) | length) != ($runs | map(.name) | unique | length)
-        then error("two runs for one name — filter=latest was not honoured")
-      else $runs end
-    | ($required | map(select(. as $r | any($runs[]; .name == $r) | not))) as $missing
-    | map(select((.status == "completed" and .conclusion == "success") | not)) as $blocked
-    | { blocked: (($blocked | map(.name)) + $missing | unique),
-        failed:  ($blocked
-                  | map(select(.conclusion
-                        | IN("failure", "timed_out", "action_required", "startup_failure")))
-                  | map(.name) | unique) }
-  ' || {
-    echo "pr-desk-watch: the check state above is not usable on ${2:0:7} — holding readiness" >&2
-    return 1
-  }
-}
+runs=""
+view=""
 
 while :; do
-  # The empty reviewDecision is written as "-" so that `read` cannot collapse
-  # it: IFS whitespace drops an empty field, and the next two fields — the base
-  # and the link — would slide left into the wrong names.
   view=$(gh_read pr view "$pr" --repo "$repo" \
-    --json state,headRefOid,reviewDecision,baseRefName,url,mergeStateStatus \
-    --jq '[.state, .headRefOid, (.reviewDecision // "-"), .baseRefName, .url, (.mergeStateStatus // "-")] | @tsv' 2>/dev/null)
+    --json state,headRefOid,reviewDecision,baseRefName,url,mergeStateStatus) || view=""
   if [ -z "$view" ]; then
-    # Silence here would look exactly like a quiet PR, which is the failure
-    # this tool exists to prevent.
-    echo "pr-desk-watch: cannot read $slug — still watching" >&2
+    warn "cannot read $slug — still watching"
     sleep "$interval"
     continue
   fi
-  IFS=$'\t' read -r state head decision base url merge_state <<< "$view"
+
+  state=$(pr_field state)
+  head=$(pr_field headRefOid)
+  decision=$(pr_field reviewDecision)
+  base=$(pr_field baseRefName)
+  url=$(pr_field url)
+  merge_state=$(pr_field mergeStateStatus)
 
   if [ "$state" = "MERGED" ] || [ "$state" = "CLOSED" ]; then
     echo "PR $slug is $state — watcher done"
@@ -239,78 +170,74 @@ while :; do
   fi
 
   if [ "$base" != "$required_for" ]; then
-    required=$(required_contexts "$repo" "$base")
+    if required=$(required_contexts "$repo" "$base"); then :; else
+      warn "required contexts unreadable for origin/$base — every check counts"
+      required=""
+    fi
     required_for="$base"
   fi
 
-  # The key is the threads' identities, not their printed position: a push
-  # moves path:line for a thread nobody answered, and a listing-shaped key
-  # reports that unchanged work as new.
-  pending=$(timeout "$read_timeout" pr-threads "$pr" --repo "$repo" --ids 2>/dev/null | sed '/^$/d' | sort)
+  # A comment arrived: keyed by the unanswered threads' ids, so a push that
+  # only moves their lines notifies nothing.
+  pending=$(timeout "$read_timeout" pr-threads "$pr" --repo "$repo" --ids 2>/dev/null \
+    | sed '/^$/d' | sort)
   if [ -n "$pending" ]; then
     if [ "$pending" != "$notified_threads" ]; then
       count=$(printf '%s\n' "$pending" | wc -l | tr -d ' ')
-      notify "$agent" "PR $slug: $count unanswered review thread(s). Run: pr-threads $pr --repo $repo — answer each with evidence, fix what is real, push once." \
+      notify "$owner" "PR $slug: $count unanswered review thread(s) on ${head:0:7}. Run: pr-threads $pr --repo $repo — answer each with evidence, fix what is real, push once." \
         && notified_threads="$pending"
     fi
   else
     notified_threads=""
   fi
 
-  # An unreadable or ambiguous check list is not a clean one: readiness is held
-  # and the reason is printed, rather than the absence of a failure read as green.
-  if checks=$(check_state "$repo" "$head" "$required"); then
-    blocked=$(printf '%s' "$checks" | jq -r '.blocked | length')
-    broken=$(printf '%s' "$checks" | jq -r '.failed | join(", ")')
-  else
-    blocked=1          # unknown is not clean
-    broken=""
+  # A required check failed: keyed by the head plus the failing names, so a
+  # fixed re-run clears it and a fresh breakage notifies again.
+  blocked=0
+  broken=""
+  if load_runs "$repo" "$head"; then
+    blocked_list=$(blocked_names "$required")
+    blocked=$(printf '%s\n' "$blocked_list" | sed '/^$/d' | wc -l | tr -d ' ')
+    broken=$(failed_names | sed '/^$/d' | sort -u | paste -sd, - | sed 's/,/, /g')
   fi
   if [ -n "$broken" ]; then
     signature="$head $broken"
     if [ "$signature" != "$notified_checks" ]; then
-      notify "$agent" "PR $slug: failing required check(s) on ${head:0:7}: $broken. Read the failing step, fix the cause, push once." \
+      notify "$owner" "PR $slug: failing required check(s) on ${head:0:7}: $broken. Read the failing step, fix the cause, push once." \
         && notified_checks="$signature"
     fi
   else
     notified_checks=""
   fi
 
-  # The base moved: the PR cannot merge until it is updated, and that is the
-  # owner's work, not the person's.
+  # The branch is behind its base: updating it is the owner's work.
   if [ "$merge_state" = "BEHIND" ]; then
     signature="$head behind"
     if [ "$signature" != "$notified_behind" ]; then
-      notify "$agent" "PR $slug is behind origin/$base on ${head:0:7}. Update the branch (merge origin/$base into the head), then let the checks run." \
+      notify "$owner" "PR $slug is behind origin/$base on ${head:0:7}. Update the branch (merge origin/$base into the head), then let the checks run." \
         && notified_behind="$signature"
     fi
   else
     notified_behind=""
   fi
 
-  # Readiness is asked only of a PR whose cheap signals are already clean —
-  # pr-ready is the authority, and it runs the same checks again plus the merge.
-  # `blocked` is the number of required checks that are not a completed success,
-  # a running one included, and 1 when the list could not be read, so no pass
-  # asks pr-ready about a state it cannot vouch for.
-  if [ -z "$pending" ] && [ "$blocked" -eq 0 ] && [ "$decision" != "APPROVED" ]; then
+  # Ready for review: pr-ready is the authority, and it repeats every check plus
+  # the merge. Only asked when the cheap signals are already clean, and only
+  # when GitHub has not approved the PR.
+  if [ -z "$pending" ] && [ "$blocked" -eq 0 ] && [ "$decision" != "APPROVED" ] \
+      && [ "$merge_state" != "BEHIND" ]; then
     ready_out=$(timeout "$read_timeout" pr-ready "$pr" --repo "$repo" --root "$root" --no-wait 2>&1)
     rc=$?
-    # pr-ready's verdict is its own line, `READY: <next step>` — the prefix and
-    # the colon are the format (`tools/pr_ready.py:197-202`), so a longer word
-    # that merely starts with READY cannot match.
     if [ "$rc" -eq 0 ] && printf '%s\n' "$ready_out" | grep -q '^READY:'; then
       signature="$head"
       if [ "$signature" != "$notified_ready" ]; then
-        notify "$agent" "PR $slug is ready for the person's review — $url (head ${head:0:7}: merges cleanly into origin/$base, required checks green, no unanswered threads). Relay it: the review is the only step left, and this watcher will not approve, resolve or merge." \
+        notify "$owner" "PR $slug is ready for the person's review — $url (head ${head:0:7}: merges cleanly into origin/$base, required checks green, no unanswered threads). Relay it: the review is the only step left, and this watcher will not approve, resolve or merge." \
           && notified_ready="$signature"
       fi
     else
-      # pr-ready answers BLOCKED with its reasons. No verdict at all is the
-      # tool failing to answer, and that reason is worth a line of its own.
       if ! printf '%s\n' "$ready_out" | grep -q '^BLOCKED:'; then
         reason=$(printf '%s\n' "$ready_out" | tail -1)
-        echo "pr-desk-watch: pr-ready gave no verdict${reason:+ — $reason}" >&2
+        warn "pr-ready gave no verdict${reason:+ — $reason}"
       fi
       notified_ready=""
     fi
