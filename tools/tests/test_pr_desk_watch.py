@@ -8,6 +8,7 @@ Each test runs the real script in a PATH holding stand-ins for `gh`,
 itself rather than on a log line about it.
 """
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -15,6 +16,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "tools" / "pr_desk_watch.py"
@@ -195,6 +197,54 @@ class NoticeTest(unittest.TestCase):
         notices = self.fake.notices()
         self.assertIn("2 unanswered review thread(s)", notices)
         self.assertIn("pr-threads 1 --repo owner/name", notices)
+
+
+def load_module():
+    """The script as a module, registered so its dataclasses resolve."""
+    spec = importlib.util.spec_from_file_location("pr_desk_watch", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+class NoRepeatTest(unittest.TestCase):
+    """A notice is owed once per state, not once per pass."""
+
+    def setUp(self) -> None:
+        self.fake = Fake(ready="READY: hand it over", ready_rc=0)
+        self.addCleanup(self.fake.close)
+
+    def passes(self, count: int) -> str:
+        module = load_module()
+        with mock.patch.dict(os.environ, self.fake.env()):
+            settings = module.Settings(
+                pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+                send_timeout=5, root=Path("."),
+            )
+            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            for _ in range(count):
+                watcher.pass_once()
+        return self.fake.notices()
+
+    def test_a_ready_pr_is_announced_once_across_passes(self):
+        notices = self.passes(3)
+        self.assertEqual(notices.count("ready for the person's review"), 1)
+
+    def test_a_new_head_is_announced_again(self):
+        module = load_module()
+        with mock.patch.dict(os.environ, self.fake.env()):
+            settings = module.Settings(
+                pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+                send_timeout=5, root=Path("."),
+            )
+            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher.pass_once()
+            moved = json.loads((self.fake.root / "pr.json").read_text(encoding="utf-8"))
+            moved["headRefOid"] = "b" * 40
+            (self.fake.root / "pr.json").write_text(json.dumps(moved), encoding="utf-8")
+            watcher.pass_once()
+        self.assertEqual(self.fake.notices().count("ready for the person's review"), 2)
 
 
 class StartupTest(unittest.TestCase):
