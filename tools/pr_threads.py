@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """List the review threads on a PR that still need an answer.
 
-    pr_threads.py <pr-number> [--repo owner/name] [--me login]
+    pr_threads.py <pr-number> [--repo owner/name] [--me login] [--ids]
 
 A thread is answered when its **last** comment is authored by `--me` — not "the
 first, plus a reply": a thread I opened has nothing left to answer. Everything
@@ -11,6 +11,10 @@ status is 1, so a caller can gate on it.
 Run it after every push, not before reporting the PR as ready: a reviewer adds
 findings one round at a time, a green check says nothing about a thread, and the
 one comment you did not read is the one that mattered.
+
+`--ids` prints only each unanswered thread's id, one per line. That is the key
+a watcher de-duplicates on: a push moves `path:line` for a thread that did not
+change, so a listing-shaped key reports unchanged work as new.
 """
 
 from __future__ import annotations
@@ -309,6 +313,9 @@ def main() -> int:
     ap.add_argument("--me", default=_ReviewThreads.ME)
     ap.add_argument("--wait", action="store_true",
                     help="wait for the reviewer to finish on this head before listing")
+    ap.add_argument("--ids", action="store_true",
+                    help="print only each unanswered thread's id, one per line — a "
+                         "de-duplication key that survives a push moving path:line")
     args = ap.parse_args()
 
     repo = args.repo or repo_slug()
@@ -316,6 +323,14 @@ def main() -> int:
         wait_for_review(args.pr, repo)
     threads = _ReviewThreads(repo).fetch(args.pr)
     pending = unanswered(threads, args.me)
+
+    if args.ids:
+        # The key a watcher de-duplicates on: a thread's identity, not where its
+        # lines currently sit. A push shifts `path:line` for an unchanged thread,
+        # which makes the listing look like new work.
+        for thread in pending:
+            print(thread.id)
+        return 1 if pending else 0
 
     print(f"PR {args.pr} ({repo}): {len(threads)} threads, {len(pending)} unanswered")
     for thread in pending:
