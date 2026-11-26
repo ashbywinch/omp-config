@@ -158,6 +158,14 @@ class PullRequest:
 
 
 @dataclass(frozen=True)
+class CheckReport:
+    """What the check list says about readiness, and what is worth sending."""
+
+    blocked: int
+    failing: list[str]
+
+
+@dataclass(frozen=True)
 class Verdict:
     """`pr-ready`'s answer: the verdict, and the line that carried it."""
 
@@ -179,29 +187,22 @@ class Settings:
         return f"{self.repo}#{self.pr}"
 
 
-@dataclass
-class Keys:
-    """The last state each notice reported. Unset means "owed"."""
-
-    threads: str = ""
-    checks: str = ""
-    behind: str = ""
-    ready: str = ""
+def warn(message: str) -> None:
+    """One line on stderr: a read that did not answer, or a send that failed."""
+    print(f"pr-desk-watch: {message}", file=sys.stderr)
 
 
-@dataclass
-class Watcher:
-    settings: Settings
-    keys: Keys = field(default_factory=Keys)
-    required: list[str] = field(default_factory=list)
-    required_for: str = ""
+class Github:
+    """Every read of GitHub state, each bounded by the timeout.
 
-    def warn(self, message: str) -> None:
-        print(f"pr-desk-watch: {message}", file=sys.stderr)
+    A read that fails returns None, never an empty answer: the caller
+    decides what unknown means for the notice it is about to send.
+    """
 
-    # ---- reads -----------------------------------------------------------
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
 
-    def pr(self) -> PullRequest | None:
+    def pull(self) -> PullRequest | None:
         result = run(
             [
                 "gh", "pr", "view", str(self.settings.pr),
@@ -259,7 +260,7 @@ class Watcher:
     def checks_on(self, head: str) -> list[Check] | None:
         """The check runs on a head, one per name, or None when unknown."""
         if not head or head == "-":
-            self.warn("no head sha to read checks from — holding readiness")
+            warn("no head sha to read checks from — holding readiness")
             return None
         result = run(
             [
@@ -269,15 +270,15 @@ class Watcher:
             self.settings.timeout,
         )
         if result.returncode != 0:
-            self.warn(f"check-runs unreadable on {head[:7]} — holding readiness")
+            warn(f"check-runs unreadable on {head[:7]} — holding readiness")
             return None
         try:
             checks = checks_from_pages(result.stdout)
         except WatchError:
-            self.warn(f"check-runs on {head[:7]} are unreadable — holding readiness")
+            warn(f"check-runs on {head[:7]} are unreadable — holding readiness")
             return None
         if not checks:
-            self.warn(f"no check-runs on {head[:7]} — holding readiness")
+            warn(f"no check-runs on {head[:7]} — holding readiness")
             return None
         return latest_by_name(checks)
 
@@ -287,7 +288,7 @@ class Watcher:
             self.settings.timeout,
         )
         if result.returncode != 0:
-            self.warn("pr-threads did not answer — thread state unknown")
+            warn("pr-threads did not answer — thread state unknown")
             return None
         return sorted(line.strip() for line in result.stdout.splitlines() if line.strip())
 
@@ -308,6 +309,26 @@ class Watcher:
             line=verdict,
         )
 
+@dataclass
+class Keys:
+    """The last state each notice reported. Unset means "owed"."""
+
+    threads: str = ""
+    checks: str = ""
+    behind: str = ""
+    ready: str = ""
+
+
+@dataclass
+class Watcher:
+    """The notices, their keys, and the one session that receives them."""
+
+    settings: Settings
+    gh: Github
+    keys: Keys = field(default_factory=Keys)
+    required: list[str] = field(default_factory=list)
+    required_for: str = ""
+
     # ---- sending ---------------------------------------------------------
 
     def notify(self, body: str) -> bool:
@@ -318,8 +339,17 @@ class Watcher:
         if result.returncode == 0:
             return True
         said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")
-        self.warn(f"send to {self.settings.agent} failed — {said} — retrying next pass")
+        warn(f"send to {self.settings.agent} failed — {said} — retrying next pass")
         return False
+
+    def rearm(self, kind: str) -> None:
+        """Forget the last notice of this kind, so the state notifies again.
+
+        Clearing is what makes a keyed notice repeatable: a thread answered and
+        then re-raised, a head that becomes ready again, a branch that drifts
+        twice. Without it the second occurrence is swallowed by the first key.
+        """
+        setattr(self.keys, kind, "")
 
     def announce(self, kind: str, key: str, body: str) -> None:
         if getattr(self.keys, kind) == key:
@@ -331,33 +361,33 @@ class Watcher:
 
     def pass_once(self) -> bool:
         """One poll. Returns False when the PR is finished."""
-        pull = self.pr()
+        pull = self.gh.pull()
         if pull is None:
-            self.warn(f"cannot read {self.settings.slug} — still watching")
+            warn(f"cannot read {self.settings.slug} — still watching")
             return True
         if pull.finished:
             print(f"PR {self.settings.slug} is {pull.state} — watcher done")
             return False
 
         if pull.base != self.required_for:
-            contexts = self.required_contexts(pull.base)
+            contexts = self.gh.required_contexts(pull.base)
             if contexts is None:
-                self.warn(
+                warn(
                     f"required contexts unreadable for origin/{pull.base} — every check counts"
                 )
                 contexts = []
             self.required, self.required_for = contexts, pull.base
 
         self.report_threads(pull)
-        blocked = self.report_checks(pull)
+        check_report = self.report_checks(pull)
         self.report_behind(pull)
-        self.report_ready(pull, blocked)
+        self.report_ready(pull, check_report)
         return True
 
     def report_threads(self, pull: PullRequest) -> None:
-        threads = self.unanswered_threads()
+        threads = self.gh.unanswered_threads()
         if not threads:
-            self.keys.threads = ""
+            self.rearm("threads")
             return
         count = len(threads)
         self.announce(
@@ -369,11 +399,15 @@ class Watcher:
             "push once.",
         )
 
-    def report_checks(self, pull: PullRequest) -> int:
-        """Report failing required checks; return how many are not green."""
-        checks = self.checks_on(pull.head)
+    def report_checks(self, pull: PullRequest) -> CheckReport:
+        """Report failing required checks, and say how many are not green.
+
+        Unknown is reported as blocked: readiness needs zero, and a list that
+        could not be read has verified nothing.
+        """
+        checks = self.gh.checks_on(pull.head)
         if checks is None:
-            return 1
+            return CheckReport(blocked=1, failing=[])
         wanted = set(self.required)
         considered = [check for check in checks if not wanted or check.name in wanted]
         # Two ways a required check is not green: it ran and did not pass, or it
@@ -383,8 +417,8 @@ class Watcher:
         blocked = len(not_green | never_ran)
         failing = sorted({check.name for check in considered if check.failed})
         if not failing:
-            self.keys.checks = ""
-            return blocked
+            self.rearm("checks")
+            return CheckReport(blocked=blocked, failing=[])
         self.announce(
             "checks",
             f"{pull.head} {', '.join(failing)}",
@@ -392,11 +426,11 @@ class Watcher:
             f"{pull.head[:7]}: {', '.join(failing)}. Read the failing step, fix the "
             "cause, push once.",
         )
-        return blocked
+        return CheckReport(blocked=blocked, failing=failing)
 
     def report_behind(self, pull: PullRequest) -> None:
         if not pull.behind:
-            self.keys.behind = ""
+            self.rearm("behind")
             return
         self.announce(
             "behind",
@@ -406,15 +440,15 @@ class Watcher:
             "head), then let the checks run.",
         )
 
-    def report_ready(self, pull: PullRequest, blocked: int) -> None:
-        if blocked or pull.decision == "APPROVED" or pull.behind:
-            self.keys.ready = ""
+    def report_ready(self, pull: PullRequest, check_report: CheckReport) -> None:
+        if check_report.blocked or pull.decision == "APPROVED" or pull.behind:
+            self.rearm("ready")
             return
-        verdict = self.ready_verdict()
+        verdict = self.gh.ready_verdict()
         if not verdict.ready:
             if not verdict.line.startswith("BLOCKED:"):
-                self.warn(f"pr-ready gave no verdict — {verdict.line}".rstrip(" —"))
-            self.keys.ready = ""
+                warn(f"pr-ready gave no verdict — {verdict.line}".rstrip(" —"))
+            self.rearm("ready")
             return
         self.announce(
             "ready",
@@ -464,7 +498,7 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
 
 
 def watch(settings: Settings, once: bool) -> int:
-    watcher = Watcher(settings)
+    watcher = Watcher(settings=settings, gh=Github(settings))
     while True:
         if not watcher.pass_once():
             return 0
