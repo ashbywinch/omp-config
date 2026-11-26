@@ -470,7 +470,7 @@ class Watcher:
 
 def env_seconds(name: str, default: int) -> int:
     """A positive whole number of seconds, from the environment or the default."""
-    raw = os.environ.get(name, str(default))
+    raw = os.environ.get(name) or str(default)  # empty is unset, not invalid
     if not raw.isdigit() or int(raw) < 1:
         raise WatchError(
             f"{name} must be a positive whole number of seconds, got {raw!r}"
