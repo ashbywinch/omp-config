@@ -1,6 +1,6 @@
 # The desk watcher
 
-`tools/pr_desk_watch.sh` is read alongside this file. Every apparent defect below
+`tools/pr_desk_watch.py` is read alongside this file. Every apparent defect below
 is a decision, and the reason is stated so a reader does not have to infer it.
 
 ## It reports, it never acts

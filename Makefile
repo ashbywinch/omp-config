@@ -24,7 +24,7 @@ PR_THREADS_DST := $(H)/.local/bin/pr-threads
 PR_DESK_DST := $(H)/.local/bin/pr-desk
 WATCH_PR_DST := $(H)/.local/bin/watch-pr.sh
 PR_WATCH_DST := $(H)/.local/bin/pr-watch.sh
-PR_DESK_WATCH_DST := $(H)/.local/bin/pr-desk-watch.sh
+PR_DESK_WATCH_DST := $(H)/.local/bin/pr-desk-watch
 REPEAT_FINDINGS_DST := $(H)/.local/bin/repeat-findings
 PR_READY_DST := $(H)/.local/bin/pr-ready
 LSP_UPDATE_DST := $(H)/.local/bin/lucidlint-lsp-update.sh
@@ -71,7 +71,7 @@ install:
 	ln -sf $(CURDIR)/tools/pr_desk.py $(PR_DESK_DST)
 	ln -sf $(CURDIR)/skills/pr-workflow/scripts/watch-pr.sh $(WATCH_PR_DST)
 	ln -sf $(CURDIR)/tools/pr_watch.sh $(PR_WATCH_DST)
-	ln -sf $(CURDIR)/tools/pr_desk_watch.sh $(PR_DESK_WATCH_DST)
+	ln -sf $(CURDIR)/tools/pr_desk_watch.py $(PR_DESK_WATCH_DST)
 	ln -sf $(CURDIR)/tools/repeat_findings.py $(REPEAT_FINDINGS_DST)
 	ln -sf $(CURDIR)/tools/pr_ready.py $(PR_READY_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)

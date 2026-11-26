@@ -1,0 +1,492 @@
+#!/usr/bin/env python3
+"""Tell the session that owns a PR what needs doing next.
+
+    pr-desk-watch.py <pr> [owner/name] [interval-seconds] [--once]
+
+One recipient, `PR_DESK_AGENT`: the session that owns the PR — this repo's own
+agent when the PR is part of its work, or the desk when the work must not
+interrupt it. Every message goes there, because that session is also the
+person's channel.
+
+Four notices, one per state change, each keyed so a steady state is silent:
+
+    a comment arrived       keyed by the sorted unanswered thread ids
+    a required check failed keyed by the head plus the failing names
+    the branch is behind    keyed by the head, once
+    ready for review        keyed by the head
+
+A key is recorded only after the send succeeds, so a failed send repeats.
+
+Design: `docs/desk-watcher.md`. Procedure: `skill://pr-desk`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+def missing_tools() -> list[str]:
+    """The tools this watcher cannot run without, absent from PATH."""
+    return [
+        tool for tool in ("gh", "pr-threads", "pr-ready", "paseo")
+        if shutil.which(tool) is None
+    ]
+
+
+class WatchError(Exception):
+    """A setting or an input that cannot be used, reported before any polling."""
+
+
+def run(args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    """Run one command, bounded, keeping its output whatever its status."""
+    try:
+        return subprocess.run(
+            args, capture_output=True, text=True, check=False, timeout=timeout
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return subprocess.CompletedProcess(args, 1, "", str(exc))
+
+
+def checks_from_pages(text: str) -> list["Check"]:
+    """Every check run in the stream `gh api --paginate` writes.
+
+    The pages arrive as consecutive JSON objects, so the stream is decoded value
+    by value rather than split on lines: a pretty-printed page would break a
+    line-based reader.
+    """
+    decoder = json.JSONDecoder()
+    checks: list["Check"] = []
+    index = 0
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index >= len(text):
+            return checks
+        try:
+            page, index = decoder.raw_decode(text, index)
+        except json.JSONDecodeError as exc:
+            raise WatchError("GitHub returned unreadable JSON") from exc
+        if not isinstance(page, dict):
+            continue
+        for node in page.get("check_runs") or []:
+            if isinstance(node, dict):
+                checks.append(Check.from_api(node))
+
+
+@dataclass(frozen=True)
+class Check:
+    """One check run on a head, as far as a verdict needs it."""
+
+    name: str
+    status: str
+    conclusion: str | None
+    started: str
+
+    @classmethod
+    def from_api(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
+        return cls(
+            name=str(node.get("name") or "unnamed"),
+            status=str(node.get("status") or "unknown"),
+            conclusion=node.get("conclusion"),
+            started=str(node.get("started_at") or ""),
+        )
+
+    @property
+    def passed(self) -> bool:
+        return self.status == "completed" and self.conclusion == "success"
+
+    @property
+    def failed(self) -> bool:
+        """A conclusion that names something to fix."""
+        return self.conclusion in {
+            "failure", "timed_out", "action_required", "startup_failure"
+        }
+
+
+def latest_by_name(checks: list[Check]) -> list[Check]:
+    """One check per name, the newest run.
+
+    `filter=latest` is not reliable — a reusable workflow's job comes back twice
+    — so the reduction happens here, ordered by `started_at`, which a run that
+    never started leaves empty.
+    """
+    latest: dict[str, Check] = {}
+    for check in checks:
+        held = latest.get(check.name)
+        if held is None or check.started >= held.started:
+            latest[check.name] = check
+    return list(latest.values())
+
+
+@dataclass(frozen=True)
+class PullRequest:
+    state: str
+    head: str
+    decision: str
+    base: str
+    url: str
+    merge_state: str
+
+    @classmethod
+    def from_api(cls, node: dict) -> "PullRequest":  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
+        def text(key: str) -> str:
+            return str(node.get(key) or "-")
+
+        return cls(
+            state=text("state"),
+            head=text("headRefOid"),
+            decision=text("reviewDecision"),
+            base=text("baseRefName"),
+            url=text("url"),
+            merge_state=text("mergeStateStatus"),
+        )
+
+    @property
+    def finished(self) -> bool:
+        return self.state in ("MERGED", "CLOSED")
+
+    @property
+    def behind(self) -> bool:
+        return self.merge_state == "BEHIND"
+
+
+@dataclass(frozen=True)
+class Verdict:
+    """`pr-ready`'s answer: the verdict, and the line that carried it."""
+
+    ready: bool
+    line: str
+
+
+@dataclass(frozen=True)
+class Settings:
+    pr: int
+    repo: str
+    agent: str
+    interval: int
+    timeout: int = 30
+    root: Path = Path(".")
+
+    @property
+    def slug(self) -> str:
+        return f"{self.repo}#{self.pr}"
+
+
+@dataclass
+class Keys:
+    """The last state each notice reported. Unset means "owed"."""
+
+    threads: str = ""
+    checks: str = ""
+    behind: str = ""
+    ready: str = ""
+
+
+@dataclass
+class Watcher:
+    settings: Settings
+    keys: Keys = field(default_factory=Keys)
+    required: list[str] = field(default_factory=list)
+    required_for: str = ""
+
+    def warn(self, message: str) -> None:
+        print(f"pr-desk-watch: {message}", file=sys.stderr)
+
+    # ---- reads -----------------------------------------------------------
+
+    def pr(self) -> PullRequest | None:
+        result = run(
+            [
+                "gh", "pr", "view", str(self.settings.pr),
+                "--repo", self.settings.repo,
+                "--json", "state,headRefOid,reviewDecision,baseRefName,url,mergeStateStatus",
+            ],
+            self.settings.timeout,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        try:
+            return PullRequest.from_api(json.loads(result.stdout))
+        except json.JSONDecodeError:
+            return None
+
+    def required_contexts(self, base: str) -> list[str] | None:
+        """The base's required contexts, or None when GitHub will not say.
+
+        Both sources are read: a partial list would drop a required check, so
+        one unreadable source makes the whole answer unknown.
+        """
+        owner, _, name = self.settings.repo.partition("/")
+        classic = run(
+            [
+                "gh", "api", "graphql",
+                "-f", "query=query($o:String!,$n:String!,$b:String!){repository(owner:$o,name:$n){ref(qualifiedName:$b){branchProtectionRule{requiredStatusCheckContexts}}}}",
+                "-f", f"o={owner}", "-f", f"n={name}", "-f", f"b=refs/heads/{base}",
+            ],
+            self.settings.timeout,
+        )
+        rules = run(
+            ["gh", "api", f"repos/{self.settings.repo}/rules/branches/{base}"],
+            self.settings.timeout,
+        )
+        if classic.returncode != 0 or rules.returncode != 0:
+            return None
+        contexts: set[str] = set()
+        try:
+            classic_data = json.loads(classic.stdout or "{}")
+            rule = (
+                classic_data.get("data", {}).get("repository", {}).get("ref") or {}
+            ).get("branchProtectionRule") or {}
+            contexts.update(rule.get("requiredStatusCheckContexts") or [])
+            for entry in json.loads(rules.stdout or "[]"):
+                if entry.get("type") != "required_status_checks":
+                    continue
+                for check in (entry.get("parameters") or {}).get(
+                    "required_status_checks", []
+                ):
+                    contexts.add(check.get("context", ""))
+        except json.JSONDecodeError:
+            return None
+        return sorted(context for context in contexts if context)
+
+    def checks_on(self, head: str) -> list[Check] | None:
+        """The check runs on a head, one per name, or None when unknown."""
+        if not head or head == "-":
+            self.warn("no head sha to read checks from — holding readiness")
+            return None
+        result = run(
+            [
+                "gh", "api", "--paginate",
+                f"repos/{self.settings.repo}/commits/{head}/check-runs?per_page=100&filter=latest",
+            ],
+            self.settings.timeout,
+        )
+        if result.returncode != 0:
+            self.warn(f"check-runs unreadable on {head[:7]} — holding readiness")
+            return None
+        try:
+            checks = checks_from_pages(result.stdout)
+        except WatchError:
+            self.warn(f"check-runs on {head[:7]} are unreadable — holding readiness")
+            return None
+        if not checks:
+            self.warn(f"no check-runs on {head[:7]} — holding readiness")
+            return None
+        return latest_by_name(checks)
+
+    def unanswered_threads(self) -> list[str] | None:
+        result = run(
+            ["pr-threads", str(self.settings.pr), "--repo", self.settings.repo, "--ids"],
+            self.settings.timeout,
+        )
+        if result.returncode != 0:
+            self.warn("pr-threads did not answer — thread state unknown")
+            return None
+        return sorted(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+    def ready_verdict(self) -> Verdict:
+        """`pr-ready`'s answer, for the ready notice and for the log."""
+        result = run(
+            [
+                "pr-ready", str(self.settings.pr), "--repo", self.settings.repo,
+                "--root", str(self.settings.root), "--no-wait",
+            ],
+            self.settings.timeout,
+        )
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        # The verdict is the last line; the facts above it are the evidence.
+        verdict = lines[-1] if lines else ""
+        return Verdict(
+            ready=result.returncode == 0 and verdict.startswith("READY:"),
+            line=verdict,
+        )
+
+    # ---- sending ---------------------------------------------------------
+
+    def notify(self, body: str) -> bool:
+        """Send one notice; a failure leaves the caller's key unset."""
+        result = run(
+            ["paseo", "send", self.settings.agent, body], self.settings.timeout
+        )
+        if result.returncode == 0:
+            return True
+        said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")
+        self.warn(f"send to {self.settings.agent} failed — {said} — retrying next pass")
+        return False
+
+    def announce(self, kind: str, key: str, body: str) -> None:
+        if getattr(self.keys, kind) == key:
+            return
+        if self.notify(body):
+            setattr(self.keys, kind, key)
+
+    # ---- one pass --------------------------------------------------------
+
+    def pass_once(self) -> bool:
+        """One poll. Returns False when the PR is finished."""
+        pull = self.pr()
+        if pull is None:
+            self.warn(f"cannot read {self.settings.slug} — still watching")
+            return True
+        if pull.finished:
+            print(f"PR {self.settings.slug} is {pull.state} — watcher done")
+            return False
+
+        if pull.base != self.required_for:
+            contexts = self.required_contexts(pull.base)
+            if contexts is None:
+                self.warn(
+                    f"required contexts unreadable for origin/{pull.base} — every check counts"
+                )
+                contexts = []
+            self.required, self.required_for = contexts, pull.base
+
+        self.report_threads(pull)
+        blocked = self.report_checks(pull)
+        self.report_behind(pull)
+        self.report_ready(pull, blocked)
+        return True
+
+    def report_threads(self, pull: PullRequest) -> None:
+        threads = self.unanswered_threads()
+        if not threads:
+            self.keys.threads = ""
+            return
+        count = len(threads)
+        self.announce(
+            "threads",
+            "\n".join(threads),
+            f"PR {self.settings.slug}: {count} unanswered review thread(s) on "
+            f"{pull.head[:7]}. Run: pr-threads {self.settings.pr} --repo "
+            f"{self.settings.repo} — answer each with evidence, fix what is real, "
+            "push once.",
+        )
+
+    def report_checks(self, pull: PullRequest) -> int:
+        """Report failing required checks; return how many are not green."""
+        checks = self.checks_on(pull.head)
+        if checks is None:
+            return 1
+        wanted = set(self.required)
+        considered = [check for check in checks if not wanted or check.name in wanted]
+        blocked = sorted({check.name for check in considered if not check.passed})
+        missing = sorted(wanted - {check.name for check in checks})
+        blocked = sorted(set(blocked) | set(missing))
+        failing = sorted({check.name for check in considered if check.failed})
+        if not failing:
+            self.keys.checks = ""
+            return len(blocked)
+        self.announce(
+            "checks",
+            f"{pull.head} {', '.join(failing)}",
+            f"PR {self.settings.slug}: failing required check(s) on "
+            f"{pull.head[:7]}: {', '.join(failing)}. Read the failing step, fix the "
+            "cause, push once.",
+        )
+        return len(blocked)
+
+    def report_behind(self, pull: PullRequest) -> None:
+        if not pull.behind:
+            self.keys.behind = ""
+            return
+        self.announce(
+            "behind",
+            f"{pull.head} behind",
+            f"PR {self.settings.slug} is behind origin/{pull.base} on "
+            f"{pull.head[:7]}. Update the branch (merge origin/{pull.base} into the "
+            "head), then let the checks run.",
+        )
+
+    def report_ready(self, pull: PullRequest, blocked: int) -> None:
+        if blocked or pull.decision == "APPROVED" or pull.behind:
+            self.keys.ready = ""
+            return
+        verdict = self.ready_verdict()
+        if not verdict.ready:
+            if not verdict.line.startswith("BLOCKED:"):
+                self.warn(f"pr-ready gave no verdict — {verdict.line}".rstrip(" —"))
+            self.keys.ready = ""
+            return
+        self.announce(
+            "ready",
+            pull.head,
+            f"PR {self.settings.slug} is ready for the person's review — "
+            f"{pull.url} (head {pull.head[:7]}: merges cleanly into "
+            f"origin/{pull.base}, required checks green, no unanswered threads). "
+            "Relay it: the review is the only step left, and this watcher will "
+            "not approve, resolve or merge.",
+        )
+
+
+def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Settings:
+    if not pr_arg.isdigit():
+        raise WatchError(f"<pr> must be a pull request number, got {pr_arg!r}")
+    if not interval_arg.isdigit() or int(interval_arg) < 1:
+        raise WatchError(
+            f"interval-seconds must be a positive whole number, got {interval_arg!r}"
+        )
+    agent = os.environ.get("PR_DESK_AGENT", "")
+    if not agent:
+        raise WatchError("PR_DESK_AGENT is not set — name the session that owns this PR")
+    timeout_arg = os.environ.get("PR_DESK_WATCH_TIMEOUT", str(Settings.timeout))
+    if not timeout_arg.isdigit() or int(timeout_arg) < 1:
+        raise WatchError(
+            f"PR_DESK_WATCH_TIMEOUT must be a positive whole number of seconds, got {timeout_arg!r}"
+        )
+    repo = repo_arg or ""
+    if not repo:
+        result = run(["gh", "repo", "view", "--json", "nameWithOwner"], int(timeout_arg))
+        if result.returncode != 0:
+            raise WatchError("not in a checkout, and no owner/name given")
+        try:
+            repo = str(json.loads(result.stdout).get("nameWithOwner") or "")
+        except json.JSONDecodeError as exc:
+            raise WatchError("cannot read the repo's name") from exc
+        if not repo:
+            raise WatchError("not in a checkout, and no owner/name given")
+    return Settings(
+        pr=int(pr_arg),
+        repo=repo,
+        agent=agent,
+        interval=int(interval_arg),
+        timeout=int(timeout_arg),
+        root=Path(os.environ.get("PR_READY_ROOT", ".")).resolve(),
+    )
+
+
+def watch(settings: Settings, once: bool) -> int:
+    watcher = Watcher(settings)
+    while True:
+        if not watcher.pass_once():
+            return 0
+        if once:
+            return 0
+        time.sleep(settings.interval)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("pr")
+    parser.add_argument("repo", nargs="?")
+    parser.add_argument("interval", nargs="?", default="60")
+    parser.add_argument(
+        "--once", action="store_true", help="run one pass and exit (tests, cron)"
+    )
+    args = parser.parse_args(argv)
+    try:
+        settings = settings_from(args.pr, args.repo, args.interval)
+    except WatchError as exc:
+        print(f"pr-desk-watch: {exc}", file=sys.stderr)
+        return 2
+    return watch(settings, args.once)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -3,7 +3,7 @@ name: pr-desk
 description: |
   The PR desk's own loop — one workspace per repo under the pr-desk project,
   rank the repo's open pull requests, and drive the author-side review loop
-  one PR at a time with `pr-desk-watch.sh` in the background. Loaded by each
+  one PR at a time with `pr-desk-watch` in the background. Loaded by each
   desk agent; what the desk must never do is stated in the body.
 ---
 
@@ -48,7 +48,7 @@ with `pr-threads <pr>`, and run `make test` before each push.
 Start it once per PR, in the background, for the life of the PR:
 
 ```
-PR_DESK_AGENT="$PASEO_AGENT_ID" pr-desk-watch.sh <n> <owner/name>
+PR_DESK_AGENT="$PASEO_AGENT_ID" pr-desk-watch <n> <owner/name>
 ```
 
 One recipient: the session that owns the PR — this repo's own agent when the PR

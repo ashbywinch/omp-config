@@ -20,7 +20,7 @@
 # exactly like a quiet PR, forever.
 #
 # The desk's long-lived companion — which stays with one PR and also reports a
-# failing required check and a ready-for-approval state — is pr-desk-watch.sh.
+# failing required check and a ready-for-approval state — is pr-desk-watch.
 #
 # It never resolves a thread and never pushes. Answering is the agent's job.
 set -uo pipefail
