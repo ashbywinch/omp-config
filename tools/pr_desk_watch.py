@@ -376,13 +376,15 @@ class Watcher:
             return 1
         wanted = set(self.required)
         considered = [check for check in checks if not wanted or check.name in wanted]
-        blocked = sorted({check.name for check in considered if not check.passed})
-        missing = sorted(wanted - {check.name for check in checks})
-        blocked = sorted(set(blocked) | set(missing))
+        # Two ways a required check is not green: it ran and did not pass, or it
+        # never reported at all — GitHub's "expected", which nothing verified.
+        not_green = {check.name for check in considered if not check.passed}
+        never_ran = wanted - {check.name for check in checks}
+        blocked = len(not_green | never_ran)
         failing = sorted({check.name for check in considered if check.failed})
         if not failing:
             self.keys.checks = ""
-            return len(blocked)
+            return blocked
         self.announce(
             "checks",
             f"{pull.head} {', '.join(failing)}",
@@ -390,7 +392,7 @@ class Watcher:
             f"{pull.head[:7]}: {', '.join(failing)}. Read the failing step, fix the "
             "cause, push once.",
         )
-        return len(blocked)
+        return blocked
 
     def report_behind(self, pull: PullRequest) -> None:
         if not pull.behind:
