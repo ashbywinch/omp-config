@@ -278,6 +278,10 @@ class IncrementalSignalsTest(unittest.TestCase):
             )
         )
 
+    def test_a_compare_that_is_not_an_object_does_not_cover(self):
+        """`null` is a legal JSON body and says nothing about the two trees."""
+        self.assertIsNone(check_review_posted._reviewed_since_unchanged(lambda path: None, ["a" * 40], "b" * 40))
+
     def test_a_commit_is_never_its_own_ancestor(self):
         calls = []
 

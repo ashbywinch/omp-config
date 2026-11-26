@@ -480,11 +480,12 @@ def _reviewed_since_unchanged(
             compared = api(f"compare/{reviewed_sha}...{head}")
         except _ApiError:
             continue
-        # an EMPTY list, not merely a falsy value: a compare whose body carries
-        # no `files` key (an unknown commit, a truncated or error shape) says
-        # nothing about the two trees, and reading that as "no files changed"
-        # would pass a head nobody reviewed.
-        if compared.get("files") == []:
+        # A body that is not an object — `null`, a list, a proxy's page — says
+        # nothing about the two trees either, so it is not coverage. And an
+        # EMPTY list, not merely a falsy value: only the API's own "no
+        # differences" statement counts, or an unreadable compare would pass a
+        # head nobody reviewed.
+        if isinstance(compared, dict) and compared.get("files") == []:
             return reviewed_sha
     return None
 
