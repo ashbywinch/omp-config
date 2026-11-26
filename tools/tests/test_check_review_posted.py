@@ -25,14 +25,23 @@ from tools import check_review_posted
 def _covers(comments, sha, head_at):
     return check_review_posted._review_covers(comments, sha, head_at)
 
+
 SHA = "44d47e01e09a7e4992d2760b0e86d87fc7d48d7c"
 HEAD_AT = "2026-08-22T12:41:46Z"
 BEFORE_HEAD = "2026-08-22T12:00:00Z"
 AFTER_HEAD = "2026-08-22T12:42:27Z"
 
-def comment(body: str, created_at: str = AFTER_HEAD, updated_at: str = "", user_type: str = "Bot"):
+
+def comment(
+    body: str,
+    created_at: str = AFTER_HEAD,
+    updated_at: str = "",
+    user_type: str = "Bot",
+):
     """One issue comment, as the gate models it."""
     return check_review_posted._Comment(body, created_at, updated_at, user_type)
+
+
 class ApiFailureTest(unittest.TestCase):
     """A failed fetch fails the gate with a message. Only HTTPError was caught
     once, so a proxy's error page reached the user as a traceback; the job-log
@@ -40,13 +49,18 @@ class ApiFailureTest(unittest.TestCase):
     fetch had simply been refused."""
 
     def test_a_body_that_is_not_json_is_reported_not_raised(self):
-        with mock.patch.object(check_review_posted, "_get", return_value=b"<html>Bad gateway</html>"):
-            with mock.patch.dict(os.environ, {
-                "SHA": SHA,
-                "PR_NUMBER": "1",
-                "GITHUB_REPOSITORY": "o/r",
-                "GITHUB_TOKEN": "t",
-            }):
+        with mock.patch.object(
+            check_review_posted, "_get", return_value=b"<html>Bad gateway</html>"
+        ):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SHA": SHA,
+                    "PR_NUMBER": "1",
+                    "GITHUB_REPOSITORY": "o/r",
+                    "GITHUB_TOKEN": "t",
+                },
+            ):
                 with contextlib.redirect_stdout(io.StringIO()) as out:
                     self.assertEqual(check_review_posted.main(), 1)
         self.assertIn("::error::", out.getvalue())
@@ -54,14 +68,20 @@ class ApiFailureTest(unittest.TestCase):
         self.assertIn("not JSON", out.getvalue())
 
     def test_a_transport_failure_is_reported_not_raised(self):
-        with mock.patch.object(check_review_posted, "_get",
-                               side_effect=urllib.error.URLError("connection refused")):
-            with mock.patch.dict(os.environ, {
-                "SHA": SHA,
-                "PR_NUMBER": "1",
-                "GITHUB_REPOSITORY": "o/r",
-                "GITHUB_TOKEN": "t",
-            }):
+        with mock.patch.object(
+            check_review_posted,
+            "_get",
+            side_effect=urllib.error.URLError("connection refused"),
+        ):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SHA": SHA,
+                    "PR_NUMBER": "1",
+                    "GITHUB_REPOSITORY": "o/r",
+                    "GITHUB_TOKEN": "t",
+                },
+            ):
                 with contextlib.redirect_stdout(io.StringIO()) as out:
                     self.assertEqual(check_review_posted.main(), 1)
         self.assertIn("is not fetchable", out.getvalue())
@@ -78,14 +98,18 @@ class ApiFailureTest(unittest.TestCase):
             if "/actions/runs/" in url:
                 return b'{"run_started_at": "' + HEAD_AT.encode() + b'"}'
             return b"[]"  # no comments, so coverage is unproven
+
         with mock.patch.object(check_review_posted, "_get", side_effect=refuse_the_log):
-            with mock.patch.dict(os.environ, {
-                "SHA": SHA,
-                "PR_NUMBER": "1",
-                "GITHUB_REPOSITORY": "o/r",
-                "GITHUB_TOKEN": "t",
-                "GITHUB_RUN_ID": "7",
-            }):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SHA": SHA,
+                    "PR_NUMBER": "1",
+                    "GITHUB_REPOSITORY": "o/r",
+                    "GITHUB_TOKEN": "t",
+                    "GITHUB_RUN_ID": "7",
+                },
+            ):
                 with contextlib.redirect_stdout(io.StringIO()) as out:
                     self.assertEqual(check_review_posted.main(), 1)
         self.assertIn("could not be read", out.getvalue())
@@ -136,7 +160,9 @@ class ReviewSkippedTest(unittest.TestCase):
             SKIP_MARKERS = ("nothing here it can read",)
 
         self.assertTrue(OwnWords("nothing here it can read").skipped)
-        self.assertFalse(check_review_posted._BotLog("nothing here it can read").skipped)
+        self.assertFalse(
+            check_review_posted._BotLog("nothing here it can read").skipped
+        )
 
 
 class ReviewCoversTest(unittest.TestCase):
@@ -148,28 +174,40 @@ class ReviewCoversTest(unittest.TestCase):
         """The guide is edited in place on every run: `created_at` stays at its
         first date, and pr-agent's persistent-state read can fail so the edit
         carries no SHA footer. An edit after the head arrived is coverage."""
-        c = comment("## PR Reviewer Guide 🔍\nNo major issues detected",
-                    created_at=BEFORE_HEAD, updated_at=AFTER_HEAD)
+        c = comment(
+            "## PR Reviewer Guide 🔍\nNo major issues detected",
+            created_at=BEFORE_HEAD,
+            updated_at=AFTER_HEAD,
+        )
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
     def test_persistent_guide_untouched_since_before_head_does_not_cover(self):
-        c = comment("## PR Reviewer Guide 🔍\nSome older review",
-                    created_at=BEFORE_HEAD, updated_at=BEFORE_HEAD)
+        c = comment(
+            "## PR Reviewer Guide 🔍\nSome older review",
+            created_at=BEFORE_HEAD,
+            updated_at=BEFORE_HEAD,
+        )
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
     def test_incremental_guide_with_sha_covers(self):
-        c = comment(f"## Incremental PR Reviewer Guide 🔍\nStarting from commit https://github.com/o/r/commit/{SHA}")
+        c = comment(
+            f"## Incremental PR Reviewer Guide 🔍\nStarting from commit https://github.com/o/r/commit/{SHA}"
+        )
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
     def test_incremental_guide_before_head_does_not_cover(self):
         # a review for an OLDER commit must not cover the new head
-        c = comment("## Incremental PR Reviewer Guide 🔍\nold review", created_at=BEFORE_HEAD)
+        c = comment(
+            "## Incremental PR Reviewer Guide 🔍\nold review", created_at=BEFORE_HEAD
+        )
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
     def test_bot_skip_after_head_covers(self):
         # the regression: an incremental review with no files changed posts a
         # skip instead of a guide — that skip is the reviewed verdict
-        c = comment("Incremental Review Skipped\nNo files were changed since the previous PR Review")
+        c = comment(
+            "Incremental Review Skipped\nNo files were changed since the previous PR Review"
+        )
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
     def test_bot_skip_before_head_does_not_cover(self):
@@ -219,12 +257,25 @@ class IncrementalSignalsTest(unittest.TestCase):
             calls.append(path)
             return {"files": [{"filename": "x.py"}]}
 
-        self.assertIsNone(check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "b" * 40))
+        self.assertIsNone(
+            check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "b" * 40)
+        )
 
     def test_an_unchanged_head_is_covered_by_an_earlier_review(self):
         self.assertEqual(
-            check_review_posted._reviewed_since_unchanged(lambda path: {"files": []}, ["a" * 40], "b" * 40),
+            check_review_posted._reviewed_since_unchanged(
+                lambda path: {"files": []}, ["a" * 40], "b" * 40
+            ),
             "a" * 40,
+        )
+
+    def test_a_compare_without_a_files_key_does_not_cover(self):
+        """No `files` key says nothing about the two trees — only an explicit
+        empty list does."""
+        self.assertIsNone(
+            check_review_posted._reviewed_since_unchanged(
+                lambda path: {}, ["a" * 40], "b" * 40
+            )
         )
 
     def test_a_commit_is_never_its_own_ancestor(self):
@@ -234,7 +285,9 @@ class IncrementalSignalsTest(unittest.TestCase):
             calls.append(path)
             return {"files": []}
 
-        self.assertIsNone(check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "a" * 40))
+        self.assertIsNone(
+            check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "a" * 40)
+        )
         self.assertEqual(calls, [])
 
 
@@ -247,13 +300,19 @@ class JobNameMatchesTest(unittest.TestCase):
         self.assertTrue(check_review_posted._job_name_matches("pr-review", "pr-review"))
 
     def test_prefixed_name_matches(self):
-        self.assertTrue(check_review_posted._job_name_matches("review / pr-review", "pr-review"))
+        self.assertTrue(
+            check_review_posted._job_name_matches("review / pr-review", "pr-review")
+        )
 
     def test_other_job_does_not_match(self):
-        self.assertFalse(check_review_posted._job_name_matches("review / verify", "pr-review"))
+        self.assertFalse(
+            check_review_posted._job_name_matches("review / verify", "pr-review")
+        )
 
     def test_prefix_is_not_a_wildcard(self):
-        self.assertFalse(check_review_posted._job_name_matches("pr-review / extra", "pr-review"))
+        self.assertFalse(
+            check_review_posted._job_name_matches("pr-review / extra", "pr-review")
+        )
 
 
 if __name__ == "__main__":
