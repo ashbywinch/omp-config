@@ -43,7 +43,6 @@ repo_context_from_default_branch = false
 persistent_inline_comments = true
 repo_context_files = [
     "docs/PRD.md",
-    "docs/desk-watcher.md",
     "docs/TECHSPEC.md",
     "docs/PLAN.md",
     "docs/coding-standards.md",
