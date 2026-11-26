@@ -25,9 +25,11 @@ lucidlint-lsp-update.sh            # latest release
 lucidlint-lsp-update.sh v0.6.9     # pin a release
 ```
 
-It downloads the asset for the machine's architecture, replaces
-`~/.local/share/lucidlint/bin/lucidlint`, kills the clients still serving the
-old rules, and prints what a stdio `initialize` handshake answers.
+It downloads the asset for the machine's architecture, replaces the whole
+bundle at `~/.local/share/lucidlint` (`bin/lucidlint`, `version.txt` and the
+Python gate) after checking `version.txt` names the requested tag, kills the
+clients still serving the old rules, and prints what a stdio `initialize`
+handshake answers.
 
 ## Verify what is SERVED, not just that a file moved
 
@@ -45,6 +47,12 @@ binary actually serving.
 - **Running clients survive a binary swap** — `lucidlint-lsp-update.sh` kills
   them after replacing the binary; omp respawns on the next request. A client
   left running keeps serving the old rules indefinitely.
+- **A binary-only swap leaves a mixed install** — the bundle carries
+  `version.txt` and the Python gate as well as `bin/lucidlint`; replacing only
+  the binary makes `--version` and `version.txt` disagree and runs an old
+  orchestrator against a new core. The script replaces the whole bundle and
+  refuses an asset whose `version.txt` is not the requested tag; never swap the
+  binary by hand.
 - **Gate staleness is a separate guard**: the orchestrator refuses a
   local build older than the scanner sources (`make scanner-check`) —
   that guard protects pytest/the gate; this skill protects the installed
