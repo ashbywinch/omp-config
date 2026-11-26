@@ -48,32 +48,20 @@ with `pr-threads <pr>`, and run `make test` before each push.
 Start it once per PR, in the background, for the life of the PR:
 
 ```
-PR_DESK_WORK_AGENT="$PASEO_AGENT_ID" PR_DESK_HUMAN_AGENT="$PASEO_AGENT_ID" \
-  pr-desk-watch.sh <n> <owner/name>
+PR_DESK_AGENT="$PASEO_AGENT_ID" pr-desk-watch.sh <n> <owner/name>
 ```
 
-Both recipients are named explicitly, and the watcher refuses to start without
-them.
+One recipient: the session that owns the PR — this repo's own agent when the PR
+is part of its work, or the desk when the work must not interrupt it. Every
+message goes there, because that session is also the person's channel.
 
-- **The owner** is the agent doing the PR's work: this repo's own agent when the
-  PR is part of that work, or the desk when the work must not interrupt it.
-- **The person's channel** is the session the person is talking to: the same
-  agent in the common case, and the desk when the desk put the work on a worker.
+- **For the agent:** a comment arrived; a required check failed; the branch is
+  behind its base. Answer, fix, or update.
+- **For the person:** the PR is ready except for their review. Relay it with the
+  link; the approval is theirs.
 
-The owner receives *a comment arrived* and *a required check failed*, and must
-answer or fix. The person's channel receives *this PR is ready to approve*, with
-the link, and must tell the person. Neither address may be taken from
-`PASEO_AGENT_ID`: a spawned session inherits its parent's value.
-
-The check signature is keyed on the head and the thread signature on the
-threads' ids, so a push notifies once and a fixed re-run clears itself.
-
-Do not relaunch the watcher for a new head. Relaunch it only after it exits.
-
-It exits when the PR merges or closes.
-
-Relay the "ready for your approval" message to the person with the PR link and
-what stands behind it.
+`PR_DESK_AGENT` is never taken from `PASEO_AGENT_ID`: a spawned session inherits
+its parent's value, so the owner is named.
 
 Never approve, never resolve a review thread, never merge, and do not run
 `gh pr merge`. The author identity is handled by the `gh` shim; the desk does

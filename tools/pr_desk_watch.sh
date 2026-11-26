@@ -21,22 +21,18 @@
 #                 APPROVED. The message carries the PR link and the words
 #                 "ready for your approval".
 #
-# Two recipients, and they are not interchangeable:
+# One recipient: PR_DESK_AGENT, the session that owns this PR — this repo's own
+# agent when the PR is part of its work, or the desk when the work must not
+# interrupt it. Named, never inherited: a spawned session inherits
+# PASEO_AGENT_ID from its parent.
 #
-#   PR_DESK_WORK_AGENT    the agent that owns this PR; receives agent work.
-#                         Named, never inherited: a spawned session inherits
-#                         PASEO_AGENT_ID from its parent, so a default taken
-#                         from the environment would post a worker's notices
-#                         to the agent that spawned it.
-#   PR_DESK_HUMAN_AGENT   the top-level desk agent, the one the person talks
-#                         to; receives the approval notice.
+# Every message goes to that one session, which is also the person's channel.
+# The wording separates the two kinds of thing it must do:
 #
-# A subagent is not a channel to a human. A message sent to a worker is read by
-# that worker and never reaches the person, so the approval notice is never
-# addressed to PASEO_AGENT_ID by default: PR_DESK_HUMAN_AGENT must be set, and
-# the watcher refuses to start without it. Readiness is discovered by polling —
-# a watcher that could see the moment and had nowhere to send it would drop it
-# silently, which is the one failure this tool exists to prevent.
+#   for the agent    a comment arrived; a required check failed; the branch is
+#                    behind its base. It answers, fixes, or updates.
+#   for the person   the PR is ready except for the person's review. The agent
+#                    relays it, with the link; it never approves or merges.
 #
 # A notice that could not be sent is not recorded as sent: the signature stays
 # unset and the next pass sends it again.
@@ -52,8 +48,7 @@ set -uo pipefail
 pr="${1:?usage: pr-desk-watch.sh <pr> [owner/name] [interval-seconds]}"
 repo="${2:-}"
 interval="${3:-60}"
-agent="${PR_DESK_WORK_AGENT:-}"
-human="${PR_DESK_HUMAN_AGENT:-}"
+agent="${PR_DESK_AGENT:-}"
 root="${PR_READY_ROOT:-$PWD}"
 
 if ! printf '%s' "$pr" | grep -Eq '^[0-9]+$'; then
@@ -66,11 +61,7 @@ if ! printf '%s' "$interval" | grep -Eq '^[1-9][0-9]*$'; then
 fi
 
 if [ -z "$agent" ]; then
-  echo "pr-desk-watch: PR_DESK_WORK_AGENT is not set — name the agent that owns this PR" >&2
-  exit 2
-fi
-if [ -z "$human" ]; then
-  echo "pr-desk-watch: PR_DESK_HUMAN_AGENT is not set — a 'ready for approval' notice would have no channel to the person" >&2
+  echo "pr-desk-watch: PR_DESK_AGENT is not set — name the session that owns this PR" >&2
   exit 2
 fi
 
@@ -117,6 +108,7 @@ fi
 slug="$pr ($repo)"
 notified_threads=""
 notified_checks=""
+notified_behind=""
 notified_ready=""
 required=""
 required_for=""
@@ -230,8 +222,8 @@ while :; do
   # it: IFS whitespace drops an empty field, and the next two fields — the base
   # and the link — would slide left into the wrong names.
   view=$(gh_read pr view "$pr" --repo "$repo" \
-    --json state,headRefOid,reviewDecision,baseRefName,url \
-    --jq '[.state, .headRefOid, (.reviewDecision // "-"), .baseRefName, .url] | @tsv' 2>/dev/null)
+    --json state,headRefOid,reviewDecision,baseRefName,url,mergeStateStatus \
+    --jq '[.state, .headRefOid, (.reviewDecision // "-"), .baseRefName, .url, (.mergeStateStatus // "-")] | @tsv' 2>/dev/null)
   if [ -z "$view" ]; then
     # Silence here would look exactly like a quiet PR, which is the failure
     # this tool exists to prevent.
@@ -239,7 +231,7 @@ while :; do
     sleep "$interval"
     continue
   fi
-  IFS=$'\t' read -r state head decision base url <<< "$view"
+  IFS=$'\t' read -r state head decision base url merge_state <<< "$view"
 
   if [ "$state" = "MERGED" ] || [ "$state" = "CLOSED" ]; then
     echo "PR $slug is $state — watcher done"
@@ -284,6 +276,18 @@ while :; do
     notified_checks=""
   fi
 
+  # The base moved: the PR cannot merge until it is updated, and that is the
+  # owner's work, not the person's.
+  if [ "$merge_state" = "BEHIND" ]; then
+    signature="$head behind"
+    if [ "$signature" != "$notified_behind" ]; then
+      notify "$agent" "PR $slug is behind origin/$base on ${head:0:7}. Update the branch (merge origin/$base into the head), then let the checks run." \
+        && notified_behind="$signature"
+    fi
+  else
+    notified_behind=""
+  fi
+
   # Readiness is asked only of a PR whose cheap signals are already clean —
   # pr-ready is the authority, and it runs the same checks again plus the merge.
   # `blocked` is the number of required checks that are not a completed success,
@@ -298,7 +302,7 @@ while :; do
     if [ "$rc" -eq 0 ] && printf '%s\n' "$ready_out" | grep -q '^READY:'; then
       signature="$head"
       if [ "$signature" != "$notified_ready" ]; then
-        notify "$human" "PR $slug is ready for your approval — $url (head ${head:0:7}: merges cleanly into origin/$base, required checks green, no unanswered threads). The approval is yours; this watcher will not approve, resolve or merge." \
+        notify "$agent" "PR $slug is ready for the person's review — $url (head ${head:0:7}: merges cleanly into origin/$base, required checks green, no unanswered threads). Relay it: the review is the only step left, and this watcher will not approve, resolve or merge." \
           && notified_ready="$signature"
       fi
     else
