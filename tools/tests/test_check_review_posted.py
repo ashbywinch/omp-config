@@ -94,26 +94,49 @@ class ApiFailureTest(unittest.TestCase):
 
 
 class ReviewSkippedTest(unittest.TestCase):
-    """The markers are parameters. A local tuple shadowed them once, so a caller
-    could not change them and the parameter was dead; this fails on that."""
+    """The bot reviews nothing when it has nothing it can analyse — a lone CSV
+    diff. It says so in its log and posts no comment; that is a verdict.
 
-    def test_custom_skip_markers_are_honoured(self):
-        self.assertTrue(
-            check_review_posted._review_skipped(
-                "nothing here it can read",
-                failure_markers=(),
-                skip_markers=("nothing here it can read",),
-            )
-        )
+    The markers are class data, so a repo whose bot words them differently can
+    subclass `_BotLog` and change them — the test pins that they are read from
+    the class rather than hard-coded in the property.
+    """
 
-    def test_a_traceback_still_means_not_a_clean_skip(self):
-        self.assertFalse(
-            check_review_posted._review_skipped(
-                "skipping review\nTraceback (most recent call last)",
-                failure_markers=("Traceback (most recent call last)",),
-                skip_markers=("skipping review",),
-            )
+    def test_clean_skip_passes(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping describe"}\n'
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
         )
+        self.assertTrue(check_review_posted._BotLog(log).skipped)
+
+    def test_skip_with_traceback_fails(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+            '{"text":"Failed to process the command."}\n'
+        )
+        self.assertFalse(check_review_posted._BotLog(log).skipped)
+
+    def test_skip_with_token_cap_fails(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+            '{"text":"Tokens: 91000, total tokens over limit: 80000"}\n'
+        )
+        self.assertFalse(check_review_posted._BotLog(log).skipped)
+
+    def test_no_log_does_not_pass(self):
+        # no log means no evidence of a skip: the gate stays closed
+        self.assertFalse(check_review_posted._BotLog("").skipped)
+
+    def test_ordinary_log_does_not_pass(self):
+        log = '{"text":"Reviewing PR: https://api.github.com/repos/o/r/pulls/12 ..."}\n'
+        self.assertFalse(check_review_posted._BotLog(log).skipped)
+
+    def test_a_subclass_states_its_own_markers(self):
+        class OwnWords(check_review_posted._BotLog):
+            SKIP_MARKERS = ("nothing here it can read",)
+
+        self.assertTrue(OwnWords("nothing here it can read").skipped)
+        self.assertFalse(check_review_posted._BotLog("nothing here it can read").skipped)
 
 
 class ReviewCoversTest(unittest.TestCase):
@@ -171,39 +194,48 @@ class ReviewCoversTest(unittest.TestCase):
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
 
-class ReviewSkippedTest(unittest.TestCase):
-    """The bot reviews nothing when it has nothing it can analyse — a lone CSV
-    diff. It says so in its log and posts no comment; that is a verdict."""
+class IncrementalSignalsTest(unittest.TestCase):
+    """What an incremental review publishes: findings as inline comments and no
+    guide, and a log line when it examined the increment and found nothing to
+    publish. Both are coverage; a merge of the base is neither, because it
+    changes no file — the review before it still speaks for that head."""
 
-    def test_clean_skip_passes(self):
-        log = (
-            '{"text":"PR has no analyzable files: o/r/12, skipping describe"}\n'
-            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+    def test_an_inline_finding_from_a_machine_covers(self):
+        inline = [comment("**Possible Issue** something in the diff")]
+        self.assertTrue(check_review_posted._a_finding_posted(inline, HEAD_AT))
+
+    def test_an_inline_comment_from_a_person_does_not_cover(self):
+        inline = [comment("I think this is wrong", user_type="User")]
+        self.assertFalse(check_review_posted._a_finding_posted(inline, HEAD_AT))
+
+    def test_found_nothing_to_publish_is_a_verdict(self):
+        log = '{"text":"Review output is not published: no major issues detected."}'
+        self.assertTrue(check_review_posted._BotLog(log).nothing_to_publish)
+
+    def test_a_changed_head_is_not_covered_by_an_earlier_review(self):
+        calls = []
+
+        def api(path):
+            calls.append(path)
+            return {"files": [{"filename": "x.py"}]}
+
+        self.assertIsNone(check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "b" * 40))
+
+    def test_an_unchanged_head_is_covered_by_an_earlier_review(self):
+        self.assertEqual(
+            check_review_posted._reviewed_since_unchanged(lambda path: {"files": []}, ["a" * 40], "b" * 40),
+            "a" * 40,
         )
-        self.assertTrue(check_review_posted._review_skipped(log))
 
-    def test_skip_with_traceback_fails(self):
-        log = (
-            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
-            '{"text":"Failed to process the command."}\n'
-        )
-        self.assertFalse(check_review_posted._review_skipped(log))
+    def test_a_commit_is_never_its_own_ancestor(self):
+        calls = []
 
-    def test_skip_with_token_cap_fails(self):
-        log = (
-            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
-            '{"text":"Tokens: 91000, total tokens over limit: 80000"}\n'
-        )
-        self.assertFalse(check_review_posted._review_skipped(log))
+        def api(path):
+            calls.append(path)
+            return {"files": []}
 
-    def test_no_log_does_not_pass(self):
-        # no log means no evidence of a skip: the gate stays closed
-        self.assertFalse(check_review_posted._review_skipped(None))
-        self.assertFalse(check_review_posted._review_skipped(""))
-
-    def test_ordinary_log_does_not_pass(self):
-        log = '{"text":"Reviewing PR: https://api.github.com/repos/o/r/pulls/12 ..."}\n'
-        self.assertFalse(check_review_posted._review_skipped(log))
+        self.assertIsNone(check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "a" * 40))
+        self.assertEqual(calls, [])
 
 
 class JobNameMatchesTest(unittest.TestCase):
