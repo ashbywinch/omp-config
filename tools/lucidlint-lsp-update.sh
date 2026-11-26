@@ -5,13 +5,15 @@
 #   lucidlint-lsp-update.sh            # latest release
 #   lucidlint-lsp-update.sh v0.6.9     # pin a release
 #
-# Replaces ~/.local/share/lucidlint/bin/lucidlint, kills the clients still
-# serving the old rules, and prints what a stdio initialize handshake answers.
+# Replaces the whole bundle at ~/.local/share/lucidlint — bin/lucidlint,
+# version.txt and the Python gate — so every part names one release, kills the
+# clients still serving the old rules, and prints what a stdio initialize
+# handshake answers.
 set -euo pipefail
 
 REPO=ashbywinch/lucidlint
-BIN_DIR="$HOME/.local/share/lucidlint/bin"
-BIN="$BIN_DIR/lucidlint"
+BUNDLE_DIR="$HOME/.local/share/lucidlint"
+BIN="$BUNDLE_DIR/bin/lucidlint"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "error: gh (GitHub CLI) is required to fetch a lucidlint release" >&2
@@ -31,7 +33,6 @@ trap 'rm -rf "$TMP"' EXIT
 
 gh release download "$VER" --repo "$REPO" -p "$ASSET" -D "$TMP"
 tar xzf "$TMP/$ASSET" -C "$TMP"
-mkdir -p "$BIN_DIR"
 
 # Locate the binary instead of deriving the top-level directory from the asset
 # name: the archive owns its own layout.
@@ -40,7 +41,19 @@ if [ -z "$BIN_SRC" ]; then
   echo "error: no bin/lucidlint inside $ASSET" >&2
   exit 1
 fi
-install -m 755 "$BIN_SRC" "$BIN"
+BUNDLE_SRC="$(dirname "$(dirname "$BIN_SRC")")"
+BUNDLE_VER="$(cat "$BUNDLE_SRC/version.txt" 2>/dev/null || true)"
+if [ "$BUNDLE_VER" != "$VER" ]; then
+  echo "error: bundle version '${BUNDLE_VER:-missing}' does not match $VER" >&2
+  exit 1
+fi
+
+# Replace the whole bundle, not just the binary: version.txt and the Python
+# gate belong to the same release. A binary-only swap leaves the install
+# reporting two versions and runs an old orchestrator against a new core.
+rm -rf "$BUNDLE_DIR"
+mkdir -p "$(dirname "$BUNDLE_DIR")"
+cp -a "$BUNDLE_SRC" "$BUNDLE_DIR"
 
 # Running clients keep serving the old rules until they exit; the next request
 # respawns them from the replaced binary. Match the exact command line so the
