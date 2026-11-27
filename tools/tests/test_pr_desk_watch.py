@@ -98,7 +98,9 @@ class Fake:
         )
         threads = self.bin / "pr-threads"
         threads.write_text(
-            '#!/bin/bash\ncat "$FAKE_ROOT/threads.txt"\n', encoding="utf-8"
+            '#!/bin/bash\ncat "$FAKE_ROOT/threads.txt"\nexit %d\n'
+            % self.scenario.get("threads_rc", 0),
+            encoding="utf-8",
         )
         ready = self.bin / "pr-ready"
         ready.write_text(
@@ -106,8 +108,19 @@ class Fake:
             encoding="utf-8",
         )
         paseo = self.bin / "paseo"
+        hang = self.scenario.get("send_hang", 0)
+        fail_times = self.scenario.get("send_fail_times", 0)
+        # Every attempt is recorded before any delay or failure the scenario asks
+        # for, so a killed or rejected send is still counted; the message is
+        # recorded only when the attempt succeeds.
         paseo.write_text(
-            '#!/bin/bash\nprintf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n',
+            "#!/bin/bash\n"
+            'n=$(cat "$FAKE_ROOT/n" 2>/dev/null || echo 0); n=$((n + 1))\n'
+            'echo "$n" > "$FAKE_ROOT/n"\n'
+            'printf "%s\\n" "$*" >> "$FAKE_ROOT/args.txt"\n'
+            f"if [ \"$n\" -le {fail_times} ]; then exit 2; fi\n"
+            f"sleep {hang}\n"
+            'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n',
             encoding="utf-8",
         )
         for tool in (gh, threads, ready, paseo):
@@ -192,11 +205,18 @@ class NoticeTest(unittest.TestCase):
         self.assertIn("https://github.com/owner/name/pull/1", notices)
 
     def test_an_unanswered_thread_is_reported_with_the_command(self):
-        self.fake = self.fake_for(threads=["PRRC_1", "PRRC_2"])
+        """Exit 1 from pr-threads is a verdict: work remains, so report it."""
+        self.fake = self.fake_for(threads=["PRRC_1", "PRRC_2"], threads_rc=1)
         self.fake.run()
         notices = self.fake.notices()
         self.assertIn("2 unanswered review thread(s)", notices)
         self.assertIn("pr-threads 1 --repo owner/name", notices)
+
+    def test_a_failing_pr_threads_is_unknown_not_empty(self):
+        self.fake = self.fake_for(threads=["PRRC_1"], threads_rc=2)
+        result = self.fake.run()
+        self.assertNotIn("unanswered review thread(s)", self.fake.notices())
+        self.assertIn("thread state unknown", result.stderr)
 
 
 def load_module():
@@ -222,7 +242,11 @@ class NoRepeatTest(unittest.TestCase):
                 pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
                 send_timeout=5, root=Path("."),
             )
-            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
+            )
             for _ in range(count):
                 watcher.pass_once()
         return self.fake.notices()
@@ -231,6 +255,55 @@ class NoRepeatTest(unittest.TestCase):
         notices = self.passes(3)
         self.assertEqual(notices.count("ready for the person's review"), 1)
 
+    def test_the_send_is_queued_without_waiting(self):
+        self.passes(1)
+        args = (self.fake.root / "args.txt").read_text(encoding="utf-8")
+        # The agent follows --no-wait, so this one assertion carries both facts.
+        self.assertIn(f"send --no-wait {AGENT}", args)
+
+    def test_a_send_that_never_returns_is_retried(self):
+        module = load_module()
+        fake = Fake(ready="READY: hand it over", ready_rc=0, send_hang=3)
+        self.addCleanup(fake.close)
+        with mock.patch.dict(os.environ, fake.env()):
+            settings = module.Settings(
+                pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+                send_timeout=1, root=Path("."),
+            )
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
+            )
+            watcher.pass_once()
+            watcher.pass_once()
+        attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertEqual(attempts.count("send --no-wait"), 2)
+        # A send killed at its bound queued nothing, so no message was recorded.
+        self.assertEqual(fake.notices(), "")
+
+    def test_a_rejected_send_is_retried_and_delivers_once(self):
+        module = load_module()
+        fake = Fake(ready="READY: hand it over", ready_rc=0, send_fail_times=1)
+        self.addCleanup(fake.close)
+        with mock.patch.dict(os.environ, fake.env()):
+            settings = module.Settings(
+                pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+                send_timeout=5, root=Path("."),
+            )
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
+            )
+            watcher.pass_once()
+            watcher.pass_once()
+        attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertEqual(attempts.count("send --no-wait"), 2)
+        self.assertEqual(
+            fake.notices().count("ready for the person's review"), 1
+        )
+
     def test_a_new_head_is_announced_again(self):
         module = load_module()
         with mock.patch.dict(os.environ, self.fake.env()):
@@ -238,7 +311,11 @@ class NoRepeatTest(unittest.TestCase):
                 pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
                 send_timeout=5, root=Path("."),
             )
-            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
+            )
             watcher.pass_once()
             moved = json.loads((self.fake.root / "pr.json").read_text(encoding="utf-8"))
             moved["headRefOid"] = "b" * 40
