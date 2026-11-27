@@ -9,7 +9,7 @@ links to.
 
 - `make setup` — provisions everything: symlinks skills/rules/APPEND_SYSTEM into `~/.omp/agent/`, the lucidlint bundle into `.tools/`, git hooks (pre-commit + pre-push), gh/git shims.
 - `make install` — re-symlink skills/rules/APPEND_SYSTEM and install the three PR tools (`uv tool install --editable .`); an edit to an existing skill is live already.
-- `make install-gh-shim` — symlink `tools/gh-app-shim` → `~/.local/bin/gh`; create `~/.secrets` from `tools/secrets.template` if missing.
+- `make install-gh-shim` — copy `tools/gh-app-shim` → `~/.local/bin/gh`, so the installed tool cannot follow a branch. Create `~/.secrets` from `tools/secrets.template` if missing.
 - `make test` — the repo self-check (provisions lucidlint on first run); pre-push runs it.
 - NEVER run ad-hoc commands for these — everything goes through `make`.
 

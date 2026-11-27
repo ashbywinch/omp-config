@@ -17,9 +17,9 @@ HOOKS_DIR  := .githooks
 GH_SHIM_DST := $(H)/.local/bin/gh
 GIT_SHIM_DST := $(H)/.local/bin/git
 GIT_HELPER_DST := $(H)/.local/libexec/omp-bot-credential-helper
+SHIMS_COMMIT := $(H)/.local/libexec/omp-shims.installed-commit
 GIT_AGENT_CFG := $(H)/.local/etc/gitconfig-agent
 FETCH_FINDINGS_DST := $(H)/.local/bin/fetch-pr-findings.sh
-WATCH_PR_DST := $(H)/.local/bin/watch-pr.sh
 LEXICON_DST       := $(H)/.paseo/lexicon.central
 PR_THREADS_DST := $(H)/.local/bin/pr-threads
 PR_DESK_DST := $(H)/.local/bin/pr-desk
@@ -36,8 +36,8 @@ help:
 	@echo "omp-config — available commands:"
 	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks + gh/git shims"
 	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM; install the PR tools as uv console scripts"
-	@echo "  ${GREEN}make install-gh-shim${NC} Symlink tools/gh-app-shim -> ~/.local/bin/gh; create ~/.secrets from template if missing"
-	@echo "  ${GREEN}make install-git-shim${NC} Symlink tools/git-app-shim -> ~/.local/bin/git + bot credential helper (agents auth as omp-harness[bot])"
+	@echo "  ${GREEN}make install-gh-shim${NC} Install tools/gh-app-shim as ~/.local/bin/gh (a copy, not a link); create ~/.secrets from template if missing"
+	@echo "  ${GREEN}make install-git-shim${NC} Install tools/git-app-shim as ~/.local/bin/git (a copy, not a link) + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
 	@echo "  ${GREEN}make install-lucidlint${NC} Fetch the pinned lucidlint release bundle into .tools/lucidlint"
 	@echo "  ${GREEN}make test${NC}           Repo self-check"
@@ -68,7 +68,6 @@ install:
 	mkdir -p $(dir $(LEXICON_DST))
 	ln -sf $(CURDIR)/lexicon/central.lexicon $(LEXICON_DST)
 	ln -sf $(CURDIR)/tools/pr_desk.py $(PR_DESK_DST)
-	ln -sf $(CURDIR)/skills/pr-workflow/scripts/watch-pr.sh $(WATCH_PR_DST)
 	ln -sf $(CURDIR)/tools/repeat_findings.py $(REPEAT_FINDINGS_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
 	ln -sf $(CURDIR)/tools/wait-for.sh $(WAIT_FOR_DST)
@@ -84,22 +83,33 @@ install:
 	$(UV) tool install --editable $(CURDIR)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
-install-gh-shim:
+# Both shim targets below install copies, not links: an installed tool must not
+# follow this checkout onto another branch. `stamp-shims` names the commit the
+# copies came from.
+stamp-shims:
+	@mkdir -p $(dir $(SHIMS_COMMIT))
+	@sha=$$(git -C $(CURDIR) rev-parse --short HEAD) || { echo "stamp-shims: cannot read HEAD — write no stamp at all" >&2; exit 1; }; \
+	 printf '%s\n' "$$sha" > $(SHIMS_COMMIT)
+
+install-gh-shim: stamp-shims
 	@mkdir -p $(dir $(GH_SHIM_DST))
-	@ln -sf $(CURDIR)/tools/gh-app-shim $(GH_SHIM_DST)
+	@rm -f $(GH_SHIM_DST)
+	@cp $(CURDIR)/tools/gh-app-shim $(GH_SHIM_DST)
+	@chmod 700 $(GH_SHIM_DST)
 	@if [ ! -f $(H)/.secrets ]; then \
 		cp $(CURDIR)/tools/secrets.template $(H)/.secrets && chmod 600 $(H)/.secrets; \
 		echo "Created ~/.secrets from template — fill in the values, then chmod 600."; \
 	else \
 		echo "~/.secrets exists — leaving it alone."; \
 	fi
-	@chmod 700 $(GH_SHIM_DST)
 	@echo "gh shim installed -> $(GH_SHIM_DST)"
 
-install-git-shim:
+install-git-shim: stamp-shims
 	@mkdir -p $(dir $(GIT_SHIM_DST)) $(dir $(GIT_HELPER_DST)) $(dir $(GIT_AGENT_CFG))
-	@ln -sf $(CURDIR)/tools/git-app-shim $(GIT_SHIM_DST)
-	@ln -sf $(CURDIR)/tools/omp-bot-credential-helper $(GIT_HELPER_DST)
+	@rm -f $(GIT_SHIM_DST)
+	@cp $(CURDIR)/tools/git-app-shim $(GIT_SHIM_DST)
+	@rm -f $(GIT_HELPER_DST)
+	@cp $(CURDIR)/tools/omp-bot-credential-helper $(GIT_HELPER_DST)
 	@chmod 700 $(GIT_SHIM_DST) $(GIT_HELPER_DST)
 	@python3 $(CURDIR)/tools/gen-agent-gitconfig.py $(GIT_AGENT_CFG) $(GIT_HELPER_DST)
 	@if [ ! -f $(H)/.secrets ]; then \
@@ -121,7 +131,7 @@ uninstall:
 		rm -rf $(SKILLS_DIR)/$$name/examples; \
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
-	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
+	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG) $(SHIMS_COMMIT)
 	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@$(UV) tool uninstall omp-config 2>/dev/null || echo "omp-config is not installed as a uv tool."
 	@echo "Removed omp-config symlinks."
