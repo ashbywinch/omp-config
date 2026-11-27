@@ -149,6 +149,12 @@ class ContextTest(ReaderTest):
         with self.assertRaises(SourceUnknown):
             Contexts("owner/name", timeout=5).required("main")
 
+    def test_a_rules_body_that_is_not_a_list_is_unknown(self):
+        """`gh` exiting zero with a non-array body is not "no rules" either."""
+        self.fake(required=["lint"], rules={"unexpected": True})
+        with self.assertRaises(SourceUnknown):
+            Contexts("owner/name", timeout=5).required("main")
+
 
 class RepositoryTest(ReaderTest):
     def test_the_checkout_names_its_repository(self):
@@ -261,6 +267,11 @@ class MergeTest(ReaderTest):
         self.fake(merge_state="UNKNOWN", head="a" * 40)
         with self.assertRaises(SourceUnknown):
             Merge("owner/name", timeout=5, root=repos.root / "absent").state(1)
+
+    def test_an_unknown_status_without_a_head_is_unknown(self):
+        self.fake(merge_state="UNKNOWN", head="-")
+        with self.assertRaises(SourceUnknown):
+            Merge("owner/name", timeout=5).state(1)
 
 
 if __name__ == "__main__":

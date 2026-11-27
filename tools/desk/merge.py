@@ -40,11 +40,11 @@ class Merge(Github):
     def _prove_locally(self, pull: PullRequest) -> MergeState:
         """Prove the merge in the checkout, refusing what git cannot answer."""
         origin_base = f"origin/{pull.base}"
-        self._fetch(pull)
-        if not self._has_commit(pull.head):
+        if not pull.head or pull.head == "-":
             raise SourceUnknown(
                 f"no head sha to merge {pull.slug} against {origin_base}"
             )
+        self._fetch(pull)
         merged = self._ask(
             ["merge-tree", "--write-tree", origin_base, pull.head],
             f"cannot merge {pull.slug} against {origin_base}",
@@ -56,6 +56,11 @@ class Merge(Github):
         return MergeState(merges=merged == 0, behind=ancestor == 1)
 
     def _fetch(self, pull: PullRequest) -> None:
+        """Make ``origin/<base>`` and the head available, or refuse.
+
+        Guarantees both commits are present when it returns: a fetch that exits
+        zero but leaves the head absent is still an unknown, not a missing head.
+        """
         refspec = f"+refs/heads/{pull.base}:refs/remotes/origin/{pull.base}"
         fetched = self.command(["git", "fetch", "origin", refspec], cwd=self.root)
         if fetched.returncode != 0:
@@ -63,15 +68,18 @@ class Merge(Github):
                 f"cannot fetch origin/{pull.base} to prove {pull.slug}: "
                 f"{_first_line(fetched.stderr, f'`git fetch` exited {fetched.returncode}')}"
             )
-        if not self._has_commit(pull.head):
-            fetched_head = self.command(
-                ["git", "fetch", "origin", pull.head], cwd=self.root
+        if self._has_commit(pull.head):
+            return
+        fetched_head = self.command(["git", "fetch", "origin", pull.head], cwd=self.root)
+        if fetched_head.returncode != 0:
+            raise SourceUnknown(
+                f"cannot fetch {pull.head[:7]} to prove {pull.slug}: "
+                f"{_first_line(fetched_head.stderr, f'`git fetch` exited {fetched_head.returncode}')}"
             )
-            if fetched_head.returncode != 0:
-                raise SourceUnknown(
-                    f"cannot fetch {pull.head[:7]} to prove {pull.slug}: "
-                    f"{_first_line(fetched_head.stderr, f'`git fetch` exited {fetched_head.returncode}')}"
-                )
+        if not self._has_commit(pull.head):
+            raise SourceUnknown(
+                f"git fetch did not deliver {pull.head[:7]} to prove {pull.slug}"
+            )
 
     def _ask(self, args: list[str], reason: str) -> int:
         """A git question whose 0 and 1 are answers; anything else refuses."""

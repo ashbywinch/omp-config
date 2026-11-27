@@ -48,7 +48,11 @@ class Contexts(Github):
                     "requiredStatusCheckContexts"
                 ) or []
             )
-            for entry in json.loads(rules or "[]"):
+            rules_data = json.loads(rules or "[]")
+            if not isinstance(rules_data, list):
+                # "No rules" is an empty array; any other body is not an answer.
+                raise SourceUnknown(reason)
+            for entry in rules_data:
                 if entry.get("type") != "required_status_checks":
                     continue
                 for check in (entry.get("parameters") or {}).get(
