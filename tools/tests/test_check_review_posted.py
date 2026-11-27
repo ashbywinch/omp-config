@@ -224,6 +224,19 @@ class ReviewCoversTest(unittest.TestCase):
     def test_human_skip_covers(self):
         self.assertTrue(_covers([comment("/skip", user_type="User")], SHA, HEAD_AT))
 
+    def test_an_unreadable_stamp_does_not_cover(self):
+        """A stamp that is not a moment cannot be shown to be this run's."""
+        c = comment("## PR Reviewer Guide 🔍\nhere", created_at="not-a-time", updated_at="")
+        self.assertFalse(_covers([c], SHA, HEAD_AT))
+
+    def test_an_offset_stamp_orders_by_moment_not_by_text(self):
+        """14:30+02:00 is 12:30Z — BEFORE the head at 12:41Z, though as text it
+        sorts after. Compared as a moment it does not cover; as strings it
+        would have."""
+        c = comment("## PR Reviewer Guide 🔍\nhere", created_at="2026-08-22T14:30:00+02:00",
+                    updated_at="2026-08-22T14:30:00+02:00")
+        self.assertFalse(_covers([c], SHA, HEAD_AT))
+
     def test_no_comments_does_not_cover(self):
         self.assertFalse(_covers([], SHA, HEAD_AT))
 

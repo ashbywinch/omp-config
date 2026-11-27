@@ -34,6 +34,7 @@ import sys
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 from urllib.error import HTTPError, URLError
 
@@ -376,6 +377,14 @@ def _from_a_machine(user_type: str) -> bool:
     return user_type != "User"
 
 
+def _moment(stamp: str) -> datetime | None:
+    """One of GitHub's ISO-8601 stamps as a datetime, or None when it is not one."""
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).astimezone(UTC)
+    except (ValueError, AttributeError):
+        return None
+
+
 @dataclass(frozen=True)
 class _Coverage:
     """One comment's claim to cover the head commit, judged against this run.
@@ -392,16 +401,22 @@ class _Coverage:
     def posted_after(self) -> bool:
         """Whether the comment is this run's, by time.
 
-        GitHub writes both stamps in one fixed format (``2026-11-24T19:22:18Z``,
-        UTC), so text order is time order. An edit counts as well as a new
-        comment because the guide is EDITED in place — its ``created_at`` never
-        advances, so an edit after the head arrived is the only sign of a new
-        review. A stamp equal to the run start counts: two runs in the same
-        second on one PR are reviewing the same push.
+        The stamps are compared as MOMENTS, not as text: ``_moment`` reads
+        GitHub's ISO-8601 UTC stamp into a datetime, so the comparison cannot be
+        wrong about an offset or a fraction no matter what the API writes. An
+        unreadable stamp is not coverage — the direction this checks fails in.
+
+        An edit counts as well as a new comment because the guide is EDITED in
+        place — its ``created_at`` never advances, so an edit after the head
+        arrived is the only sign of a new review. A stamp equal to the run start
+        counts: two runs in the same second on one PR review the same push.
         """
-        return (
-            self.comment.created_at >= self.run_started
-            or self.comment.updated_at >= self.run_started
+        started = _moment(self.run_started)
+        if started is None:
+            return False
+        return any(
+            moment is not None and moment >= started
+            for moment in (_moment(self.comment.created_at), _moment(self.comment.updated_at))
         )
 
     @property
