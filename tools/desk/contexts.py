@@ -33,6 +33,10 @@ class Contexts(Github):
             reason,
         )
         rules = self.gh(["api", f"repos/{self.repo}/rules/branches/{base}"], reason)
+        # A 404 here is not "no rules": the endpoint answers an empty array when
+        # nothing applies, so any failure is an unreadable source. One unreadable
+        # source makes the answer unknown, because a partial required list would
+        # let a required check be missed.
         contexts: set[str] = set()
         try:
             classic_data = json.loads(classic or "{}")

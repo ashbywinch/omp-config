@@ -109,6 +109,10 @@ class CheckTest(ReaderTest):
         with self.assertRaises(SourceUnknown):
             Checks("owner/name", timeout=5).on("-")
 
+    def test_a_page_that_is_not_an_object_is_unknown_not_no_runs(self):
+        with self.assertRaises(SourceUnknown):
+            checks_from_pages(json.dumps([{"name": "arm"}]))
+
     def test_pages_are_decoded_value_by_value(self):
         first = {"check_runs": [{"name": "one", "status": "completed",
                                  "conclusion": "success", "started_at": "x"}]}
@@ -136,6 +140,12 @@ class ContextTest(ReaderTest):
 
     def test_an_unreadable_source_makes_the_whole_answer_unknown(self):
         self.fake(contexts_rc=1)
+        with self.assertRaises(SourceUnknown):
+            Contexts("owner/name", timeout=5).required("main")
+
+    def test_an_unreadable_rules_source_is_unknown_too(self):
+        """A 404 from the rules endpoint is a failed read, not "no rules"."""
+        self.fake(required=["lint"], rules_rc=1)
         with self.assertRaises(SourceUnknown):
             Contexts("owner/name", timeout=5).required("main")
 
@@ -236,6 +246,15 @@ class MergeTest(ReaderTest):
         state = Merge("owner/name", timeout=5, root=feature).state(1)
         self.assertFalse(state.merges)
         self.assertTrue(state.behind)
+
+    # lucidlint: ignore fakefs the subject is git's own merge-tree round trip through subprocess; a fake filesystem cannot host a real git origin.
+    def test_a_head_the_origin_does_not_have_is_named_as_the_fetch_failure(self):
+        repos = GitFixture(self)
+        feature = repos.clone("feature")
+        self.fake(merge_state="UNKNOWN", head="a" * 40)
+        with self.assertRaises(SourceUnknown) as caught:
+            Merge("owner/name", timeout=5, root=feature).state(1)
+        self.assertIn("cannot fetch", str(caught.exception))
 
     def test_when_git_cannot_prove_it_either_the_read_raises(self):
         repos = GitFixture(self)

@@ -64,7 +64,14 @@ class Merge(Github):
                 f"{_first_line(fetched.stderr, f'`git fetch` exited {fetched.returncode}')}"
             )
         if not self._has_commit(pull.head):
-            self.command(["git", "fetch", "origin", pull.head], cwd=self.root)
+            fetched_head = self.command(
+                ["git", "fetch", "origin", pull.head], cwd=self.root
+            )
+            if fetched_head.returncode != 0:
+                raise SourceUnknown(
+                    f"cannot fetch {pull.head[:7]} to prove {pull.slug}: "
+                    f"{_first_line(fetched_head.stderr, f'`git fetch` exited {fetched_head.returncode}')}"
+                )
 
     def _ask(self, args: list[str], reason: str) -> int:
         """A git question whose 0 and 1 are answers; anything else refuses."""

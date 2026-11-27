@@ -142,5 +142,5 @@ query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
         except (KeyError, TypeError, IndexError) as exc:
             raise SourceUnknown(
                 f"cannot read every review thread on {self.repo}#{number} "
-                "— refusing a partial list"
+                f"({exc}) — refusing a partial list"
             ) from exc

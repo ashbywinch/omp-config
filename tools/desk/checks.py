@@ -29,7 +29,9 @@ def checks_from_pages(text: str) -> list[Check]:
         except json.JSONDecodeError as exc:
             raise SourceUnknown("GitHub returned unreadable JSON") from exc
         if not isinstance(page, dict):
-            continue
+            # A page that is not an object is unreadable, not an empty answer:
+            # skipping it would report "no check runs" for a payload we cannot read.
+            raise SourceUnknown("GitHub returned a check-runs page that is not an object")
         for node in page.get("check_runs") or []:
             if isinstance(node, dict):
                 checks.append(_check(node))

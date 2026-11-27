@@ -123,6 +123,7 @@ class Fake:
         checks_rc = self.scenario.get("checks_rc", 0)
         pull_rc = self.scenario.get("pull_rc", 0)
         contexts_rc = self.scenario.get("contexts_rc", 0)
+        rules_rc = self.scenario.get("rules_rc", 0)
         repo_rc = self.scenario.get("repo_rc", 0)
         ready_rc = self.scenario.get("ready_rc", 1)
 
@@ -135,12 +136,12 @@ class Fake:
             '  *check-runs*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/checks.json" ;;\n'
             '  *reviewThreads*) cat "$root/threads.json" ;;\n'
             '  "api graphql"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/contexts.json" ;;\n'
-            '  "api repos"*) cat "$root/rules.json" ;;\n'
+            '  "api repos"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/rules.json" ;;\n'
             '  "repo view"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/repo.json" ;;\n'
             '  *) echo "unexpected gh call: $*" >&2; exit 9 ;;\n'
             "esac\n"
             % (pull_rc, pull_rc, checks_rc, checks_rc, contexts_rc, contexts_rc,
-               repo_rc, repo_rc),
+               rules_rc, rules_rc, repo_rc, repo_rc),
             encoding="utf-8",
         )
         ready = self.bin / "pr-ready"
