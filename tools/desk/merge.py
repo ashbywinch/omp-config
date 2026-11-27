@@ -7,7 +7,6 @@ from pathlib import Path
 from tools.desk.errors import SourceUnknown
 from tools.desk.github import Github
 from tools.desk.model import MergeState, PullRequest
-from tools.desk.pulls import PullRequests
 
 
 class Merge(Github):
@@ -27,9 +26,12 @@ class Merge(Github):
         super().__init__(repo, timeout)
         self.root = Path(root).resolve()
 
-    def state(self, number: int) -> MergeState:
-        """The head's merge state, or ``SourceUnknown`` when it cannot be proved."""
-        pull = PullRequests(self.repo, self.timeout).view(number)
+    def state(self, pull: PullRequest) -> MergeState:
+        """The pull's merge state, or ``SourceUnknown`` when it cannot be proved.
+
+        It takes the record the caller already read, so the pull is not read
+        twice for the same pass.
+        """
         if pull.merge_state not in (self._UNKNOWN, "-"):
             return MergeState(
                 merges=pull.merge_state != self._CONFLICT,

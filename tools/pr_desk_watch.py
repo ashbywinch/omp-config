@@ -17,7 +17,8 @@ Four notices, one per state change, each keyed so a steady state is silent:
 
 A key is recorded only after the send succeeds, so a failed send repeats.
 
-Every GitHub read goes through `tools/desk/`; this file decides what to say.
+Every GitHub read goes through `tools/desk/`, and readiness is the pure
+`readiness.evaluate` over the records read here. This file decides what to say.
 
 Design: `docs/desk-watcher.md`. Procedure: `skill://pr-desk`.
 """
@@ -35,30 +36,17 @@ from tools.desk.checks import Checks
 from tools.desk.command import run
 from tools.desk.contexts import Contexts
 from tools.desk.errors import SourceUnknown
-from tools.desk.model import PullRequest
+from tools.desk.identity import answering_login
+from tools.desk.merge import Merge
+from tools.desk.model import Check, MergeState, PullRequest, Thread
 from tools.desk.pulls import PullRequests
+from tools.desk.readiness import evaluate
 from tools.desk.repository import Repository
 from tools.desk.threads import Threads, unanswered
 
 
 class WatchError(Exception):
     """A setting or an input that cannot be used, reported before any polling."""
-
-
-@dataclass(frozen=True)
-class CheckReport:
-    """What the check list says about readiness, and what is worth sending."""
-
-    blocked: int
-    failing: list[str]
-
-
-@dataclass(frozen=True)
-class Verdict:
-    """`pr-ready`'s answer: the verdict, and the line that carried it."""
-
-    ready: bool
-    line: str
 
 
 @dataclass(frozen=True)
@@ -70,6 +58,7 @@ class Settings:
     timeout: int = 30
     send_timeout: int = 120
     root: Path = Path(".")
+    me: str = "omp-harness[bot]"
 
     @property
     def slug(self) -> str:
@@ -111,12 +100,9 @@ class Notices:
         return False
 
     def rearm(self, kind: str) -> None:
-        """Forget the last notice of this kind.
+        """Forget the last notice of this kind: its condition no longer holds.
 
-        Only the thread key needs it: thread ids are stable, so a thread answered
-        and then re-raised carries the same key and clearing is what lets it
-        notify again. Every other key holds the head, so a new head differs by
-        itself — and clearing on a transient state repeated the notice.
+        The next pass that finds the condition again owes a notice.
         """
         setattr(self, kind, "")
 
@@ -134,14 +120,12 @@ class Watcher:
     settings: Settings
     required: list[str] = field(default_factory=list)
     required_for: str = ""
-    # The login `pr-threads` counts as mine; this watcher reads the threads
-    # itself and must judge them the same way.
-    me: str = "omp-harness"
     notices: Notices = field(init=False)
     pulls: PullRequests = field(init=False)
     review_threads: Threads = field(init=False)
     check_runs: Checks = field(init=False)
     required_contexts: Contexts = field(init=False)
+    merges: Merge = field(init=False)
 
     def __post_init__(self) -> None:
         repo, timeout = self.settings.repo, self.settings.timeout
@@ -150,6 +134,7 @@ class Watcher:
         self.review_threads = Threads(repo, timeout)
         self.check_runs = Checks(repo, timeout)
         self.required_contexts = Contexts(repo, timeout)
+        self.merges = Merge(repo, timeout, self.settings.root)
 
     # ---- one pass --------------------------------------------------------
 
@@ -164,30 +149,58 @@ class Watcher:
             print(f"PR {self.settings.slug} is {pull.state} — watcher done")
             return False
 
-        if pull.base != self.required_for:
-            try:
-                contexts = self.required_contexts.required(pull.base)
-            except SourceUnknown:  # lucidlint: ignore swallow when the required list cannot be read the pass continues with every check counted, which is the conservative answer the notice needs; the warn is the surface.
-                warn(
-                    f"required contexts unreadable for origin/{pull.base} — every check counts"
-                )
-                contexts = []
-            self.required, self.required_for = contexts, pull.base
+        contexts = self._required_contexts(pull)
+        threads = self._unanswered()
+        checks = self._checks(pull.head)
+        merge_state = self._merge_state(pull)
 
-        self.report_threads(pull)
-        check_report = self.report_checks(pull)
-        self.report_behind(pull)
-        self.report_ready(pull, check_report)
+        self.report_threads(pull, threads)
+        self.report_checks(pull, checks, contexts)
+        self.report_behind(pull, merge_state)
+        self.report_ready(pull, threads, checks, contexts, merge_state)
         return True
 
-    def report_threads(self, pull: PullRequest) -> None:
+    # ---- the reads that hold a notice when they cannot answer -------------
+
+    def _required_contexts(self, pull: PullRequest) -> list[str] | None:
+        if pull.base == self.required_for:
+            return self.required
+        try:
+            contexts = self.required_contexts.required(pull.base)
+        except SourceUnknown as exc:
+            warn(f"{exc} — every check counts")
+            return None
+        self.required, self.required_for = contexts, pull.base
+        return contexts
+
+    def _unanswered(self) -> list[Thread] | None:
         try:
             threads = self.review_threads.all(self.settings.pr)
         except SourceUnknown as exc:
             warn(f"{exc} — thread state unknown")
-            self.notices.rearm("threads")
+            return None
+        return unanswered(threads, self.settings.me)
+
+    def _checks(self, head: str) -> list[Check] | None:
+        try:
+            return self.check_runs.on(head)
+        except SourceUnknown as exc:
+            warn(f"{exc} — holding readiness")
+            return None
+
+    def _merge_state(self, pull: PullRequest) -> MergeState | None:
+        try:
+            return self.merges.state(pull)
+        except SourceUnknown as exc:
+            warn(f"{exc} — holding readiness")
+            return None
+
+    # ---- the four notices ------------------------------------------------
+
+    def report_threads(self, pull: PullRequest, threads: list[Thread] | None) -> None:
+        if threads is None:
             return
-        ids = sorted(thread.id for thread in unanswered(threads, self.me))
+        ids = sorted(thread.id for thread in threads)
         if not ids:
             self.notices.rearm("threads")
             return
@@ -201,27 +214,27 @@ class Watcher:
             "push once.",
         )
 
-    def report_checks(self, pull: PullRequest) -> CheckReport:
-        """Report failing required checks, and say how many are not green.
+    def report_checks(
+        self, pull: PullRequest, checks: list[Check] | None, contexts: list[str] | None
+    ) -> None:
+        """Report failing required checks.
 
-        Unknown is reported as blocked: readiness needs zero, and a list that
-        could not be read has verified nothing.
+        While the required list is unknown, every check counts: a notice that
+        names a check that did not need to pass is corrected by the next pass,
+        and one that misses a required failure is the miss this notice exists to
+        prevent.
         """
-        try:
-            checks = self.check_runs.on(pull.head)
-        except SourceUnknown as exc:
-            warn(f"{exc} — holding readiness")
-            return CheckReport(blocked=1, failing=[])
-        wanted = set(self.required)
-        considered = [check for check in checks if not wanted or check.name in wanted]
-        # Two ways a required check is not green: it ran and did not pass, or it
-        # never reported at all — GitHub's "expected", which nothing verified.
-        not_green = {check.name for check in considered if not check.passed}
-        never_ran = wanted - {check.name for check in checks}
-        blocked = len(not_green | never_ran)
+        if checks is None:
+            return
+        if contexts is None:
+            considered = checks
+        else:
+            wanted = set(contexts)
+            considered = [check for check in checks if check.name in wanted]
         failing = sorted({check.name for check in considered if check.failed})
         if not failing:
-            return CheckReport(blocked=blocked, failing=[])
+            self.notices.rearm("checks")
+            return
         self.notices.announce(
             "checks",
             f"{pull.head} {', '.join(failing)}",
@@ -229,55 +242,51 @@ class Watcher:
             f"{pull.head[:7]}: {', '.join(failing)}. Read the failing step, fix the "
             "cause, push once.",
         )
-        return CheckReport(blocked=blocked, failing=failing)
 
-    def report_behind(self, pull: PullRequest) -> None:
-        if not pull.behind:
+    def report_behind(self, pull: PullRequest, merge_state: MergeState | None) -> None:
+        behind = merge_state.behind if merge_state is not None else pull.behind
+        if not behind:
+            self.notices.rearm("behind")
             return
         self.notices.announce(
             "behind",
-            f"{pull.head} behind",
+            pull.head,
             f"PR {self.settings.slug} is behind origin/{pull.base} on "
             f"{pull.head[:7]}. Update the branch (merge origin/{pull.base} into the "
             "head), then let the checks run.",
         )
 
-    def report_ready(self, pull: PullRequest, check_report: CheckReport) -> None:
-        # No rearming: the key is the head, so a new head notifies again by
-        # itself. Clearing on a transient not-ready — a check run in flight, a
-        # pr-ready timeout — sent the same notice on every pass.
-        if check_report.blocked or pull.decision == "APPROVED" or pull.behind:
+    def report_ready(
+        self,
+        pull: PullRequest,
+        threads: list[Thread] | None,
+        checks: list[Check] | None,
+        contexts: list[str] | None,
+        merge_state: MergeState | None,
+    ) -> None:
+        if None in (threads, checks, contexts, merge_state):
             return
-        verdict = self.ready_verdict()
+        verdict = evaluate(pull, threads, checks, contexts, merge_state)
         if not verdict.ready:
-            if not verdict.line.startswith("BLOCKED:"):
-                warn(f"pr-ready gave no verdict — {verdict.line}".rstrip(" —"))
+            self.notices.rearm("ready")
             return
-        self.notices.announce(
-            "ready",
-            pull.head,
+        self.notices.announce("ready", pull.head, self._ready_notice(pull))
+
+    def _ready_notice(self, pull: PullRequest) -> str:
+        """The ready notice; approval changes what is left to say, not whether."""
+        if pull.decision == "APPROVED":
+            return (
+                f"PR {self.settings.slug} is approved and clean — {pull.url} "
+                f"(head {pull.head[:7]}: merges cleanly into origin/{pull.base}, "
+                "required checks green, no unanswered threads). Nothing "
+                "outstanding; the merge is the person's."
+            )
+        return (
             f"PR {self.settings.slug} is ready for the person's review — "
             f"{pull.url} (head {pull.head[:7]}: merges cleanly into "
             f"origin/{pull.base}, required checks green, no unanswered threads). "
             "Relay it: the review is the only step left, and this watcher will "
-            "not approve, resolve or merge.",
-        )
-
-    def ready_verdict(self) -> Verdict:
-        """`pr-ready`'s answer, for the ready notice and for the log."""
-        result = run(
-            [
-                "pr-ready", str(self.settings.pr), "--repo", self.settings.repo,
-                "--root", str(self.settings.root), "--no-wait",
-            ],
-            self.settings.timeout,
-        )
-        lines = [line for line in result.stdout.splitlines() if line.strip()]
-        # The verdict is the last line; the facts above it are the evidence.
-        verdict = lines[-1] if lines else ""
-        return Verdict(
-            ready=result.returncode == 0 and verdict.startswith("READY:"),
-            line=verdict,
+            "not approve, resolve or merge."
         )
 
 
@@ -317,6 +326,7 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
         timeout=timeout,
         send_timeout=send_timeout,
         root=Path(os.environ.get("PR_READY_ROOT", ".")).resolve(),
+        me=answering_login(),
     )
 
 

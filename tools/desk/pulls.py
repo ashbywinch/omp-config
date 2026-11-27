@@ -8,6 +8,7 @@ from tools.desk.errors import SourceUnknown
 from tools.desk.github import Github
 from tools.desk.model import PullRequest
 
+
 def _text(node: dict, key: str) -> str:  # lucidlint: ignore record-shape the GitHub payload is the wire format; reading it here is this function's job
     return str(node.get(key) or "-")
 
@@ -15,7 +16,7 @@ def _text(node: dict, key: str) -> str:  # lucidlint: ignore record-shape the Gi
 class PullRequests(Github):
     """Reads one pull request at a time."""
 
-    _FIELDS = "state,headRefOid,reviewDecision,baseRefName,url,mergeStateStatus"
+    _FIELDS = "state,headRefOid,reviewDecision,baseRefName,url,mergeStateStatus,isDraft"
 
     def view(self, number: int) -> PullRequest:
         """The pull request's fields, or ``SourceUnknown`` when it cannot be read."""
@@ -42,4 +43,5 @@ class PullRequests(Github):
             url=_text(node, "url"),
             decision=_text(node, "reviewDecision"),
             merge_state=_text(node, "mergeStateStatus"),
+            draft=bool(node.get("isDraft")),
         )

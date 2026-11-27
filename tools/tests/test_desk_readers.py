@@ -51,6 +51,7 @@ class PullRequestTest(ReaderTest):
         self.assertEqual(pull.url, "https://github.com/owner/name/pull/1")
         self.assertEqual(pull.decision, "APPROVED")
         self.assertEqual(pull.merge_state, "BEHIND")
+        self.assertFalse(pull.draft)
         self.assertTrue(pull.behind)
         self.assertFalse(pull.finished)
 
@@ -99,10 +100,9 @@ class CheckTest(ReaderTest):
         self.assertEqual([(c.name, c.conclusion) for c in checks], [("arm", "success")])
         self.assertTrue(checks[0].passed)
 
-    def test_no_check_runs_is_unknown_not_clean(self):
+    def test_no_check_runs_is_an_empty_answer(self):
         self.fake(checks=[])
-        with self.assertRaises(SourceUnknown):
-            Checks("owner/name", timeout=5).on("a" * 40)
+        self.assertEqual(Checks("owner/name", timeout=5).on("a" * 40), [])
 
     def test_a_head_that_is_not_a_sha_is_unknown(self):
         self.fake()
@@ -222,7 +222,8 @@ class MergeTest(ReaderTest):
         ):
             with self.subTest(status=status):
                 self.fake(merge_state=status)
-                state = Merge("owner/name", timeout=5).state(1)
+                pull = PullRequests("owner/name", timeout=5).view(1)
+                state = Merge("owner/name", timeout=5).state(pull)
                 self.assertEqual((state.merges, state.behind), (merges, behind))
 
     # lucidlint: ignore fakefs the subject is git's own merge-tree round trip through subprocess; a fake filesystem cannot host a real git origin.
@@ -234,7 +235,8 @@ class MergeTest(ReaderTest):
         git("commit", "-m", "feature", cwd=feature)
         head = git("rev-parse", "HEAD", cwd=feature)
         self.fake(merge_state="UNKNOWN", head=head)
-        state = Merge("owner/name", timeout=5, root=feature).state(1)
+        pull = PullRequests("owner/name", timeout=5).view(1)
+        state = Merge("owner/name", timeout=5, root=feature).state(pull)
         self.assertEqual((state.merges, state.behind), (True, False))
 
     # lucidlint: ignore fakefs the subject is git's own merge-tree round trip through subprocess; a fake filesystem cannot host a real git origin.
@@ -249,7 +251,8 @@ class MergeTest(ReaderTest):
         git("commit", "-am", "feature edit", cwd=feature)
         head = git("rev-parse", "HEAD", cwd=feature)
         self.fake(merge_state="UNKNOWN", head=head)
-        state = Merge("owner/name", timeout=5, root=feature).state(1)
+        pull = PullRequests("owner/name", timeout=5).view(1)
+        state = Merge("owner/name", timeout=5, root=feature).state(pull)
         self.assertFalse(state.merges)
         self.assertTrue(state.behind)
 
@@ -258,20 +261,23 @@ class MergeTest(ReaderTest):
         repos = GitFixture(self)
         feature = repos.clone("feature")
         self.fake(merge_state="UNKNOWN", head="a" * 40)
+        pull = PullRequests("owner/name", timeout=5).view(1)
         with self.assertRaises(SourceUnknown) as caught:
-            Merge("owner/name", timeout=5, root=feature).state(1)
+            Merge("owner/name", timeout=5, root=feature).state(pull)
         self.assertIn("cannot fetch", str(caught.exception))
 
     def test_when_git_cannot_prove_it_either_the_read_raises(self):
         repos = GitFixture(self)
         self.fake(merge_state="UNKNOWN", head="a" * 40)
+        pull = PullRequests("owner/name", timeout=5).view(1)
         with self.assertRaises(SourceUnknown):
-            Merge("owner/name", timeout=5, root=repos.root / "absent").state(1)
+            Merge("owner/name", timeout=5, root=repos.root / "absent").state(pull)
 
     def test_an_unknown_status_without_a_head_is_unknown(self):
         self.fake(merge_state="UNKNOWN", head="-")
+        pull = PullRequests("owner/name", timeout=5).view(1)
         with self.assertRaises(SourceUnknown):
-            Merge("owner/name", timeout=5).state(1)
+            Merge("owner/name", timeout=5).state(pull)
 
 
 if __name__ == "__main__":

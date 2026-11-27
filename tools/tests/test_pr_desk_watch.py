@@ -52,8 +52,6 @@ class NoticeTest(unittest.TestCase):
                 check("arm", "completed", "failure", "2026-01-01T00:00:00Z"),
                 check("arm", "completed", "success", "2026-01-01T00:05:00Z"),
             ],
-            ready="READY: hand it over",
-            ready_rc=0,
         )
         self.fake.run()
         self.assertNotIn("failing required check(s)", self.fake.notices())
@@ -61,7 +59,7 @@ class NoticeTest(unittest.TestCase):
 
     def test_unreadable_checks_hold_readiness(self):
         """An unknown check state is not a clean one."""
-        self.fake = self.fake_for(checks_rc=1, ready="READY: hand it over", ready_rc=0)
+        self.fake = self.fake_for(checks_rc=1)
         result = self.fake.run()
         self.assertNotIn("ready for the person's review", self.fake.notices())
         self.assertIn("unreadable", result.stderr)
@@ -72,11 +70,21 @@ class NoticeTest(unittest.TestCase):
         self.assertIn("is behind origin/main", self.fake.notices())
 
     def test_a_ready_pr_is_reported_with_its_link(self):
-        self.fake = self.fake_for(ready="READY: hand it over", ready_rc=0)
+        self.fake = self.fake_for()
         self.fake.run()
         notices = self.fake.notices()
         self.assertIn("ready for the person's review", notices)
         self.assertIn("https://github.com/owner/name/pull/1", notices)
+
+    def test_an_approved_clean_pr_is_reported_as_approved_and_clean(self):
+        self.fake = self.fake_for(decision="APPROVED")
+        self.fake.run()
+        self.assertIn("approved and clean", self.fake.notices())
+
+    def test_a_draft_is_not_reported_ready(self):
+        self.fake = self.fake_for(draft=True)
+        self.fake.run()
+        self.assertNotIn("ready for the person's review", self.fake.notices())
 
     def test_an_unanswered_thread_is_reported_with_the_command(self):
         self.fake = self.fake_for(threads=["PRRC_1", "PRRC_2"])
@@ -99,7 +107,7 @@ class NoRepeatTest(unittest.TestCase):
     """A notice is owed once per state, not once per pass."""
 
     def setUp(self) -> None:
-        self.fake = Fake(ready="READY: hand it over", ready_rc=0)
+        self.fake = Fake()
         self.addCleanup(self.fake.close)
 
     def passes(self, count: int) -> str:

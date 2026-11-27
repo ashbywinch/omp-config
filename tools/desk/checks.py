@@ -69,8 +69,8 @@ class Checks(Github):
     def on(self, head: str) -> list[Check]:
         """The newest run of every check on ``head``.
 
-        ``SourceUnknown`` when the head is not a sha, the read fails, or no run
-        reported at all — "no runs" is not a clean answer.
+        An empty list is an answer: no run reported. ``SourceUnknown`` when the
+        head is not a sha, or the read fails.
         """
         if not head or head == "-":
             raise SourceUnknown("no head sha to read checks from")
@@ -83,6 +83,4 @@ class Checks(Github):
             checks = checks_from_pages(out)
         except SourceUnknown as exc:
             raise SourceUnknown(f"check-runs on {short} are unreadable") from exc
-        if not checks:
-            raise SourceUnknown(f"no check-runs on {short}")
         return latest_by_name(checks)

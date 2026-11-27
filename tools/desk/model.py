@@ -21,6 +21,7 @@ class PullRequest:  # lucidlint: ignore class-module the desk architecture names
     url: str
     decision: str
     merge_state: str
+    draft: bool
 
     @property
     def slug(self) -> str:
@@ -59,16 +60,20 @@ class Check:
     conclusion: str | None
     started: str
 
+    # The merge gate's own failing list: a conclusion here is a check to fix.
+    _FAILING = frozenset({
+        "failure", "timed_out", "cancelled", "action_required", "startup_failure"
+    })
+
     @property
     def passed(self) -> bool:
-        return self.status == "completed" and self.conclusion == "success"
+        """Completed, and not one of the conclusions that name a fault."""
+        return self.status == "completed" and self.conclusion not in self._FAILING
 
     @property
     def failed(self) -> bool:
         """A conclusion that names something to fix."""
-        return self.conclusion in {
-            "failure", "timed_out", "action_required", "startup_failure"
-        }
+        return self.conclusion in self._FAILING
 
 
 @dataclass(frozen=True)
@@ -77,3 +82,24 @@ class MergeState:
 
     merges: bool
     behind: bool
+
+
+@dataclass(frozen=True)
+class Fact:
+    """One claim readiness makes, with the evidence for it."""
+
+    name: str
+    ok: bool
+    detail: str
+
+    def __post_init__(self) -> None:
+        if not self.detail.strip():
+            raise ValueError(f"fact {self.name!r} carries no evidence")
+
+
+@dataclass(frozen=True)
+class Verdict:
+    """Readiness, and the facts it was decided on."""
+
+    ready: bool
+    facts: list[Fact]

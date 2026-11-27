@@ -3,10 +3,9 @@
 """A PATH whose tools answer from one scenario, recording what was sent.
 
 The fake `gh` serves the payloads the readers parse — a pull request, its check
-runs, its required contexts, its review threads, the branch rules, and this
-checkout's name. The fake `pr-ready` and `paseo` replace the tools the watcher
-still runs. Every scenario key has a default, so a test states only the fact it
-is about.
+runs, its required contexts and branch rules, its review threads, and this
+checkout's name. The fake `paseo` records the notices the watcher sends. Every
+scenario key has a default, so a test states only the fact it is about.
 """
 
 from __future__ import annotations
@@ -60,6 +59,7 @@ class Fake:
             "baseRefName": "main",
             "url": "https://github.com/owner/name/pull/1",
             "mergeStateStatus": self.scenario.get("merge_state", "CLEAN"),
+            "isDraft": self.scenario.get("draft", False),
         }
         (self.root / "pr.json").write_text(json.dumps(pr), encoding="utf-8")
         checks = self.scenario.get(
@@ -117,15 +117,11 @@ class Fake:
         (self.root / "repo.json").write_text(
             json.dumps({"nameWithOwner": "owner/name"}), encoding="utf-8"
         )
-        (self.root / "ready.txt").write_text(
-            self.scenario.get("ready", "BLOCKED: nothing to report"), encoding="utf-8"
-        )
         checks_rc = self.scenario.get("checks_rc", 0)
         pull_rc = self.scenario.get("pull_rc", 0)
         contexts_rc = self.scenario.get("contexts_rc", 0)
         rules_rc = self.scenario.get("rules_rc", 0)
         repo_rc = self.scenario.get("repo_rc", 0)
-        ready_rc = self.scenario.get("ready_rc", 1)
 
         gh = self.bin / "gh"
         gh.write_text(
@@ -144,17 +140,12 @@ class Fake:
                rules_rc, rules_rc, repo_rc, repo_rc),
             encoding="utf-8",
         )
-        ready = self.bin / "pr-ready"
-        ready.write_text(
-            '#!/bin/bash\ncat "$FAKE_ROOT/ready.txt"\nexit %d\n' % ready_rc,
-            encoding="utf-8",
-        )
         paseo = self.bin / "paseo"
         paseo.write_text(
             '#!/bin/bash\nprintf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n',
             encoding="utf-8",
         )
-        for tool in (gh, ready, paseo):
+        for tool in (gh, paseo):
             tool.chmod(0o755)
 
     def env(self, **extra: str) -> dict[str, str]:
