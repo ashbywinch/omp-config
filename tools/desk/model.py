@@ -105,7 +105,13 @@ class Reading:
     merge: MergeState
 
     def __post_init__(self) -> None:
-        if None in (self.threads, self.checks, self.contexts, self.merge):
+        if None in (
+            self.pull,
+            self.threads,
+            self.checks,
+            self.contexts,
+            self.merge,
+        ):
             raise ValueError("a reading is all five records or it is not one")
 
 
