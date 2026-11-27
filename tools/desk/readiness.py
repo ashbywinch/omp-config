@@ -61,7 +61,8 @@ def _merge(pull: PullRequest, merge_state: MergeState) -> Fact:
     """No conflict and not behind; the approval gate is not a merge failure.
 
     A missing head is `_head`'s fact, not this one's: naming it twice would
-    give one cause two lines in the verdict.
+    give one cause two lines in the verdict. A missing base has no other owner,
+    so the guard here keeps the detail from reading ``origin/-``.
     """
     if not pull.base or pull.base == "-":
         return Fact(name="merge", ok=False, detail="no base branch to compare against")
