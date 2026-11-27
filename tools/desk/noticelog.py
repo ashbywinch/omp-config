@@ -105,9 +105,9 @@ class NoticeLog:
         handle, temporary = tempfile.mkstemp(
             dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp"
         )
+        os.close(handle)
         try:
-            with os.fdopen(handle, "w", encoding="utf-8") as stream:
-                stream.write(payload)
+            Path(temporary).write_text(payload, encoding="utf-8")
             os.replace(temporary, self.path)
         except OSError:
             Path(temporary).unlink(missing_ok=True)
