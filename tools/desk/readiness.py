@@ -58,11 +58,13 @@ def _checks(checks: list[Check], contexts: list[str]) -> Fact:
 
 
 def _merge(pull: PullRequest, merge_state: MergeState) -> Fact:
-    """No conflict and not behind; the approval gate is not a merge failure."""
-    if not pull.head or pull.head == "-":
-        return Fact(name="merge", ok=False, detail="no head to merge")
+    """No conflict and not behind; the approval gate is not a merge failure.
+
+    A missing head is `_head`'s fact, not this one's: naming it twice would
+    give one cause two lines in the verdict.
+    """
     if not pull.base or pull.base == "-":
-        return Fact(name="merge", ok=False, detail="no base branch")
+        return Fact(name="merge", ok=False, detail="no base branch to compare against")
     origin_base = f"origin/{pull.base}"
     if not merge_state.merges:
         return Fact(name="merge", ok=False, detail=f"conflicts with {origin_base}")
