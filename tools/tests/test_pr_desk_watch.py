@@ -142,6 +142,51 @@ class NoRepeatTest(unittest.TestCase):
         self.assertEqual(self.fake.notices().count("ready for the person's review"), 2)
 
 
+class RestartTest(unittest.TestCase):
+    """The keys live on disk, so a restart does not repeat what was sent."""
+
+    def state_file(self, fake: Fake) -> Path:
+        return fake.root / "state" / "omp-config" / "watch" / "owner" / "name" / "1.json"
+
+    def settings(self, module):
+        return module.Settings(
+            pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+            send_timeout=5, root=Path("."),
+        )
+
+    def test_a_second_watcher_sends_no_duplicate(self):
+        fake = Fake()
+        self.addCleanup(fake.close)
+        module = load_module()
+        with mock.patch.dict(os.environ, fake.env()):
+            module.Watcher(settings=self.settings(module)).pass_once()
+            module.Watcher(settings=self.settings(module)).pass_once()
+        self.assertEqual(fake.notices().count("ready for the person's review"), 1)
+
+    def test_the_ready_key_is_the_head(self):
+        fake = Fake()
+        self.addCleanup(fake.close)
+        module = load_module()
+        with mock.patch.dict(os.environ, fake.env()):
+            module.Watcher(settings=self.settings(module)).pass_once()
+        keys = json.loads(self.state_file(fake).read_text(encoding="utf-8"))
+        self.assertEqual(keys["ready"], "a" * 40)
+
+    def test_a_finished_pr_deletes_its_log(self):
+        fake = Fake()
+        self.addCleanup(fake.close)
+        module = load_module()
+        with mock.patch.dict(os.environ, fake.env()):
+            watcher = module.Watcher(settings=self.settings(module))
+            watcher.pass_once()
+            self.assertTrue(self.state_file(fake).exists())
+            moved = json.loads((fake.root / "pr.json").read_text(encoding="utf-8"))
+            moved["state"] = "MERGED"
+            (fake.root / "pr.json").write_text(json.dumps(moved), encoding="utf-8")
+            watcher.pass_once()
+        self.assertFalse(self.state_file(fake).exists())
+
+
 class StartupTest(unittest.TestCase):
     def test_the_owner_is_required(self):
         fake = Fake()

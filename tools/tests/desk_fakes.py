@@ -154,6 +154,9 @@ class Fake:
             "FAKE_ROOT": str(self.root),
             "PR_DESK_AGENT": AGENT,
             "PYTHONPATH": str(REPO),
+            # Each test owns its notice state: a shared state directory would
+            # let one test's keys suppress another's notice.
+            "XDG_STATE_HOME": str(self.root / "state"),
         }
         base.update(extra)
         return base

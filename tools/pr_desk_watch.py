@@ -39,6 +39,7 @@ from tools.desk.errors import SourceUnknown
 from tools.desk.identity import answering_login
 from tools.desk.merge import Merge
 from tools.desk.model import Check, MergeState, PullRequest, Thread
+from tools.desk.noticelog import NoticeLog
 from tools.desk.pulls import PullRequests
 from tools.desk.readiness import evaluate
 from tools.desk.repository import Repository
@@ -72,17 +73,11 @@ def warn(message: str) -> None:
 
 @dataclass
 class Notices:
-    """The four notice keys, and the send that records one only on success.
-
-    A key is the last state its notice reported; unset means "owed".
-    """
+    """The send, and the keys the log records only when it succeeds."""
 
     agent: str
     send_timeout: int
-    threads: str = ""
-    checks: str = ""
-    behind: str = ""
-    ready: str = ""
+    log: NoticeLog
 
     def notify(self, body: str) -> bool:
         """Send one notice; a failure leaves the caller's key unset.
@@ -104,13 +99,17 @@ class Notices:
 
         The next pass that finds the condition again owes a notice.
         """
-        setattr(self, kind, "")
+        self.log.set(kind, "")
 
     def announce(self, kind: str, key: str, body: str) -> None:
-        if getattr(self, kind) == key:
+        if self.log.get(kind) == key:
             return
         if self.notify(body):
-            setattr(self, kind, key)
+            self.log.set(kind, key)
+
+    def delete(self) -> None:
+        """Forget every key: the PR is merged or closed."""
+        self.log.delete()
 
 
 @dataclass
@@ -129,7 +128,11 @@ class Watcher:
 
     def __post_init__(self) -> None:
         repo, timeout = self.settings.repo, self.settings.timeout
-        self.notices = Notices(self.settings.agent, self.settings.send_timeout)
+        self.notices = Notices(
+            self.settings.agent,
+            self.settings.send_timeout,
+            NoticeLog.for_pr(repo, self.settings.pr),
+        )
         self.pulls = PullRequests(repo, timeout)
         self.review_threads = Threads(repo, timeout)
         self.check_runs = Checks(repo, timeout)
@@ -146,6 +149,7 @@ class Watcher:
             warn(f"cannot read {self.settings.slug} — still watching")
             return True
         if pull.finished:
+            self.notices.delete()
             print(f"PR {self.settings.slug} is {pull.state} — watcher done")
             return False
 
@@ -331,6 +335,7 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
 
 
 def watch(settings: Settings, once: bool) -> int:
+    NoticeLog.prune()
     watcher = Watcher(settings=settings)
     while True:
         if not watcher.pass_once():
