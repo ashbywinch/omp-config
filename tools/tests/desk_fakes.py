@@ -143,6 +143,8 @@ class Fake:
                contexts_rc, contexts_rc, rules_rc, rules_rc, repo_rc, repo_rc),
             encoding="utf-8",
         )
+        hang = self.scenario.get("send_hang", 0)
+        fail_times = self.scenario.get("send_fail_times", 0)
         paseo = self.bin / "paseo"
         paseo.write_text(
             "#!/bin/bash\n"
@@ -152,6 +154,13 @@ class Fake:
             "  *--no-wait*) ;;\n"
             '  *) echo "paseo send was not given --no-wait" >&2; exit 2 ;;\n'
             "esac\n"
+            "# The attempt is recorded before any delay or failure, so a killed or\n"
+            "# rejected send still counts; the message only when it succeeds.\n"
+            'n=$(cat "$FAKE_ROOT/n" 2>/dev/null || echo 0); n=$((n + 1))\n'
+            'echo "$n" > "$FAKE_ROOT/n"\n'
+            'printf "%s\\n" "$*" >> "$FAKE_ROOT/args.txt"\n'
+            f'if [ "$n" -le {fail_times} ]; then exit 2; fi\n'
+            f"sleep {hang}\n"
             'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n',
             encoding="utf-8",
         )

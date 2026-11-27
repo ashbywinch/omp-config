@@ -152,6 +152,56 @@ class NoRepeatTest(unittest.TestCase):
         self.assertEqual(self.fake.notices().count("ready for the person's review"), 2)
 
 
+class SendTest(unittest.TestCase):
+    """A notice is owed until a send actually queues it."""
+
+    def setUp(self) -> None:
+        self.module = load_module()
+
+    def settings(self, send_timeout: int = 5):
+        return self.module.Settings(
+            pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+            send_timeout=send_timeout, root=Path("."),
+        )
+
+    def watch(self, fake: Fake, passes: int, send_timeout: int = 5) -> None:
+        with mock.patch.dict(os.environ, fake.env()):
+            watcher = self.module.Watcher(
+                settings=self.settings(send_timeout)
+            )
+            for _ in range(passes):
+                watcher.pass_once()
+
+    def test_the_send_is_queued_without_waiting(self):
+        """Waiting on the recipient's turn is what turned a delivered notice into a duplicate."""
+        fake = Fake()
+        self.addCleanup(fake.close)
+        fake.run()
+        args = (fake.root / "args.txt").read_text(encoding="utf-8")
+        # The agent follows --no-wait, so this one assertion carries both facts.
+        self.assertIn(f"send --no-wait {AGENT}", args)
+
+    def test_a_send_that_never_returns_is_retried(self):
+        """A send killed at its bound queued nothing, and dropping the notice would lose it silently."""
+        fake = Fake(send_hang=3)
+        self.addCleanup(fake.close)
+        self.watch(fake, passes=2, send_timeout=1)
+        attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertEqual(attempts.count("send --no-wait"), 2)
+        self.assertEqual(fake.notices(), "")
+
+    def test_a_rejected_send_is_retried_and_delivers_once(self):
+        """A non-zero send did not queue, so the next pass delivers it."""
+        fake = Fake(send_fail_times=1)
+        self.addCleanup(fake.close)
+        self.watch(fake, passes=2)
+        attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertEqual(attempts.count("send --no-wait"), 2)
+        self.assertEqual(
+            fake.notices().count("ready for the person's review"), 1
+        )
+
+
 class RestartTest(unittest.TestCase):
     """The keys live on disk, so a restart does not repeat what was sent."""
 
