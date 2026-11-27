@@ -284,11 +284,17 @@ class Github:
         return latest_by_name(checks)
 
     def unanswered_threads(self) -> list[str] | None:
+        """The unanswered thread ids, or None when pr-threads could not answer.
+
+        Exit 1 is a verdict, not a failure: `pr-threads --ids` prints the ids it
+        found and exits 1 because work remains. Anything above 1 is the tool
+        failing, which is the only case that leaves the state unknown.
+        """
         result = run(
             ["pr-threads", str(self.settings.pr), "--repo", self.settings.repo, "--ids"],
             self.settings.timeout,
         )
-        if result.returncode != 0:
+        if result.returncode > 1:
             warn("pr-threads did not answer — thread state unknown")
             return None
         return sorted(line.strip() for line in result.stdout.splitlines() if line.strip())
@@ -320,34 +326,50 @@ class Keys:
     ready: str = ""
 
 
+class Owner:
+    """The one session that owns the PR: the notices are addressed to it."""
+
+    def __init__(self, agent: str, timeout: int) -> None:
+        self.agent = agent
+        self.timeout = timeout
+
+    def send(self, body: str) -> bool:
+        """Queue the notice. The timeout bounds the command, not the recipient's turn."""
+        try:
+            result = subprocess.run(
+                ["paseo", "send", "--no-wait", self.agent, body],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=self.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            warn(
+                f"paseo send did not return within {self.timeout}s — retrying next pass"
+            )
+            return False
+        except OSError as exc:
+            warn(f"paseo send could not run — {exc} — retrying next pass")
+            return False
+        if result.returncode == 0:
+            return True
+        said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")
+        warn(f"send to {self.agent} failed — {said} — retrying next pass")
+        return False
+
+
 @dataclass
 class Watcher:
     """The notices, their keys, and the one session that receives them."""
 
     settings: Settings
     gh: Github
+    owner: Owner
     keys: Keys = field(default_factory=Keys)
     required: list[str] = field(default_factory=list)
     required_for: str = ""
 
     # ---- sending ---------------------------------------------------------
-
-    def notify(self, body: str) -> bool:
-        """Send one notice; a failure leaves the caller's key unset.
-
-        A send gets its own, longer bound: `paseo send` waits on the relay, and a
-        message that took longer than a read timeout was being killed after the
-        person had already received it — so the key stayed unset and every pass
-        sent it again.
-        """
-        result = run(
-            ["paseo", "send", self.settings.agent, body], self.settings.send_timeout
-        )
-        if result.returncode == 0:
-            return True
-        said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")
-        warn(f"send to {self.settings.agent} failed — {said} — retrying next pass")
-        return False
 
     def rearm(self, kind: str) -> None:
         """Forget the last notice of this kind.
@@ -362,7 +384,7 @@ class Watcher:
     def announce(self, kind: str, key: str, body: str) -> None:
         if getattr(self.keys, kind) == key:
             return
-        if self.notify(body):
+        if self.owner.send(body):
             setattr(self.keys, kind, key)
 
     # ---- one pass --------------------------------------------------------
@@ -513,7 +535,11 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
 
 
 def watch(settings: Settings, once: bool) -> int:
-    watcher = Watcher(settings=settings, gh=Github(settings))
+    watcher = Watcher(
+        settings=settings,
+        gh=Github(settings),
+        owner=Owner(agent=settings.agent, timeout=settings.send_timeout),
+    )
     while True:
         if not watcher.pass_once():
             return 0

@@ -112,6 +112,24 @@ jobs:
             *) echo "invalid merge_method: $MERGE_METHOD" >&2; exit 1 ;;
           esac
 
+          approve_head() {
+            local pr="$1" head runs run
+            head=$(gh pr view "$pr" --repo "$REPO" --json headRefOid --jq .headRefOid)
+            for _ in 1 2 3 4 5 6; do
+              sleep 5
+              runs=$(gh api "repos/$REPO/actions/runs?head_sha=$head&per_page=50" \
+                --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | .[]' 2>/dev/null || true)
+              [ -z "$runs" ] && continue
+              for run in $runs; do
+                if gh api -X POST "repos/$REPO/actions/runs/$run/approve" >/dev/null 2>&1; then
+                  echo "approved run $run for $head"
+                else
+                  echo "could not approve run $run for $head (App needs Actions: write)" >&2
+                fi
+              done
+            done
+          }
+
           case "$EVENT" in
             pull_request|pull_request_review)
               if [ "$HEAD_REPO" != "$REPO" ]; then
@@ -159,23 +177,6 @@ jobs:
               esac
               # Approve the runs the update just created (see the header). Retried, because run
               # creation lags the push.
-              approve_head() {
-                local pr="$1" head runs run
-                head=$(gh pr view "$pr" --repo "$REPO" --json headRefOid --jq .headRefOid)
-                for _ in 1 2 3 4 5 6; do
-                  sleep 5
-                  runs=$(gh api "repos/$REPO/actions/runs?head_sha=$head&per_page=50" \
-                    --jq '[.workflow_runs[] | select(.conclusion == "action_required") | .id] | .[]' 2>/dev/null || true)
-                  [ -z "$runs" ] && continue
-                  for run in $runs; do
-                    if gh api -X POST "repos/$REPO/actions/runs/$run/approve" >/dev/null 2>&1; then
-                      echo "approved run $run for $head"
-                    else
-                      echo "could not approve run $run for $head (App needs Actions: write)" >&2
-                    fi
-                  done
-                done
-              }
 
               # A branch behind main blocks the strict status check. BEHIND is
               # mergeable-but-stale; a real conflict reports DIRTY/CONFLICTING

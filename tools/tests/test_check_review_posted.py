@@ -25,14 +25,23 @@ from tools import check_review_posted
 def _covers(comments, sha, head_at):
     return check_review_posted._review_covers(comments, sha, head_at)
 
+
 SHA = "44d47e01e09a7e4992d2760b0e86d87fc7d48d7c"
 HEAD_AT = "2026-08-22T12:41:46Z"
 BEFORE_HEAD = "2026-08-22T12:00:00Z"
 AFTER_HEAD = "2026-08-22T12:42:27Z"
 
-def comment(body: str, created_at: str = AFTER_HEAD, updated_at: str = "", user_type: str = "Bot"):
+
+def comment(
+    body: str,
+    created_at: str = AFTER_HEAD,
+    updated_at: str = "",
+    user_type: str = "Bot",
+):
     """One issue comment, as the gate models it."""
     return check_review_posted._Comment(body, created_at, updated_at, user_type)
+
+
 class ApiFailureTest(unittest.TestCase):
     """A failed fetch fails the gate with a message. Only HTTPError was caught
     once, so a proxy's error page reached the user as a traceback; the job-log
@@ -40,13 +49,18 @@ class ApiFailureTest(unittest.TestCase):
     fetch had simply been refused."""
 
     def test_a_body_that_is_not_json_is_reported_not_raised(self):
-        with mock.patch.object(check_review_posted, "_get", return_value=b"<html>Bad gateway</html>"):
-            with mock.patch.dict(os.environ, {
-                "SHA": SHA,
-                "PR_NUMBER": "1",
-                "GITHUB_REPOSITORY": "o/r",
-                "GITHUB_TOKEN": "t",
-            }):
+        with mock.patch.object(
+            check_review_posted, "_get", return_value=b"<html>Bad gateway</html>"
+        ):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SHA": SHA,
+                    "PR_NUMBER": "1",
+                    "GITHUB_REPOSITORY": "o/r",
+                    "GITHUB_TOKEN": "t",
+                },
+            ):
                 with contextlib.redirect_stdout(io.StringIO()) as out:
                     self.assertEqual(check_review_posted.main(), 1)
         self.assertIn("::error::", out.getvalue())
@@ -54,14 +68,20 @@ class ApiFailureTest(unittest.TestCase):
         self.assertIn("not JSON", out.getvalue())
 
     def test_a_transport_failure_is_reported_not_raised(self):
-        with mock.patch.object(check_review_posted, "_get",
-                               side_effect=urllib.error.URLError("connection refused")):
-            with mock.patch.dict(os.environ, {
-                "SHA": SHA,
-                "PR_NUMBER": "1",
-                "GITHUB_REPOSITORY": "o/r",
-                "GITHUB_TOKEN": "t",
-            }):
+        with mock.patch.object(
+            check_review_posted,
+            "_get",
+            side_effect=urllib.error.URLError("connection refused"),
+        ):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SHA": SHA,
+                    "PR_NUMBER": "1",
+                    "GITHUB_REPOSITORY": "o/r",
+                    "GITHUB_TOKEN": "t",
+                },
+            ):
                 with contextlib.redirect_stdout(io.StringIO()) as out:
                     self.assertEqual(check_review_posted.main(), 1)
         self.assertIn("is not fetchable", out.getvalue())
@@ -78,14 +98,18 @@ class ApiFailureTest(unittest.TestCase):
             if "/actions/runs/" in url:
                 return b'{"run_started_at": "' + HEAD_AT.encode() + b'"}'
             return b"[]"  # no comments, so coverage is unproven
+
         with mock.patch.object(check_review_posted, "_get", side_effect=refuse_the_log):
-            with mock.patch.dict(os.environ, {
-                "SHA": SHA,
-                "PR_NUMBER": "1",
-                "GITHUB_REPOSITORY": "o/r",
-                "GITHUB_TOKEN": "t",
-                "GITHUB_RUN_ID": "7",
-            }):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SHA": SHA,
+                    "PR_NUMBER": "1",
+                    "GITHUB_REPOSITORY": "o/r",
+                    "GITHUB_TOKEN": "t",
+                    "GITHUB_RUN_ID": "7",
+                },
+            ):
                 with contextlib.redirect_stdout(io.StringIO()) as out:
                     self.assertEqual(check_review_posted.main(), 1)
         self.assertIn("could not be read", out.getvalue())
@@ -94,25 +118,50 @@ class ApiFailureTest(unittest.TestCase):
 
 
 class ReviewSkippedTest(unittest.TestCase):
-    """The markers are parameters. A local tuple shadowed them once, so a caller
-    could not change them and the parameter was dead; this fails on that."""
+    """The bot reviews nothing when it has nothing it can analyse — a lone CSV
+    diff. It says so in its log and posts no comment; that is a verdict.
 
-    def test_custom_skip_markers_are_honoured(self):
-        self.assertTrue(
-            check_review_posted._review_skipped(
-                "nothing here it can read",
-                failure_markers=(),
-                skip_markers=("nothing here it can read",),
-            )
+    The markers are class data, so a repo whose bot words them differently can
+    subclass `_BotLog` and change them — the test pins that they are read from
+    the class rather than hard-coded in the property.
+    """
+
+    def test_clean_skip_passes(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping describe"}\n'
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
         )
+        self.assertTrue(check_review_posted._BotLog(log).skipped)
 
-    def test_a_traceback_still_means_not_a_clean_skip(self):
+    def test_skip_with_traceback_fails(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+            '{"text":"Failed to process the command."}\n'
+        )
+        self.assertFalse(check_review_posted._BotLog(log).skipped)
+
+    def test_skip_with_token_cap_fails(self):
+        log = (
+            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+            '{"text":"Tokens: 91000, total tokens over limit: 80000"}\n'
+        )
+        self.assertFalse(check_review_posted._BotLog(log).skipped)
+
+    def test_no_log_does_not_pass(self):
+        # no log means no evidence of a skip: the gate stays closed
+        self.assertFalse(check_review_posted._BotLog("").skipped)
+
+    def test_ordinary_log_does_not_pass(self):
+        log = '{"text":"Reviewing PR: https://api.github.com/repos/o/r/pulls/12 ..."}\n'
+        self.assertFalse(check_review_posted._BotLog(log).skipped)
+
+    def test_a_subclass_states_its_own_markers(self):
+        class OwnWords(check_review_posted._BotLog):
+            SKIP_MARKERS = ("nothing here it can read",)
+
+        self.assertTrue(OwnWords("nothing here it can read").skipped)
         self.assertFalse(
-            check_review_posted._review_skipped(
-                "skipping review\nTraceback (most recent call last)",
-                failure_markers=("Traceback (most recent call last)",),
-                skip_markers=("skipping review",),
-            )
+            check_review_posted._BotLog("nothing here it can read").skipped
         )
 
 
@@ -125,28 +174,40 @@ class ReviewCoversTest(unittest.TestCase):
         """The guide is edited in place on every run: `created_at` stays at its
         first date, and pr-agent's persistent-state read can fail so the edit
         carries no SHA footer. An edit after the head arrived is coverage."""
-        c = comment("## PR Reviewer Guide 🔍\nNo major issues detected",
-                    created_at=BEFORE_HEAD, updated_at=AFTER_HEAD)
+        c = comment(
+            "## PR Reviewer Guide 🔍\nNo major issues detected",
+            created_at=BEFORE_HEAD,
+            updated_at=AFTER_HEAD,
+        )
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
     def test_persistent_guide_untouched_since_before_head_does_not_cover(self):
-        c = comment("## PR Reviewer Guide 🔍\nSome older review",
-                    created_at=BEFORE_HEAD, updated_at=BEFORE_HEAD)
+        c = comment(
+            "## PR Reviewer Guide 🔍\nSome older review",
+            created_at=BEFORE_HEAD,
+            updated_at=BEFORE_HEAD,
+        )
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
     def test_incremental_guide_with_sha_covers(self):
-        c = comment(f"## Incremental PR Reviewer Guide 🔍\nStarting from commit https://github.com/o/r/commit/{SHA}")
+        c = comment(
+            f"## Incremental PR Reviewer Guide 🔍\nStarting from commit https://github.com/o/r/commit/{SHA}"
+        )
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
     def test_incremental_guide_before_head_does_not_cover(self):
         # a review for an OLDER commit must not cover the new head
-        c = comment("## Incremental PR Reviewer Guide 🔍\nold review", created_at=BEFORE_HEAD)
+        c = comment(
+            "## Incremental PR Reviewer Guide 🔍\nold review", created_at=BEFORE_HEAD
+        )
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
     def test_bot_skip_after_head_covers(self):
         # the regression: an incremental review with no files changed posts a
         # skip instead of a guide — that skip is the reviewed verdict
-        c = comment("Incremental Review Skipped\nNo files were changed since the previous PR Review")
+        c = comment(
+            "Incremental Review Skipped\nNo files were changed since the previous PR Review"
+        )
         self.assertTrue(_covers([c], SHA, HEAD_AT))
 
     def test_bot_skip_before_head_does_not_cover(self):
@@ -163,6 +224,19 @@ class ReviewCoversTest(unittest.TestCase):
     def test_human_skip_covers(self):
         self.assertTrue(_covers([comment("/skip", user_type="User")], SHA, HEAD_AT))
 
+    def test_an_unreadable_stamp_does_not_cover(self):
+        """A stamp that is not a moment cannot be shown to be this run's."""
+        c = comment("## PR Reviewer Guide 🔍\nhere", created_at="not-a-time", updated_at="")
+        self.assertFalse(_covers([c], SHA, HEAD_AT))
+
+    def test_an_offset_stamp_orders_by_moment_not_by_text(self):
+        """14:30+02:00 is 12:30Z — BEFORE the head at 12:41Z, though as text it
+        sorts after. Compared as a moment it does not cover; as strings it
+        would have."""
+        c = comment("## PR Reviewer Guide 🔍\nhere", created_at="2026-08-22T14:30:00+02:00",
+                    updated_at="2026-08-22T14:30:00+02:00")
+        self.assertFalse(_covers([c], SHA, HEAD_AT))
+
     def test_no_comments_does_not_cover(self):
         self.assertFalse(_covers([], SHA, HEAD_AT))
 
@@ -171,39 +245,67 @@ class ReviewCoversTest(unittest.TestCase):
         self.assertFalse(_covers([c], SHA, HEAD_AT))
 
 
-class ReviewSkippedTest(unittest.TestCase):
-    """The bot reviews nothing when it has nothing it can analyse — a lone CSV
-    diff. It says so in its log and posts no comment; that is a verdict."""
+class IncrementalSignalsTest(unittest.TestCase):
+    """What an incremental review publishes: findings as inline comments and no
+    guide, and a log line when it examined the increment and found nothing to
+    publish. Both are coverage; a merge of the base is neither, because it
+    changes no file — the review before it still speaks for that head."""
 
-    def test_clean_skip_passes(self):
-        log = (
-            '{"text":"PR has no analyzable files: o/r/12, skipping describe"}\n'
-            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
+    def test_an_inline_finding_from_a_machine_covers(self):
+        inline = [comment("**Possible Issue** something in the diff")]
+        self.assertTrue(check_review_posted._a_finding_posted(inline, HEAD_AT))
+
+    def test_an_inline_comment_from_a_person_does_not_cover(self):
+        inline = [comment("I think this is wrong", user_type="User")]
+        self.assertFalse(check_review_posted._a_finding_posted(inline, HEAD_AT))
+
+    def test_found_nothing_to_publish_is_a_verdict(self):
+        log = '{"text":"Review output is not published: no major issues detected."}'
+        self.assertTrue(check_review_posted._BotLog(log).nothing_to_publish)
+
+    def test_a_changed_head_is_not_covered_by_an_earlier_review(self):
+        calls = []
+
+        def api(path):
+            calls.append(path)
+            return {"files": [{"filename": "x.py"}]}
+
+        self.assertIsNone(
+            check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "b" * 40)
         )
-        self.assertTrue(check_review_posted._review_skipped(log))
 
-    def test_skip_with_traceback_fails(self):
-        log = (
-            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
-            '{"text":"Failed to process the command."}\n'
+    def test_an_unchanged_head_is_covered_by_an_earlier_review(self):
+        self.assertEqual(
+            check_review_posted._reviewed_since_unchanged(
+                lambda path: {"files": []}, ["a" * 40], "b" * 40
+            ),
+            "a" * 40,
         )
-        self.assertFalse(check_review_posted._review_skipped(log))
 
-    def test_skip_with_token_cap_fails(self):
-        log = (
-            '{"text":"PR has no analyzable files: o/r/12, skipping review"}\n'
-            '{"text":"Tokens: 91000, total tokens over limit: 80000"}\n'
+    def test_a_compare_without_a_files_key_does_not_cover(self):
+        """No `files` key says nothing about the two trees — only an explicit
+        empty list does."""
+        self.assertIsNone(
+            check_review_posted._reviewed_since_unchanged(
+                lambda path: {}, ["a" * 40], "b" * 40
+            )
         )
-        self.assertFalse(check_review_posted._review_skipped(log))
 
-    def test_no_log_does_not_pass(self):
-        # no log means no evidence of a skip: the gate stays closed
-        self.assertFalse(check_review_posted._review_skipped(None))
-        self.assertFalse(check_review_posted._review_skipped(""))
+    def test_a_compare_that_is_not_an_object_does_not_cover(self):
+        """`null` is a legal JSON body and says nothing about the two trees."""
+        self.assertIsNone(check_review_posted._reviewed_since_unchanged(lambda path: None, ["a" * 40], "b" * 40))
 
-    def test_ordinary_log_does_not_pass(self):
-        log = '{"text":"Reviewing PR: https://api.github.com/repos/o/r/pulls/12 ..."}\n'
-        self.assertFalse(check_review_posted._review_skipped(log))
+    def test_a_commit_is_never_its_own_ancestor(self):
+        calls = []
+
+        def api(path):
+            calls.append(path)
+            return {"files": []}
+
+        self.assertIsNone(
+            check_review_posted._reviewed_since_unchanged(api, ["a" * 40], "a" * 40)
+        )
+        self.assertEqual(calls, [])
 
 
 class JobNameMatchesTest(unittest.TestCase):
@@ -215,13 +317,19 @@ class JobNameMatchesTest(unittest.TestCase):
         self.assertTrue(check_review_posted._job_name_matches("pr-review", "pr-review"))
 
     def test_prefixed_name_matches(self):
-        self.assertTrue(check_review_posted._job_name_matches("review / pr-review", "pr-review"))
+        self.assertTrue(
+            check_review_posted._job_name_matches("review / pr-review", "pr-review")
+        )
 
     def test_other_job_does_not_match(self):
-        self.assertFalse(check_review_posted._job_name_matches("review / verify", "pr-review"))
+        self.assertFalse(
+            check_review_posted._job_name_matches("review / verify", "pr-review")
+        )
 
     def test_prefix_is_not_a_wildcard(self):
-        self.assertFalse(check_review_posted._job_name_matches("pr-review / extra", "pr-review"))
+        self.assertFalse(
+            check_review_posted._job_name_matches("pr-review / extra", "pr-review")
+        )
 
 
 if __name__ == "__main__":
