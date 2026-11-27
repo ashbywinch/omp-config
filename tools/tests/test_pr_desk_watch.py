@@ -256,14 +256,14 @@ class NoRepeatTest(unittest.TestCase):
         self.assertEqual(notices.count("ready for the person's review"), 1)
 
     def test_the_send_is_queued_without_waiting(self):
-        """`--no-wait` is what keeps a send from blocking on the agent's turn."""
+        """A notice must never wait on the recipient's turn: the wait is what turned a delivered message into a duplicate."""
         self.passes(1)
         args = (self.fake.root / "args.txt").read_text(encoding="utf-8")
         self.assertIn("send --no-wait", args)
         self.assertIn(f"--no-wait {AGENT}", args)
 
     def test_a_send_that_never_returns_is_retried(self):
-        """With `--no-wait` a hung send queued nothing, so retrying is right."""
+        """A send that never returned queued nothing, and dropping the notice would lose it silently."""
         module = load_module()
         fake = Fake(ready="READY: hand it over", ready_rc=0, send_hang=3)
         self.addCleanup(fake.close)
