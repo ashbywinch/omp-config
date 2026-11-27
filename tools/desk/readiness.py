@@ -58,6 +58,8 @@ def _checks(checks: list[Check], contexts: list[str]) -> Fact:
 
 def _merge(pull: PullRequest, merge_state: MergeState) -> Fact:
     """No conflict and not behind; the approval gate is not a merge failure."""
+    if not pull.head or pull.head == "-":
+        return Fact(name="merge", ok=False, detail="no head to merge")
     if not pull.base or pull.base == "-":
         return Fact(name="merge", ok=False, detail="no base branch")
     origin_base = f"origin/{pull.base}"

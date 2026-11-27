@@ -82,9 +82,10 @@ class NoticeLog:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return {}
-        except (OSError, json.JSONDecodeError):
-            # A log we cannot read is no record at all: a repeat costs less
-            # than a notice suppressed by a file we could not trust.
+        except json.JSONDecodeError:
+            # A file we cannot trust is no record at all: a repeat costs less
+            # than a notice suppressed by a file that may be lying. Any other
+            # read failure is a real problem and propagates.
             return {}
         if not isinstance(data, dict):
             return {}
