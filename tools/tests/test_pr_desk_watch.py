@@ -107,11 +107,14 @@ class Fake:
         )
         paseo = self.bin / "paseo"
         hang = self.scenario.get("send_hang", 0)
+        # Every attempt is recorded before any delay the scenario asks for, so a
+        # killed send is still counted as an attempt; the message is recorded
+        # only once the delay, if any, is over.
         paseo.write_text(
             "#!/bin/bash\n"
-            'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n'
             'printf "%s\\n" "$*" >> "$FAKE_ROOT/args.txt"\n'
-            f"sleep {hang}\n",
+            f"sleep {hang}\n"
+            'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n',
             encoding="utf-8",
         )
         for tool in (gh, threads, ready, paseo):
@@ -263,7 +266,8 @@ class NoRepeatTest(unittest.TestCase):
             )
             watcher.pass_once()
             watcher.pass_once()
-        self.assertEqual(fake.notices().count("ready for the person's review"), 2)
+        attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertEqual(attempts.count("send --no-wait"), 2)
 
     def test_a_new_head_is_announced_again(self):
         module = load_module()
