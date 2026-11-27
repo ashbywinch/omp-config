@@ -272,7 +272,14 @@ class Watcher:
         contexts: list[str] | None,
         merge_state: MergeState | None,
     ) -> None:
-        if None in (threads, checks, contexts, merge_state):
+        # Each is None when its read did not answer; naming them one by one is
+        # what lets a checker see the call is handed what `evaluate` asks for.
+        if (
+            threads is None
+            or checks is None
+            or contexts is None
+            or merge_state is None
+        ):
             return
         verdict = evaluate(pull, threads, checks, contexts, merge_state)
         if not verdict.ready:
