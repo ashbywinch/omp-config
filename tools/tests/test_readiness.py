@@ -112,6 +112,12 @@ class ChecksTest(unittest.TestCase):
         result = verdict(checks=[check(conclusion="cancelled")])
         self.assertFalse(fact(result, "checks").ok)
 
+    def test_a_check_that_failed_to_start_blocks(self):
+        """`startup_failure` is in the merge gate's list, so the predicate must see it."""
+        result = verdict(checks=[check(conclusion="startup_failure")])
+        self.assertFalse(fact(result, "checks").ok)
+        self.assertIn("startup_failure", fact(result, "checks").detail)
+
 
 class MergeTest(unittest.TestCase):
     def test_a_missing_base_is_named(self):
