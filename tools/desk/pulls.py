@@ -39,7 +39,7 @@ class PullRequests(Github):
             repo=self.repo,
             state=_text(node, "state"),
             head=_text(node, "headRefOid"),
-            base=_text(node, "baseRefName"),
+            base=_text(node, "baseRefName").removeprefix("refs/heads/"),
             url=_text(node, "url"),
             decision=_text(node, "reviewDecision"),
             merge_state=_text(node, "mergeStateStatus"),

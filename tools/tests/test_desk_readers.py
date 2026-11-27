@@ -60,6 +60,10 @@ class PullRequestTest(ReaderTest):
         with self.assertRaises(SourceUnknown):
             PullRequests("owner/name", timeout=5).view(1)
 
+    def test_a_base_given_as_a_full_ref_is_the_branch_name(self):
+        self.fake(base="refs/heads/main")
+        self.assertEqual(PullRequests("owner/name", timeout=5).view(1).base, "main")
+
 
 class ThreadTest(ReaderTest):
     def test_threads_carry_their_last_author(self):

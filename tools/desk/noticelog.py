@@ -1,4 +1,8 @@
-"""The file that remembers what the watcher already said."""
+"""What the watcher said, per PR.
+
+The file records what was said, never what is true: GitHub wins every
+disagreement, and a stale key that suppresses a notice costs more than a repeat.
+"""
 
 from __future__ import annotations
 
@@ -12,9 +16,7 @@ from pathlib import Path
 class NoticeLog:
     """One PR's notice keys, stored exactly and written atomically.
 
-    The file records what was said, never what is true: GitHub wins every
-    disagreement, and a stale key that suppresses a notice costs more than a
-    repeat. An empty string means "owed".
+    An empty string means "owed".
     """
 
     _KINDS = ("threads", "checks", "behind", "ready")
@@ -38,18 +40,23 @@ class NoticeLog:
 
     @classmethod
     def prune(cls, root: Path | None = None, now: float | None = None) -> list[Path]:
-        """Delete notice files older than seven days; return what was removed."""
+        """Delete stale files; return what was removed.
+
+        A stamp ahead of now is stale too: a restored or copied tree must not
+        keep a key that suppresses a notice for ever.
+        """
         base = root or cls.root()
         if not base.is_dir():
             return []
-        cutoff = (now if now is not None else time.time()) - cls._MAX_AGE_SECONDS
+        moment = now if now is not None else time.time()
+        cutoff = moment - cls._MAX_AGE_SECONDS
         removed: list[Path] = []
-        for path in sorted(base.rglob("*.json")):
+        for path in sorted(base.rglob("*.json")) + sorted(base.rglob(".*.tmp")):
             try:
-                stale = path.stat().st_mtime < cutoff
+                stamp = path.stat().st_mtime
             except FileNotFoundError:
                 continue
-            if stale:
+            if stamp < cutoff or stamp > moment:
                 path.unlink(missing_ok=True)
                 removed.append(path)
         return removed

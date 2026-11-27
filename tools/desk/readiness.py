@@ -1,8 +1,4 @@
-"""The one place that decides whether a PR is ready.
-
-It reads nothing: the caller gathers the records and hands them over, so the
-watcher and `pr-ready` cannot disagree about the same head.
-"""
+"""The one place that decides whether a PR is ready, from records a caller read."""
 
 from __future__ import annotations
 
@@ -32,17 +28,14 @@ def evaluate(
 
 
 def _head(pull: PullRequest) -> Fact:
+    """A head that is not a commit sha cannot be read or merged."""
     if not pull.head or pull.head == "-":
         return Fact(name="head", ok=False, detail="no head sha")
     return Fact(name="head", ok=True, detail=f"head {pull.head[:12]}")
 
 
 def _checks(checks: list[Check], contexts: list[str]) -> Fact:
-    """Every required context completed and passing.
-
-    An empty required list passes: nothing was asked for. A required context
-    with no run has verified nothing, so it blocks.
-    """
+    """Required contexts only: a run that never reported verified nothing."""
     required = sorted(set(contexts))
     if not required:
         return Fact(name="checks", ok=True, detail="no required contexts")
@@ -64,6 +57,7 @@ def _checks(checks: list[Check], contexts: list[str]) -> Fact:
 
 
 def _merge(pull: PullRequest, merge_state: MergeState) -> Fact:
+    """No conflict and not behind; the approval gate is not a merge failure."""
     origin_base = f"origin/{pull.base}"
     if not merge_state.merges:
         return Fact(name="merge", ok=False, detail=f"conflicts with {origin_base}")
@@ -73,6 +67,7 @@ def _merge(pull: PullRequest, merge_state: MergeState) -> Fact:
 
 
 def _threads(threads: list[Thread]) -> Fact:
+    """A thread whose last voice is not mine is open work."""
     if threads:
         return Fact(
             name="threads", ok=False, detail=f"{len(threads)} unanswered thread(s)"
@@ -81,6 +76,7 @@ def _threads(threads: list[Thread]) -> Fact:
 
 
 def _draft(pull: PullRequest) -> Fact:
+    """A draft is not yet asking for review."""
     if pull.draft:
         return Fact(name="draft", ok=False, detail="the PR is a draft")
     return Fact(name="draft", ok=True, detail="not a draft")

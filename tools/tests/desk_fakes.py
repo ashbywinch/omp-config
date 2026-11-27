@@ -56,7 +56,7 @@ class Fake:
             "state": self.scenario.get("state", "OPEN"),
             "headRefOid": self.scenario.get("head", "a" * 40),
             "reviewDecision": self.scenario.get("decision", ""),
-            "baseRefName": "main",
+            "baseRefName": self.scenario.get("base", "main"),
             "url": "https://github.com/owner/name/pull/1",
             "mergeStateStatus": self.scenario.get("merge_state", "CLEAN"),
             "isDraft": self.scenario.get("draft", False),
