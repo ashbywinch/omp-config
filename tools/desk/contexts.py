@@ -39,7 +39,7 @@ class Contexts(Github):
         # let a required check be missed.
         contexts: set[str] = set()
         try:
-            classic_data = json.loads(classic)
+            classic_data = _body(classic, reason)
             rule = (
                 (classic_data.get("data") or {}).get("repository") or {}
             ).get("ref") or {}
@@ -48,7 +48,7 @@ class Contexts(Github):
                     "requiredStatusCheckContexts"
                 ) or []
             )
-            rules_data = json.loads(rules)
+            rules_data = _body(rules, reason)
             if not isinstance(rules_data, list):
                 # "No rules" is an empty array; any other body is not an answer.
                 raise SourceUnknown(reason)
@@ -59,6 +59,21 @@ class Contexts(Github):
                     "required_status_checks", []
                 ):
                     contexts.add(check.get("context", ""))
-        except (json.JSONDecodeError, AttributeError, TypeError) as exc:
+        except (AttributeError, TypeError) as exc:
             raise SourceUnknown(reason) from exc
         return sorted(context for context in contexts if context)
+
+
+def _body(text: str, reason: str) -> object:
+    """One response body, parsed.
+
+    A blank body is not "nothing applies": `gh` exits zero with output when it
+    has an answer, so a body we cannot parse in either direction is a source we
+    could not read, and that makes the whole required list unknown.
+    """
+    if not text.strip():
+        raise SourceUnknown(reason)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SourceUnknown(reason) from exc
