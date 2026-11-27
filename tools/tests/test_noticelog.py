@@ -115,10 +115,10 @@ class PruneTest(unittest.TestCase):
         self.assertEqual(NoticeLog.prune(self.root), [temporary])
         self.assertFalse(temporary.exists())
 
-    def test_a_young_temporary_file_is_kept(self):
+    def test_a_young_temporary_file_is_removed_too(self):
         temporary = self.make(".1.json.abc.tmp", age_days=0)
-        self.assertEqual(NoticeLog.prune(self.root), [])
-        self.assertTrue(temporary.exists())
+        self.assertEqual(NoticeLog.prune(self.root), [temporary])
+        self.assertFalse(temporary.exists())
 
     def test_a_missing_root_prunes_nothing(self):
         self.assertEqual(NoticeLog.prune(self.root / "absent"), [])

@@ -14,6 +14,7 @@ def evaluate(
 ) -> Verdict:
     """Whether the PR is ready, over the records it is handed.
 
+    ``checks`` are the latest run per name, as ``Checks.on`` returns them.
     ``threads`` are the unanswered ones; answering the definition is
     ``tools.desk.threads.unanswered``, and ``me`` stays the caller's.
     """

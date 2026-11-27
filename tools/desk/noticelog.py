@@ -51,7 +51,13 @@ class NoticeLog:
         moment = now if now is not None else time.time()
         cutoff = moment - cls._MAX_AGE_SECONDS
         removed: list[Path] = []
-        for path in sorted(base.rglob("*.json")) + sorted(base.rglob(".*.tmp")):
+        # A temporary file is always an abandoned write: only a live `_write`
+        # in this process makes one, and a live write renames it. Age is not
+        # the test, because a crashed write leaves one that no key needs.
+        for path in sorted(base.rglob(".*.tmp")):
+            path.unlink(missing_ok=True)
+            removed.append(path)
+        for path in sorted(base.rglob("*.json")):
             try:
                 stamp = path.stat().st_mtime
             except FileNotFoundError:
