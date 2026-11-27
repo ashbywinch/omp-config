@@ -109,12 +109,16 @@ class Fake:
         )
         paseo = self.bin / "paseo"
         hang = self.scenario.get("send_hang", 0)
-        # Every attempt is recorded before any delay the scenario asks for, so a
-        # killed send is still counted as an attempt; the message is recorded
-        # only once the delay, if any, is over.
+        fail_times = self.scenario.get("send_fail_times", 0)
+        # Every attempt is recorded before any delay or failure the scenario asks
+        # for, so a killed or rejected send is still counted; the message is
+        # recorded only when the attempt succeeds.
         paseo.write_text(
             "#!/bin/bash\n"
+            'n=$(cat "$FAKE_ROOT/n" 2>/dev/null || echo 0); n=$((n + 1))\n'
+            'echo "$n" > "$FAKE_ROOT/n"\n'
             'printf "%s\\n" "$*" >> "$FAKE_ROOT/args.txt"\n'
+            f"if [ \"$n\" -le {fail_times} ]; then exit 2; fi\n"
             f"sleep {hang}\n"
             'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n',
             encoding="utf-8",
@@ -277,6 +281,31 @@ class NoRepeatTest(unittest.TestCase):
             watcher.pass_once()
         attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
         self.assertEqual(attempts.count("send --no-wait"), 2)
+        # A send killed at its bound queued nothing, so no message was recorded.
+        self.assertEqual(fake.notices(), "")
+
+    def test_a_rejected_send_is_retried_and_delivers_once(self):
+        """A non-zero send did not queue, so the next pass delivers it."""
+        module = load_module()
+        fake = Fake(ready="READY: hand it over", ready_rc=0, send_fail_times=1)
+        self.addCleanup(fake.close)
+        with mock.patch.dict(os.environ, fake.env()):
+            settings = module.Settings(
+                pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+                send_timeout=5, root=Path("."),
+            )
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
+            )
+            watcher.pass_once()
+            watcher.pass_once()
+        attempts = (fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertEqual(attempts.count("send --no-wait"), 2)
+        self.assertEqual(
+            fake.notices().count("ready for the person's review"), 1
+        )
 
     def test_a_new_head_is_announced_again(self):
         module = load_module()
