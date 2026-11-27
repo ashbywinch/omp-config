@@ -334,12 +334,7 @@ class Owner:
         self.timeout = timeout
 
     def send(self, body: str) -> bool:
-        """Queue one notice. A failure leaves the caller's key unset.
-
-        `--no-wait` makes this a send rather than a wait: without it the command
-        blocks until the receiving agent finishes its turn, so a slow turn reads
-        as a failed send and the notice repeats.
-        """
+        """Queue the notice; never wait on the recipient's turn."""
         try:
             result = subprocess.run(
                 ["paseo", "send", "--no-wait", self.agent, body],
