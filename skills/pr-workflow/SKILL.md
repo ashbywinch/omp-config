@@ -95,6 +95,21 @@ other sessions, the catch-all forms are hazards:
   another session's edits to files you never opened, which is harder to notice
   than a new file appearing in the diff.
 
+### 1c. Commit, then read the commit back
+
+The hooks reformat the whole Python tree, so a commit that stages before
+formatting is refused after the formatter rewrote the file — and a refused commit
+leaves the head where it was, so the next push sends the old head.
+
+- **Never report a commit from a piped command.** A pipeline's status is its last
+  stage's: `git commit … | tail -1` exits 0 when the commit was refused.
+- **Keep git's own status**: `git commit -q -m "<subject>"` prints nothing and
+  returns git's; inside a pipeline use `${pipestatus[1]}` (zsh) or `PIPESTATUS[0]`
+  (bash).
+- **Read it back**: `git log -1 --format=%s` prints the subject, and that is what
+  you report. The same rule covers a push — `git ls-remote origin <branch>` names
+  the head that landed — and a PR create — `gh pr view <n> --json author`.
+
 ### 2. Push Feature Branch
 
 ```bash
