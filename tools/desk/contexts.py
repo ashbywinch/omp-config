@@ -39,7 +39,7 @@ class Contexts(Github):
         # let a required check be missed.
         contexts: set[str] = set()
         try:
-            classic_data = json.loads(classic or "{}")
+            classic_data = json.loads(classic)
             rule = (
                 (classic_data.get("data") or {}).get("repository") or {}
             ).get("ref") or {}
@@ -48,7 +48,7 @@ class Contexts(Github):
                     "requiredStatusCheckContexts"
                 ) or []
             )
-            rules_data = json.loads(rules or "[]")
+            rules_data = json.loads(rules)
             if not isinstance(rules_data, list):
                 # "No rules" is an empty array; any other body is not an answer.
                 raise SourceUnknown(reason)

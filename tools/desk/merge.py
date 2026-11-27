@@ -36,6 +36,7 @@ class Merge(Github):
             raise SourceUnknown(f"no base branch to prove {pull.slug} against")
         if pull.merge_state not in (self._UNKNOWN, "-"):
             return MergeState(
+                base=pull.base,
                 merges=pull.merge_state != self._CONFLICT,
                 behind=pull.merge_state == self._BEHIND,
             )
@@ -57,7 +58,7 @@ class Merge(Github):
             ["merge-base", "--is-ancestor", origin_base, pull.head],
             f"cannot compare {pull.slug} with {origin_base}",
         )
-        return MergeState(merges=merged == 0, behind=ancestor == 1)
+        return MergeState(base=pull.base, merges=merged == 0, behind=ancestor == 1)
 
     def _fetch(self, pull: PullRequest) -> None:
         """Make ``origin/<base>`` and the head available, or refuse.

@@ -38,7 +38,7 @@ from tools.desk.contexts import Contexts
 from tools.desk.errors import SourceUnknown
 from tools.desk.identity import answering_login
 from tools.desk.merge import Merge
-from tools.desk.model import Check, MergeState, PullRequest, Thread
+from tools.desk.model import Check, MergeState, PullRequest, Reading, Thread
 from tools.desk.noticelog import NoticeLog
 from tools.desk.pulls import PullRequests
 from tools.desk.readiness import evaluate
@@ -163,7 +163,7 @@ class Watcher:
         self.report_threads(pull, threads)
         self.report_checks(pull, checks, contexts)
         self.report_behind(pull, merge_state)
-        self.report_ready(pull, threads, checks, contexts, merge_state)
+        self.report_ready(pull, self._reading(pull, threads, checks, contexts, merge_state))
         return True
 
     # ---- the reads that hold a notice when they cannot answer -------------
@@ -264,24 +264,38 @@ class Watcher:
             "head), then let the checks run.",
         )
 
-    def report_ready(
+    def _reading(
         self,
         pull: PullRequest,
         threads: list[Thread] | None,
         checks: list[Check] | None,
         contexts: list[str] | None,
         merge_state: MergeState | None,
-    ) -> None:
-        # Each is None when its read did not answer; naming them one by one is
-        # what lets a checker see the call is handed what `evaluate` asks for.
+    ) -> Reading | None:
+        """The records a verdict needs, or None while any read is unknown.
+
+        Named one by one rather than tested as a tuple so a checker can see the
+        narrowing: an unknown read holds readiness instead of settling it.
+        """
         if (
             threads is None
             or checks is None
             or contexts is None
             or merge_state is None
         ):
+            return None
+        return Reading(
+            pull=pull,
+            threads=threads,
+            checks=checks,
+            contexts=contexts,
+            merge=merge_state,
+        )
+
+    def report_ready(self, pull: PullRequest, reading: Reading | None) -> None:
+        if reading is None:
             return
-        verdict = evaluate(pull, threads, checks, contexts, merge_state)
+        verdict = evaluate(reading)
         if not verdict.ready:
             self.notices.rearm("ready")
             return

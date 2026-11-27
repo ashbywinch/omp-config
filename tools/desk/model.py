@@ -78,10 +78,27 @@ class Check:
 
 @dataclass(frozen=True)
 class MergeState:
-    """Whether a head merges into its base, and whether it is behind it."""
+    """Whether a head merges into its base, which base, and whether it is behind."""
 
+    base: str
     merges: bool
     behind: bool
+
+
+@dataclass(frozen=True)
+class Reading:
+    """Everything a verdict is decided on, as one set.
+
+    The fields are not optional: a read that could not answer raises
+    `SourceUnknown`, so a caller either has a complete set of records or has
+    nothing to hand `readiness.evaluate`. This is the type that says so.
+    """
+
+    pull: PullRequest
+    threads: list[Thread]
+    checks: list[Check]
+    contexts: list[str]
+    merge: MergeState
 
 
 @dataclass(frozen=True)

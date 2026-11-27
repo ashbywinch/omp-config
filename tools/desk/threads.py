@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from tools.desk.errors import SourceUnknown
 from tools.desk.github import Github
+from tools.desk.identity import account
 from tools.desk.model import Thread
 
 
@@ -21,16 +22,15 @@ class _ThreadPage:
 def unanswered(threads: list[Thread], me: str) -> list[Thread]:
     """Threads still open whose last comment is not mine.
 
-    A thread with no comments has nothing to answer. GraphQL reports a bot's
-    login without the ``[bot]`` suffix the REST surface shows, so the comparison
-    drops it: ``omp-harness`` and ``omp-harness[bot]`` are one account.
+    A thread nobody spoke in has ``last_author is None`` and is not owed an
+    answer; ``identity.account`` is what decides whether a comment is mine.
     """
-    mine = me.removesuffix("[bot]")
+    mine = account(me)
     return [
         thread for thread in threads
         if not thread.resolved
         and thread.last_author is not None
-        and thread.last_author.removesuffix("[bot]") != mine
+        and account(thread.last_author) != mine
     ]
 
 

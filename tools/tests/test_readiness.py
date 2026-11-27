@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from tools.desk.model import Check, MergeState, PullRequest, Thread
+from tools.desk.model import Check, MergeState, PullRequest, Reading, Thread
 from tools.desk.readiness import evaluate
 
 SHA = "a" * 40
@@ -46,11 +46,13 @@ def verdict(
     merge_state: MergeState | None = None,
 ):
     return evaluate(
-        the_pull or pull(),
-        threads if threads is not None else [],
-        checks if checks is not None else [check()],
-        contexts if contexts is not None else ["ci"],
-        merge_state or MergeState(merges=True, behind=False),
+        Reading(
+            pull=the_pull or pull(),
+            threads=threads if threads is not None else [],
+            checks=checks if checks is not None else [check()],
+            contexts=contexts if contexts is not None else ["ci"],
+            merge=merge_state or MergeState(base="main", merges=True, behind=False),
+        )
     )
 
 
@@ -120,23 +122,18 @@ class ChecksTest(unittest.TestCase):
 
 
 class MergeTest(unittest.TestCase):
-    def test_a_missing_base_is_named(self):
-        result = verdict(the_pull=pull(base="-"))
-        self.assertIn("no base branch to compare against", fact(result, "merge").detail)
-        self.assertFalse(result.ready)
-
     def test_a_conflict_blocks(self):
-        result = verdict(merge_state=MergeState(merges=False, behind=False))
+        result = verdict(merge_state=MergeState(base="main", merges=False, behind=False))
         self.assertIn("conflicts with origin/main", fact(result, "merge").detail)
 
     def test_a_head_behind_its_base_blocks(self):
-        result = verdict(merge_state=MergeState(merges=True, behind=True))
+        result = verdict(merge_state=MergeState(base="main", merges=True, behind=True))
         self.assertIn("behind origin/main", fact(result, "merge").detail)
         self.assertFalse(result.ready)
 
     def test_a_blocked_approval_gate_is_not_a_merge_failure(self):
         # MergeState says what GitHub's BLOCKED already means: the merge is fine.
-        self.assertTrue(verdict(merge_state=MergeState(merges=True, behind=False)).ready)
+        self.assertTrue(verdict(merge_state=MergeState(base="main", merges=True, behind=False)).ready)
 
 
 class ThreadTest(unittest.TestCase):

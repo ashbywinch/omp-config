@@ -2,27 +2,30 @@
 
 from __future__ import annotations
 
-from tools.desk.model import Check, Fact, MergeState, PullRequest, Thread, Verdict
+from tools.desk.model import (
+    Check,
+    Fact,
+    MergeState,
+    PullRequest,
+    Reading,
+    Thread,
+    Verdict,
+)
 
 
-def evaluate(
-    pull: PullRequest,
-    threads: list[Thread],
-    checks: list[Check],
-    contexts: list[str],
-    merge_state: MergeState,
-) -> Verdict:
-    """Whether the PR is ready, over the records it is handed.
+def evaluate(reading: Reading) -> Verdict:
+    """Whether the PR is ready, over the one set of records it is handed.
 
     ``checks`` are the latest run per name, as ``Checks.on`` returns them.
     ``threads`` are the unanswered ones; answering the definition is
     ``tools.desk.threads.unanswered``, and ``me`` stays the caller's.
     """
+    pull = reading.pull
     facts = [
         _head(pull),
-        _checks(checks, contexts),
-        _merge(pull, merge_state),
-        _threads(threads),
+        _checks(reading.contexts, reading.checks),
+        _merge(reading.merge),
+        _threads(reading.threads),
         _draft(pull),
     ]
     return Verdict(ready=all(fact.ok for fact in facts), facts=facts)
@@ -35,8 +38,12 @@ def _head(pull: PullRequest) -> Fact:
     return Fact(name="head", ok=True, detail=f"head {pull.head[:12]}")
 
 
-def _checks(checks: list[Check], contexts: list[str]) -> Fact:
-    """Required contexts only: a run that never reported verified nothing."""
+def _checks(contexts: list[str], checks: list[Check]) -> Fact:
+    """Required contexts only: a run that never reported verified nothing.
+
+    ``contexts`` is what the base branch requires and ``checks`` is the newest
+    run per name; a check nobody required cannot block.
+    """
     required = sorted(set(contexts))
     if not required:
         return Fact(name="checks", ok=True, detail="no required contexts")
@@ -57,16 +64,13 @@ def _checks(checks: list[Check], contexts: list[str]) -> Fact:
     )
 
 
-def _merge(pull: PullRequest, merge_state: MergeState) -> Fact:
+def _merge(merge_state: MergeState) -> Fact:
     """No conflict and not behind; the approval gate is not a merge failure.
 
-    A missing head is `_head`'s fact, not this one's: naming it twice would
-    give one cause two lines in the verdict. A missing base has no other owner,
-    so the guard here keeps the detail from reading ``origin/-``.
+    The base is on the record because `Merge.state` refuses to produce one
+    without it, so this fact never has to name a missing base or head.
     """
-    if not pull.base or pull.base == "-":
-        return Fact(name="merge", ok=False, detail="no base branch to compare against")
-    origin_base = f"origin/{pull.base}"
+    origin_base = f"origin/{merge_state.base}"
     if not merge_state.merges:
         return Fact(name="merge", ok=False, detail=f"conflicts with {origin_base}")
     if merge_state.behind:

@@ -21,7 +21,7 @@ from tools.desk.contexts import Contexts
 from tools.desk.errors import SourceUnknown
 from tools.desk.identity import answering_login
 from tools.desk.merge import Merge
-from tools.desk.model import PullRequest, Verdict
+from tools.desk.model import PullRequest, Reading, Verdict
 from tools.desk.pulls import PullRequests
 from tools.desk.readiness import evaluate
 from tools.desk.repository import Repository
@@ -52,6 +52,23 @@ def report(pull: PullRequest, verdict: Verdict) -> str:
     return "\n".join(lines)
 
 
+def read(number: int, repo: str | None, root: Path, me: str) -> Reading:
+    """The five records a verdict needs, or ``SourceUnknown`` if one cannot be read.
+
+    Every read is in one function because a verdict is only worth deciding on a
+    complete set: one failure here is what turns "not ready" into "not known".
+    """
+    pull = PullRequests(repo or Repository().current()).view(number)
+    slug = pull.repo
+    return Reading(
+        pull=pull,
+        threads=unanswered(Threads(slug).all(number), me),
+        checks=Checks(slug).on(pull.head),
+        contexts=Contexts(slug).required(pull.base),
+        merge=Merge(slug, root=root).state(pull),
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("pr", type=int, help="pull request number")
@@ -62,18 +79,13 @@ def main() -> int:
 
     me = args.me or answering_login()
     try:
-        repo = args.repo or Repository().current()
-        pull = PullRequests(repo).view(args.pr)
-        threads = unanswered(Threads(repo).all(args.pr), me)
-        checks = Checks(repo).on(pull.head)
-        contexts = Contexts(repo).required(pull.base)
-        merge_state = Merge(repo, root=Path(args.root)).state(pull)
+        reading = read(args.pr, args.repo, Path(args.root), me)
     except SourceUnknown as exc:
         print(f"pr-ready: {exc}", file=sys.stderr)
         return 2
 
-    verdict = evaluate(pull, threads, checks, contexts, merge_state)
-    print(report(pull, verdict))
+    verdict = evaluate(reading)
+    print(report(reading.pull, verdict))
     return 0 if verdict.ready else 1
 
 

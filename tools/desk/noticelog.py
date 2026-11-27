@@ -98,12 +98,14 @@ class NoticeLog:
         return {kind: str(data.get(kind) or "") for kind in self._KINDS}
 
     def _write(self) -> None:
+        # The directory first, then the temp file in it: `mkstemp` does not
+        # create the directory, and the rename is atomic only within one.
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(
-            {kind: self._keys.get(kind, "") for kind in self._KINDS}, sort_keys=True
-        )
         handle, temporary = tempfile.mkstemp(
             dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp"
+        )
+        payload = json.dumps(
+            {kind: self._keys.get(kind, "") for kind in self._KINDS}, sort_keys=True
         )
         try:
             # Written through the descriptor `mkstemp` returned: closing it and
