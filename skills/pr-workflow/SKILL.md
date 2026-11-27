@@ -419,8 +419,9 @@ After push, checks trigger again automatically (if configured). Wait for complet
    current head, then lists every thread it prints as UNANSWERED — including one
    you replied to earlier that the reviewer followed up on. A push starts a new
    review, so reading the threads before it lands reports a clean PR that is
-   about to have findings; and a non-zero exit means the PR is not ready to
-   report, however green the checks are.
+   about to have findings; exit 1 means a thread is unanswered, so the PR is not
+   ready to report, however green the checks are. Exit 2 is a failed read:
+   retry it, do not report it as either verdict.
 2. Re-read the review comments — the persistent review will be updated
 3. Confirm the specific finding you fixed is no longer reported
 4. Check for ANY new findings that may have been uncovered
@@ -482,10 +483,10 @@ The AI may keep finding new issues on each round (especially compliance nits). S
 
 ## Part 4b: Before you report a PR's state
 
-Run `pr-ready <pr>` and report what it printed. Reply to every thread it lists and
-resolve none; what each fact means, and what to do about a failed one, is
-`skill://pr-state`.
-The order that gets there is `skill://pr-loop`.
+Run `pr-ready <pr>` and report what it printed. Answer every thread
+`pr-threads <pr>` lists and resolve none; what each fact means, and what to do
+about a failed one, is `skill://pr-state`. Exit 0 is READY, 1 is BLOCKED, 2 is a
+failed read to retry. The order that gets there is `skill://pr-loop`.
 
 ## Part 5: Handing the merge to the user
 

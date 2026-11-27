@@ -87,6 +87,13 @@ class ThreadTest(ReaderTest):
         ]
         self.assertEqual([t.id for t in unanswered(threads, "omp-harness")], ["T1"])
 
+    def test_the_bots_two_spellings_are_one_account(self):
+        """GraphQL says `omp-harness`; REST and the CLI default say `[bot]`."""
+        thread = Thread("T1", "a.py", 1, False, "omp-harness")
+        self.assertEqual(unanswered([thread], "omp-harness[bot]"), [])
+        thread = Thread("T1", "a.py", 1, False, "omp-harness[bot]")
+        self.assertEqual(unanswered([thread], "omp-harness"), [])
+
 
 class CheckTest(ReaderTest):
     def test_one_run_per_name_is_kept_and_the_newest_wins(self):

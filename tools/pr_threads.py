@@ -1,342 +1,107 @@
 #!/usr/bin/env python3
 """List the review threads on a PR that still need an answer.
 
-    pr_threads.py <pr-number> [--repo owner/name] [--me login] [--ids]
+    pr-threads <pr> [--repo owner/name] [--me login] [--ids] [--wait]
 
-A thread is answered when its **last** comment is authored by `--me` — not "the
-first, plus a reply": a thread I opened has nothing left to answer. Everything
-unresolved and last-authored by anyone else prints as UNANSWERED, and the exit
-status is 1, so a caller can gate on it.
+A thread is answered when its **last** comment is authored by `--me` — not
+"the first, plus a reply": a thread I opened has nothing left to answer.
+`--me` defaults to `PR_THREADS_ME`, then to `omp-harness[bot]`.
 
-Run it after every push, not before reporting the PR as ready: a reviewer adds
-findings one round at a time, a green check says nothing about a thread, and the
-one comment you did not read is the one that mattered.
-
-`--ids` prints only each unanswered thread's id, one per line. That is the key
-a watcher de-duplicates on: a push moves `path:line` for a thread that did not
-change, so a listing-shaped key reports unchanged work as new.
+Exit status follows `grep`: 0 no thread is unanswered, 1 some are, 2 the read
+failed. `--wait` blocks until the checks on the head have finished, so the
+listing is the reviewer's answer rather than a snapshot mid-review. `--ids`
+prints only each unanswered thread's id — a debugging view of the key a
+watcher de-duplicates on.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
-import subprocess
 import sys
 import time
-from dataclasses import dataclass, replace
 
-@dataclass(frozen=True)
-class ThreadPage:
-    threads: list[Thread]
-    next_cursor: str | None
-
-
-@dataclass(frozen=True)
-class Comment:
-    author: str
-    body: str
-
-    @classmethod
-    def from_json(cls, node: dict) -> "Comment":  # lucidlint: ignore record-shape the GraphQL node is the wire format; converting it is this function's whole job
-        """Read one comment off the wire. `author` is null when the account was
-        deleted; nobody's login, so it answers to no one — not to me either.
-        A null node is a comment this token cannot see, which the caller must
-        not mistake for a comment that is not there."""
-        if not node:
-            raise ValueError("the comment node is null")
-        author = (node.get("author") or {}).get("login") or ""
-        return cls(author, node.get("body") or "")
+from tools.desk.checks import Checks
+from tools.desk.errors import SourceUnknown
+from tools.desk.identity import answering_login
+from tools.desk.pulls import PullRequests
+from tools.desk.repository import Repository
+from tools.desk.threads import Threads, unanswered
 
 
-@dataclass(frozen=True)
-class Check:
-    """One entry in a PR's statusCheckRollup: a check run, or an older status
-    context. They report completion in different fields."""
+class _ReviewWait:
+    """Block until the checks on the PR's current head have finished."""
 
-    kind: str
-    status: str | None
-    state: str | None
+    _TIMEOUT_SECONDS = 900
+    _POLL_SECONDS = 15
+    _GRACE_SECONDS = 90
 
-    @classmethod
-    def from_json(cls, node: dict) -> "Check":  # lucidlint: ignore record-shape the rollup node is the wire format; converting it is this function's whole job
-        return cls(node.get("__typename") or "", node.get("status"), node.get("state"))
+    def __init__(self, pulls: PullRequests, checks: Checks, number: int) -> None:
+        self.pulls = pulls
+        self.checks = checks
+        self.number = number
 
-    @property
-    def finished(self) -> bool:
-        if self.kind == "StatusContext":
-            return self.state not in (None, "PENDING", "EXPECTED")
-        return self.status == "COMPLETED"
-
-
-@dataclass(frozen=True)
-class Thread:
-    id: str
-    path: str
-    line: int | None
-    resolved: bool
-    comments: tuple[Comment, ...]
-
-    @classmethod
-    def from_json(cls, node: dict) -> "Thread":  # lucidlint: ignore record-shape the GraphQL node is the wire format; converting it is this function's whole job
-        """Read one thread off the wire. Every field the listing needs is
-        required: a thread missing one cannot be reported at all."""
-        try:
-            comments = tuple(Comment.from_json(c) for c in node["comments"]["nodes"])
-            return cls(node["id"], node["path"], node.get("line"), node["isResolved"], comments)
-        except (KeyError, TypeError) as exc:
-            raise ValueError(f"the thread node is missing {exc}") from exc
-
-
-def _gh(*args: str) -> subprocess.CompletedProcess:
-    """Run gh, and say so plainly when there is no gh to run."""
-    try:
-        return subprocess.run(["gh", *args], capture_output=True, text=True)
-    except OSError as exc:  # missing, not executable, or blocked
-        sys.exit("cannot run gh (%s): this needs the GitHub CLI installed and on PATH" % exc)
-
-
-def _graphql(query: str, variables: list[str]) -> dict:  # lucidlint: ignore record-shape the response is the wire format; callers convert it straight away
-    out = _gh("api", "graphql", "-f", "query=" + query, *variables)
-    if out.returncode != 0:
-        sys.exit("gh graphql failed: " + out.stderr.strip())
-    try:
-        payload = json.loads(out.stdout or "{}")
-    except json.JSONDecodeError as exc:
-        sys.exit("gh returned something that is not JSON: " + str(exc))
-    # GraphQL reports refusals in a 200 response: without this, a missing
-    # permission reads as a KeyError further down.
-    if payload.get("errors"):
-        messages = "; ".join(e.get("message", "?") for e in payload["errors"])
-        sys.exit("the GitHub API refused the query: " + messages)
-    return payload
-
-
-class _ReviewThreads:
-    """The review threads on one repository's PR: the GraphQL documents, and
-    the paging over both levels — the threads, then each thread's comments."""
-
-    THREADS = """
-query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $pr) {
-      reviewThreads(first: 100, after: $cursor) {
-        pageInfo { hasNextPage endCursor }
-        nodes {
-          id
-          isResolved
-          path
-          line
-          comments(first: 100) {
-            pageInfo { hasNextPage endCursor }
-            nodes { author { login } body }
-          }
-        }
-      }
-    }
-  }
-}
-"""
-    COMMENTS = """
-query($id: ID!, $cursor: String) {
-  node(id: $id) {
-    ... on PullRequestReviewThread {
-      comments(first: 100, after: $cursor) {
-        pageInfo { hasNextPage endCursor }
-        nodes { author { login } body }
-      }
-    }
-  }
-}
-"""
-    ME = "omp-harness"
-
-    def __init__(self, repo: str):
-        self.repo = repo
-        self.owner, self.name = repo.split("/", 1)
-
-    def fetch(self, pr: int) -> list[Thread]:
-        """Every review thread on the PR, with every comment on each."""
-        threads: list[Thread] = []
-        cursor: str | None = None
-        while True:
-            page = self._page(pr, cursor)
-            threads += page.threads
-            if page.next_cursor is None:
-                return threads
-            cursor = page.next_cursor
-
-    def _page(self, pr: int, cursor: str | None) -> "ThreadPage":
-        variables = ["-f", f"owner={self.owner}", "-f", f"repo={self.name}", "-F", f"pr={pr}"]
-        if cursor:
-            variables += ["-f", f"cursor={cursor}"]
-        data = _graphql(self.THREADS, variables)
-        try:
-            payload = data["data"]["repository"]["pullRequest"]["reviewThreads"]
-            nodes, page_info = payload["nodes"], payload["pageInfo"]
-        except (KeyError, TypeError):
-            sys.exit(f"cannot read PR {pr} in {self.repo}: it does not exist, or this token cannot see it")
-        if nodes is None or page_info is None:
-            # A null array is "this token cannot see them", not "there are none".
-            sys.exit(f"cannot see every review thread on PR {pr} — refusing a partial list")
-
-        threads: list[Thread] = []
-        for node in nodes:
-            if not node or "id" not in node:
-                # GraphQL returns null for a node the viewer cannot see. Reporting the
-                # threads we can see would understate what is open, so stop instead.
-                sys.exit(f"cannot see every review thread on PR {pr} — refusing to report a partial list")
+    def run(self) -> None:
+        started = time.monotonic()
+        while time.monotonic() < started + self._TIMEOUT_SECONDS:
             try:
-                thread = Thread.from_json(node)
-            except ValueError as exc:
-                sys.exit(f"cannot read every review thread on PR {pr} ({exc}) — refusing a partial list")
-            comments_page = (node.get("comments") or {}).get("pageInfo")
-            if comments_page is None:
-                # No pageInfo means the comments were not readable; the first page
-                # would look like the whole thread, and the last comment decides.
-                sys.exit(f"cannot read the comments on thread {thread.id} — refusing a partial answer")
-            if comments_page.get("hasNextPage"):
-                thread_cursor = comments_page.get("endCursor")
-                if not thread_cursor:
-                    # More comments exist and the cursor to them is gone: the first
-                    # page would stand in for the thread, and the last comment decides.
-                    sys.exit(f"cannot page the comments on thread {thread.id} — refusing a partial answer")
-                later = self._later_comments(thread.id, thread_cursor)
-                thread = replace(thread, comments=thread.comments + tuple(later))
-            threads.append(thread)
-        has_next = page_info.get("hasNextPage")
-        if has_next is None:
-            # No flag means the page boundary is unknown; treating it as the last
-            # page would report the first one as the whole list.
-            sys.exit(f"cannot page the review threads on PR {pr} — refusing a partial answer")
-        if has_next:
-            next_cursor = page_info.get("endCursor")
-            if not next_cursor:
-                sys.exit(f"cannot page the review threads on PR {pr} — refusing a partial answer")
-            return ThreadPage(threads, next_cursor)
-        return ThreadPage(threads, None)
-
-    def _later_comments(self, thread_id: str, cursor: str) -> list[Comment]:
-        """Comments after the first page of a long thread — the last one decides."""
-        extra: list[Comment] = []
-        while cursor:
-            data = _graphql(self.COMMENTS, ["-f", f"id={thread_id}", "-f", f"cursor={cursor}"])
-            node = data["data"].get("node")
-            if not node:
-                sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
-            page = node.get("comments") or {}
-            nodes = page.get("nodes")
-            if nodes is None:
-                sys.exit(f"cannot read the rest of thread {thread_id} — refusing a partial answer")
-            try:
-                extra += [Comment.from_json(c) for c in nodes]
-            except ValueError as exc:
-                sys.exit(f"cannot read the rest of thread {thread_id} ({exc}) — refusing a partial answer")
-            page_info = page.get("pageInfo") or {}
-            cursor = None
-            if page_info.get("hasNextPage"):
-                cursor = page_info.get("endCursor")
-                if not cursor:
-                    sys.exit(f"cannot page thread {thread_id} — refusing a partial answer")
-        return extra
-
-
-def _rollup(pr: int, repo: str) -> list[Check]:
-    """The PR's check runs and status contexts, retried a few times: a blip
-    during a long wait is not the same as a refusal, and only a persistent
-    failure means the state cannot be observed at all."""
-    out = None
-    for attempt in range(3):
-        out = _gh("pr", "view", str(pr), "--repo", repo, "--json", "statusCheckRollup")
-        if out.returncode == 0:
-            break
-        if attempt < 2:
-            time.sleep(15)
-    else:
-        # Listing anyway would report a state the tool did not observe — the
-        # failure --wait exists to prevent.
-        sys.exit("`gh pr view` failed (%s); cannot wait for the review"
-                 % (out.stderr.strip() or out.returncode))
-    try:
-        payload = json.loads(out.stdout or "{}")
-    except json.JSONDecodeError as exc:
-        sys.exit("`gh pr view` returned something that is not JSON (%s); cannot wait for the review" % exc)
-    return [Check.from_json(node) for node in (payload.get("statusCheckRollup") or [])]
-
-
-def wait_for_review(pr: int, repo: str, timeout: int = 900) -> None:
-    """Block until the reviewer has finished on the current head.
-
-    A push starts a review, and it posts minutes later. Reading the threads
-    before it finishes reports a clean PR that is about to have findings.
-    """
-    started = time.monotonic()
-    deadline = started + timeout
-    # How long to wait for the check runs to appear at all, before deciding there
-    # are none configured for this repo.
-    grace = 90
-    while time.monotonic() < deadline:
-        checks = _rollup(pr, repo)
-        if not checks:
-            # A push creates the check runs a moment later. Waiting a short while
-            # is the difference between "no checks configured" and "not here yet".
-            if time.monotonic() < started + grace:
-                time.sleep(15)
+                pull = self.pulls.view(self.number)
+                runs = self.checks.on(pull.head)
+            except SourceUnknown as exc:
+                print(f"pr-threads: {exc} — retrying", file=sys.stderr)
+                time.sleep(self._POLL_SECONDS)
                 continue
-            print("warning: no checks reported; listing what has posted", file=sys.stderr)
-            return
-        if all(check.finished for check in checks):
-            return
-        time.sleep(15)
-    print("warning: the review had not finished; listing what has posted", file=sys.stderr)
-
-
-def unanswered(threads: list[Thread], me: str) -> list[Thread]:
-    """Unresolved threads whose last comment is not mine."""
-    return [
-        thread for thread in threads
-        if not thread.resolved and thread.comments and thread.comments[-1].author != me
-    ]
-
-
-def repo_slug() -> str:
-    out = _gh("repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
-    if out.returncode != 0:
-        sys.exit("not in a repo, and no --repo given")
-    return out.stdout.strip()
+            if not runs:
+                # A push creates the check runs a moment later. Waiting a short
+                # while is the difference between "no checks configured" and
+                # "not here yet".
+                if time.monotonic() < started + self._GRACE_SECONDS:
+                    time.sleep(self._POLL_SECONDS)
+                    continue
+                print("warning: no checks reported; listing what has posted", file=sys.stderr)
+                return
+            if all(run.status == "completed" for run in runs):
+                return
+            time.sleep(self._POLL_SECONDS)
+        print("warning: the review had not finished; listing what has posted", file=sys.stderr)
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("pr", type=int)
-    ap.add_argument("--repo", default=None)
-    ap.add_argument("--me", default=_ReviewThreads.ME)
-    ap.add_argument("--wait", action="store_true",
-                    help="wait for the reviewer to finish on this head before listing")
-    ap.add_argument("--ids", action="store_true",
-                    help="print only each unanswered thread's id, one per line — a "
-                         "de-duplication key that survives a push moving path:line")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("pr", type=int)
+    parser.add_argument("--repo", default=None)
+    parser.add_argument("--me", default=None, help="login whose reply answers a thread")
+    parser.add_argument(
+        "--wait", action="store_true",
+        help="wait for the checks on this head before listing",
+    )
+    parser.add_argument(
+        "--ids", action="store_true",
+        help="print only each unanswered thread's id, one per line — a debugging "
+             "view of the de-duplication key",
+    )
+    args = parser.parse_args()
 
-    repo = args.repo or repo_slug()
-    if args.wait:
-        wait_for_review(args.pr, repo)
-    threads = _ReviewThreads(repo).fetch(args.pr)
-    pending = unanswered(threads, args.me)
+    me = args.me or answering_login()
+    try:
+        repo = args.repo or Repository().current()
+        pulls = PullRequests(repo)
+        if args.wait:
+            pulls.view(args.pr)
+            _ReviewWait(pulls, Checks(repo), args.pr).run()
+        threads = Threads(repo).all(args.pr)
+    except SourceUnknown as exc:
+        print(f"pr-threads: {exc}", file=sys.stderr)
+        return 2
 
+    pending = unanswered(threads, me)
     if args.ids:
-        # The key a watcher de-duplicates on: a thread's identity, not where its
-        # lines currently sit. A push shifts `path:line` for an unchanged thread,
-        # which makes the listing look like new work.
-        for thread in pending:
-            print(thread.id)
+        for thread_id in sorted(thread.id for thread in pending):
+            print(thread_id)
         return 1 if pending else 0
 
     print(f"PR {args.pr} ({repo}): {len(threads)} threads, {len(pending)} unanswered")
     for thread in pending:
-        first = thread.comments[0]
-        body = " ".join(first.body.split())[:100]
-        print(f"  UNANSWERED  {thread.path}:{thread.line}  @{first.author}  {body}")
+        print(f"  UNANSWERED  {thread.path}:{thread.line}  @{thread.last_author}")
     return 1 if pending else 0
 
 

@@ -1,88 +1,85 @@
-"""Tests for tools/pr_threads.py — which threads still need an answer.
+"""`pr-threads` as a display over the library: the listing and the exit code."""
 
-The load-bearing rule: a thread is answered only when the *last* comment is mine.
-An earlier reply followed by a follow-up question is still open work, which is
-the mistake this tool exists to catch.
-"""
+from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import unittest
+from pathlib import Path
+from unittest import mock
 
-from tools.pr_threads import Check, Comment, Thread, unanswered
+from tools.tests.desk_fakes import Fake
 
-
-def thread(*authors, resolved=False):
-    return Thread(
-        id="t1",
-        path="a.md",
-        line=1,
-        resolved=resolved,
-        comments=tuple(Comment(author=a, body=f"from {a}") for a in authors),
-    )
+REPO = Path(__file__).resolve().parents[2]
+SCRIPT = REPO / "tools" / "pr_threads.py"
 
 
-class FinishedTest(unittest.TestCase):
-    """A check run carries `status`; a status context carries `state`. Reading
-    one field for both made the wait loop wait for a value that never appears."""
+class ThreadsCommandTest(unittest.TestCase):
+    def fake(self, **scenario) -> Fake:
+        fake = Fake(**scenario)
+        self.addCleanup(fake.close)
+        patcher = mock.patch.dict(os.environ, fake.env())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return fake
 
-    def check(self, **node):
-        return Check.from_json(node).finished
+    def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "1", *args],
+            env=os.environ,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
-    def test_a_completed_check_run_is_finished(self):
-        self.assertTrue(self.check(__typename="CheckRun", status="COMPLETED", conclusion="SUCCESS"))
+    def test_no_unanswered_threads_exits_zero(self):
+        self.fake()
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("0 unanswered", result.stdout)
 
-    def test_a_running_check_run_is_not_finished(self):
-        self.assertFalse(self.check(__typename="CheckRun", status="IN_PROGRESS", conclusion=None))
+    def test_an_unanswered_thread_exits_one_and_names_it(self):
+        self.fake(threads=["PRRC_1"])
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("UNANSWERED  f.py:1  @reviewer", result.stdout)
 
-    def test_a_status_context_is_finished_once_it_is_not_pending(self):
-        self.assertTrue(self.check(__typename="StatusContext", state="SUCCESS"))
-        self.assertFalse(self.check(__typename="StatusContext", state="PENDING"))
+    def test_ids_prints_only_the_ids(self):
+        self.fake(threads=["PRRC_2", "PRRC_1"])
+        result = self.run_cli("--ids")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.split(), ["PRRC_1", "PRRC_2"])
 
+    def test_ids_with_nothing_pending_exits_zero(self):
+        self.fake()
+        result = self.run_cli("--ids")
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
 
-class ThreadShapeTest(unittest.TestCase):
-    def test_a_thread_missing_its_comments_is_refused_not_crashed(self):
-        with self.assertRaises(ValueError):
-            Thread.from_json({"id": "t1", "path": "a.md", "isResolved": False})
+    def test_an_unreadable_read_exits_two(self):
+        self.fake(threads_rc=1)
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("pr-threads:", result.stderr)
 
+    def test_me_from_the_environment_answers_a_thread(self):
+        nodes = [{"id": "T1", "isResolved": False, "path": "a.py", "line": 1,
+                  "comments": {"nodes": [{"author": {"login": "omp-harness[bot]"}}]}}]
+        self.fake(thread_nodes=nodes)
+        self.assertEqual(self.run_cli().returncode, 0)
 
-class CommentTest(unittest.TestCase):
-    def test_a_null_comment_node_is_refused(self):
-        # GraphQL returns null for a comment this token cannot see; reading it
-        # as an empty comment would understate the thread.
-        with self.assertRaises(ValueError):
-            Comment.from_json(None)
+    def test_the_me_flag_overrides_the_default(self):
+        nodes = [{"id": "T1", "isResolved": False, "path": "a.py", "line": 1,
+                  "comments": {"nodes": [{"author": {"login": "someone"}}]}}]
+        self.fake(thread_nodes=nodes)
+        self.assertEqual(self.run_cli().returncode, 1)
+        self.assertEqual(self.run_cli("--me", "someone").returncode, 0)
 
-    def test_a_deleted_author_is_nobody(self):
-        # GraphQL returns null for a comment whose account was deleted; reading
-        # it must not crash the whole listing.
-        self.assertEqual(Comment.from_json({"author": None, "body": "gone"}).author, "")
-
-    def test_a_deleted_author_does_not_answer_for_me(self):
-        threads = [Thread(id="t1", path="a.md", line=1, resolved=False,
-                          comments=(Comment.from_json({"author": None, "body": "gone"}),))]
-        self.assertEqual(len(unanswered(threads, "omp-harness")), 1)
-
-
-class UnansweredTest(unittest.TestCase):
-    def test_unanswered_when_the_reviewer_spoke_last(self):
-        self.assertEqual(len(unanswered([thread("github-actions")], "omp-harness")), 1)
-
-    def test_answered_when_i_spoke_last(self):
-        self.assertEqual(unanswered([thread("github-actions", "omp-harness")], "omp-harness"), [])
-
-    def test_a_follow_up_question_reopens_the_thread(self):
-        threads = [thread("github-actions", "omp-harness", "ashbywinch")]
-        self.assertEqual(len(unanswered(threads, "omp-harness")), 1)
-
-    def test_resolved_threads_are_ignored(self):
-        self.assertEqual(unanswered([thread("github-actions", resolved=True)], "omp-harness"), [])
-
-    def test_a_thread_only_i_have_spoken_in_is_answered(self):
-        # Nothing to answer in a thread I opened myself.
-        self.assertEqual(unanswered([thread("omp-harness")], "omp-harness"), [])
-
-    def test_a_thread_with_no_comments_is_ignored(self):
-        empty = Thread(id="t1", path="a.md", line=1, resolved=False, comments=())
-        self.assertEqual(unanswered([empty], "omp-harness"), [])
+    def test_wait_returns_once_the_checks_on_the_head_are_completed(self):
+        self.fake()
+        result = self.run_cli("--wait")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":

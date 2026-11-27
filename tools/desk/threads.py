@@ -21,11 +21,16 @@ class _ThreadPage:
 def unanswered(threads: list[Thread], me: str) -> list[Thread]:
     """Threads still open whose last comment is not mine.
 
-    A thread with no comments has nothing to answer.
+    A thread with no comments has nothing to answer. GraphQL reports a bot's
+    login without the ``[bot]`` suffix the REST surface shows, so the comparison
+    drops it: ``omp-harness`` and ``omp-harness[bot]`` are one account.
     """
+    mine = me.removesuffix("[bot]")
     return [
         thread for thread in threads
-        if not thread.resolved and thread.last_author not in (None, me)
+        if not thread.resolved
+        and thread.last_author is not None
+        and thread.last_author.removesuffix("[bot]") != mine
     ]
 
 

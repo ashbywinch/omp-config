@@ -122,6 +122,7 @@ class Fake:
         contexts_rc = self.scenario.get("contexts_rc", 0)
         rules_rc = self.scenario.get("rules_rc", 0)
         repo_rc = self.scenario.get("repo_rc", 0)
+        threads_rc = self.scenario.get("threads_rc", 0)
 
         gh = self.bin / "gh"
         gh.write_text(
@@ -130,14 +131,14 @@ class Fake:
             'case "$*" in\n'
             '  "pr view"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/pr.json" ;;\n'
             '  *check-runs*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/checks.json" ;;\n'
-            '  *reviewThreads*) cat "$root/threads.json" ;;\n'
+            '  *reviewThreads*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/threads.json" ;;\n'
             '  "api graphql"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/contexts.json" ;;\n'
             '  "api repos"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/rules.json" ;;\n'
             '  "repo view"*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/repo.json" ;;\n'
             '  *) echo "unexpected gh call: $*" >&2; exit 9 ;;\n'
             "esac\n"
-            % (pull_rc, pull_rc, checks_rc, checks_rc, contexts_rc, contexts_rc,
-               rules_rc, rules_rc, repo_rc, repo_rc),
+            % (pull_rc, pull_rc, checks_rc, checks_rc, threads_rc, threads_rc,
+               contexts_rc, contexts_rc, rules_rc, rules_rc, repo_rc, repo_rc),
             encoding="utf-8",
         )
         paseo = self.bin / "paseo"
