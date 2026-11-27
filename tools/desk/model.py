@@ -84,6 +84,10 @@ class MergeState:
     merges: bool
     behind: bool
 
+    def __post_init__(self) -> None:
+        if not self.base or self.base == "-":
+            raise ValueError("a merge state names the base it was proved against")
+
 
 @dataclass(frozen=True)
 class Reading:
@@ -99,6 +103,10 @@ class Reading:
     checks: list[Check]
     contexts: list[str]
     merge: MergeState
+
+    def __post_init__(self) -> None:
+        if None in (self.threads, self.checks, self.contexts, self.merge):
+            raise ValueError("a reading is all five records or it is not one")
 
 
 @dataclass(frozen=True)

@@ -75,6 +75,24 @@ class ReadyTest(unittest.TestCase):
         self.assertFalse(verdict(the_pull=pull(draft=True)).ready)
 
 
+class RecordTest(unittest.TestCase):
+    """A record either carries what a verdict needs or is not built."""
+
+    def test_a_reading_holds_all_five_records(self):
+        with self.assertRaises(ValueError):
+            Reading(
+                pull=pull(),
+                threads=[],
+                checks=[check()],
+                contexts=None,  # type: ignore[arg-type]  # the hole is what the record must refuse
+                merge=MergeState(base="main", merges=True, behind=False),
+            )
+
+    def test_a_merge_state_names_its_base(self):
+        with self.assertRaises(ValueError):
+            MergeState(base="-", merges=True, behind=False)
+
+
 class HeadTest(unittest.TestCase):
     def test_a_missing_head_blocks(self):
         result = verdict(the_pull=pull(head="-"))

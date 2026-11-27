@@ -55,17 +55,31 @@ class NoticeLog:
         # in this process makes one, and a live write renames it. Age is not
         # the test, because a crashed write leaves one that no key needs.
         for path in sorted(base.rglob(".*.tmp")):
-            path.unlink(missing_ok=True)
-            removed.append(path)
+            if cls._unlink(path):
+                removed.append(path)
         for path in sorted(base.rglob("*.json")):
             try:
                 stamp = path.stat().st_mtime
-            except FileNotFoundError:
+            except OSError:
                 continue
-            if stamp < cutoff or stamp > moment:
-                path.unlink(missing_ok=True)
+            stale = stamp < cutoff or stamp > moment
+            if stale and cls._unlink(path):
                 removed.append(path)
         return removed
+
+    @staticmethod
+    def _unlink(path: Path) -> bool:
+        """Delete one file and say whether it went.
+
+        A cleanup pass that meets a directory, or a file it may not remove,
+        skips it: the next pass tries again, and one odd entry is not worth
+        the watcher.
+        """
+        try:
+            path.unlink()
+        except OSError:
+            return False
+        return True
 
     def get(self, kind: str) -> str:
         """The last key recorded for this notice; empty means owed."""
@@ -116,3 +130,4 @@ class NoticeLog:
         except OSError:
             Path(temporary).unlink(missing_ok=True)
             raise
+
