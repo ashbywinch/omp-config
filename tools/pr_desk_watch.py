@@ -320,8 +320,8 @@ class Keys:
     ready: str = ""
 
 
-class Channel:
-    """Delivery to the one session that owns the PR."""
+class Owner:
+    """The one session that owns the PR: the notices are addressed to it."""
 
     def __init__(self, agent: str, timeout: int) -> None:
         self.agent = agent
@@ -367,7 +367,7 @@ class Watcher:
 
     settings: Settings
     gh: Github
-    channel: Channel
+    owner: Owner
     keys: Keys = field(default_factory=Keys)
     required: list[str] = field(default_factory=list)
     required_for: str = ""
@@ -387,7 +387,7 @@ class Watcher:
     def announce(self, kind: str, key: str, body: str) -> None:
         if getattr(self.keys, kind) == key:
             return
-        if self.channel.send(body):
+        if self.owner.send(body):
             setattr(self.keys, kind, key)
 
     # ---- one pass --------------------------------------------------------
@@ -541,7 +541,7 @@ def watch(settings: Settings, once: bool) -> int:
     watcher = Watcher(
         settings=settings,
         gh=Github(settings),
-        channel=Channel(agent=settings.agent, timeout=settings.send_timeout),
+        owner=Owner(agent=settings.agent, timeout=settings.send_timeout),
     )
     while True:
         if not watcher.pass_once():

@@ -228,7 +228,7 @@ class NoRepeatTest(unittest.TestCase):
             watcher = module.Watcher(
                 settings=settings,
                 gh=module.Github(settings),
-                channel=module.Channel(agent=AGENT, timeout=settings.send_timeout),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
             )
             for _ in range(count):
                 watcher.pass_once()
@@ -251,7 +251,7 @@ class NoRepeatTest(unittest.TestCase):
             watcher = module.Watcher(
                 settings=settings,
                 gh=module.Github(settings),
-                channel=module.Channel(agent=AGENT, timeout=settings.send_timeout),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
             )
             watcher.pass_once()
             watcher.pass_once()
@@ -267,7 +267,7 @@ class NoRepeatTest(unittest.TestCase):
             watcher = module.Watcher(
                 settings=settings,
                 gh=module.Github(settings),
-                channel=module.Channel(agent=AGENT, timeout=settings.send_timeout),
+                owner=module.Owner(agent=AGENT, timeout=settings.send_timeout),
             )
             watcher.pass_once()
             moved = json.loads((self.fake.root / "pr.json").read_text(encoding="utf-8"))
