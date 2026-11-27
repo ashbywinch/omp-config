@@ -17,7 +17,7 @@ Four notices, one per state change, each keyed so a steady state is silent:
 
 A key is recorded only after the send succeeds, so a failed send repeats.
 
-Design: `docs/desk-watcher.md`. Procedure: `skill://pr-desk`.
+Design: `docs/desk-architecture.md`. Procedure: `skill://pr-desk`.
 """
 
 from __future__ import annotations
