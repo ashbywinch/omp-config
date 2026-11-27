@@ -24,7 +24,7 @@ class Contexts(Github):
         """
         owner, _, name = self.repo.partition("/")
         reason = f"required contexts unreadable for origin/{base}"
-        classic = self.gh(
+        classic_text = self.gh(
             [
                 "api", "graphql",
                 "-f", f"query={self._QUERY}",
@@ -32,27 +32,30 @@ class Contexts(Github):
             ],
             reason,
         )
-        rules = self.gh(["api", f"repos/{self.repo}/rules/branches/{base}"], reason)
+        rules_text = self.gh(
+            ["api", f"repos/{self.repo}/rules/branches/{base}"], reason
+        )
         # A 404 here is not "no rules": the endpoint answers an empty array when
         # nothing applies, so any failure is an unreadable source. One unreadable
         # source makes the answer unknown, because a partial required list would
         # let a required check be missed.
         contexts: set[str] = set()
         try:
-            classic_data = _body(classic, reason)
+            protection = _json_body(classic_text, reason)
+            if not isinstance(protection, dict):
+                raise SourceUnknown(f"{reason}: not a JSON object")
             rule = (
-                (classic_data.get("data") or {}).get("repository") or {}
+                (protection.get("data") or {}).get("repository") or {}
             ).get("ref") or {}
             contexts.update(
                 (rule.get("branchProtectionRule") or {}).get(
                     "requiredStatusCheckContexts"
                 ) or []
             )
-            rules_data = _body(rules, reason)
-            if not isinstance(rules_data, list):
-                # "No rules" is an empty array; any other body is not an answer.
-                raise SourceUnknown(reason)
-            for entry in rules_data:
+            rules = _json_body(rules_text, reason)
+            if not isinstance(rules, list):
+                raise SourceUnknown(f"{reason}: not a JSON array")
+            for entry in rules:
                 if entry.get("type") != "required_status_checks":
                     continue
                 for check in (entry.get("parameters") or {}).get(
@@ -64,7 +67,7 @@ class Contexts(Github):
         return sorted(context for context in contexts if context)
 
 
-def _body(text: str, reason: str) -> object:
+def _json_body(text: str, reason: str) -> object:
     """One response body, parsed.
 
     A blank body is not "nothing applies": `gh` exits zero with output when it
@@ -77,3 +80,6 @@ def _body(text: str, reason: str) -> object:
         return json.loads(text)
     except json.JSONDecodeError as exc:
         raise SourceUnknown(reason) from exc
+
+
+

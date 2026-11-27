@@ -49,7 +49,7 @@ class ReadyTest(unittest.TestCase):
         result = self.run_cli()
         self.assertEqual(result.returncode, 1)
         self.assertIn("BLOCKED:", result.stdout)
-        self.assertIn("self-check is completed failure", result.stdout)
+        self.assertIn("self-check did not pass (failure)", result.stdout)
 
     def test_a_required_context_with_no_run_blocks(self):
         self.fake(required=["missing"])

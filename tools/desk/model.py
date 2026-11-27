@@ -8,9 +8,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+def absent(value: str) -> bool:
+    """Whether a text field is missing.
+
+    A reader writes ``-`` for a field GitHub did not answer with, so this is
+    the one place that spelling is interpreted.
+    """
+    return not value or value == "-"
+
 
 @dataclass(frozen=True)
-class PullRequest:  # lucidlint: ignore class-module the desk architecture names model.py for the notice and verdict records; they are one record set with one reason to change.
+class PullRequest:
     """One pull request, as far as a notice or a verdict needs it."""
 
     number: int
@@ -85,7 +93,7 @@ class MergeState:
     behind: bool
 
     def __post_init__(self) -> None:
-        if not self.base or self.base == "-":
+        if absent(self.base):
             raise ValueError("a merge state names the base it was proved against")
 
 

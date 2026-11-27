@@ -6,7 +6,7 @@ import json
 
 from tools.desk.errors import SourceUnknown
 from tools.desk.github import Github
-from tools.desk.model import Check
+from tools.desk.model import Check, absent
 
 
 def checks_from_pages(text: str) -> list[Check]:
@@ -72,7 +72,7 @@ class Checks(Github):
         An empty list is an answer: no run reported. ``SourceUnknown`` when the
         head is not a sha, or the read fails.
         """
-        if not head or head == "-":
+        if absent(head):
             raise SourceUnknown("no head sha to read checks from")
         short = head[:7]
         out = self.gh(

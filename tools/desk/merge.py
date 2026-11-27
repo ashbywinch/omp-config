@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tools.desk.errors import SourceUnknown
 from tools.desk.github import Github
-from tools.desk.model import MergeState, PullRequest
+from tools.desk.model import MergeState, PullRequest, absent
 
 
 class Merge(Github):
@@ -32,7 +32,7 @@ class Merge(Github):
         It takes the record the caller already read, so the pull is not read
         twice for the same pass.
         """
-        if not pull.base or pull.base == "-":
+        if absent(pull.base):
             raise SourceUnknown(f"no base branch to prove {pull.slug} against")
         if pull.merge_state not in (self._UNKNOWN, "-"):
             return MergeState(
@@ -45,7 +45,7 @@ class Merge(Github):
     def _prove_locally(self, pull: PullRequest) -> MergeState:
         """Prove the merge in the checkout, refusing what git cannot answer."""
         origin_base = f"origin/{pull.base}"
-        if not pull.head or pull.head == "-":
+        if absent(pull.head):
             raise SourceUnknown(
                 f"no head sha to merge {pull.slug} against {origin_base}"
             )

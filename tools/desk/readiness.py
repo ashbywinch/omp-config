@@ -10,6 +10,7 @@ from tools.desk.model import (
     Reading,
     Thread,
     Verdict,
+    absent,
 )
 
 
@@ -33,7 +34,7 @@ def evaluate(reading: Reading) -> Verdict:
 
 def _head(pull: PullRequest) -> Fact:
     """A head that is not a commit sha cannot be read or merged."""
-    if not pull.head or pull.head == "-":
+    if absent(pull.head):
         return Fact(name="head", ok=False, detail="no head sha")
     return Fact(name="head", ok=True, detail=f"head {pull.head[:12]}")
 
@@ -54,7 +55,7 @@ def _checks(contexts: list[str], checks: list[Check]) -> Fact:
         if run is None:
             broken.append(f"{name} has no run on this head")
         elif not run.passed:
-            broken.append(f"{name} is {run.status.lower()} {run.conclusion or ''}".strip())
+            broken.append(f"{name} did not pass ({run.conclusion or run.status})")
     if broken:
         return Fact(name="checks", ok=False, detail="; ".join(broken))
     return Fact(

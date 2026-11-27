@@ -104,7 +104,7 @@ class ChecksTest(unittest.TestCase):
     def test_a_failing_required_check_blocks_and_is_named(self):
         result = verdict(checks=[check(conclusion="failure")])
         self.assertFalse(result.ready)
-        self.assertIn("ci is completed failure", fact(result, "checks").detail)
+        self.assertIn("ci did not pass (failure)", fact(result, "checks").detail)
 
     def test_a_required_context_with_no_run_blocks(self):
         result = verdict(checks=[check(name="lint")], contexts=["ci"])
