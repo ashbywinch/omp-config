@@ -1,54 +1,41 @@
 # lucidlint: ignore-file duplicate-module this file is copied verbatim into
 # skills/new-repo-scaffold/examples/tools/ by make sync-examples, which fails when
 # the two diverge — one source, one check, two copies on purpose.
-"""Called by .github/workflows/pr-agent.yml — fail the PR if the review bot
-did not post a "PR Reviewer Guide" comment covering the head commit.
-The review may have failed silently; this check prevents merging unreviewed.
+"""Fail the PR when no review covers its head commit.
 
-A comment covers the head commit when its body references the commit's SHA
-(the incremental-review form, "Starting from commit .../<SHA>") or it was
-posted after the head commit landed (the first review on a PR is posted
-without the SHA marker — observed: pr-agent v0.41.1 regular reviews never
-contain the head SHA). The range-start SHA in the incremental body is the
-first NEW commit, not the head — coverage still falls to the posted-after
-rule; the explicit form is belt-and-braces for reviews that embed it.
+The bot's own step cannot be trusted: ``PRAgent.handle_request`` catches every
+exception (it logs "Failed to process the command." and returns False) and
+``github_action_runner.py`` discards that, so the action exits 0 whether or not
+a review happened. This check therefore asks the API what exists, and asks the
+run log why when nothing does.
 
-The bot's own SKIP verdict also covers: an incremental review with no
-files changed since the previous review posts "Incremental Review
-Skipped" (linking the previous review) instead of a guide. That skip IS
-the reviewed verdict — the diff since the last review was examined and
-found empty (merging the base branch in, for example, changes nothing in
-the PR's diff) — so it covers the commit exactly like the human /skip
-opt-out does. A run that genuinely failed to post leaves no comment and
-still fails.
+A head is covered by exactly three forms:
 
-A second, silent skip is real too: when the PR has no files the bot can
-analyse — a one-file CSV diff, for instance — pr-agent logs "PR has no
-analyzable files" and "skipping review" and posts nothing, by design. The
-run log is the only witness, so the guard reads it: a clean skip (the
-marker with no traceback and no token-cap) passes, and the same log with a
-failure marker still fails.
+- **a human opt-out** — the whole body is ``/skip``. The owner chose not to have
+  this PR reviewed.
+- **a review guide** — ``## PR Reviewer Guide`` or ``## Incremental PR Reviewer
+  Guide``, posted or edited after this run started, or naming this head. The bot
+  reviewed it; naming the head lets a RE-RUN of the same head pass, and an edit
+  is how a persistent guide advances.
+- **the bot's skip** — ``Incremental Review Skipped`` from a machine account,
+  after this run started. The increment was empty: examined, nothing to say.
 
-Why the bot's own step cannot fail (2026-08-11, read from the v0.41.1
-source): ``PRAgent.handle_request`` catches EVERY exception with a bare
-``except`` — it logs "Failed to process the command." plus the traceback
-and returns False — and ``github_action_runner.py`` discards that return
-value, so the action exits 0 whether or not the review happened. A green
-bot step is therefore meaningless, and the only truthful signal is this
-check. To make the failure SELF-EXPLAINING rather than a guess, the check
-fetches the run's own log (the checks API) and extracts the bot's error
-lines: the "Failed to process the command." traceback, model/API errors,
-and the diff-token-cap marker — the check's failure message names the
-reason instead of "may have failed silently".
+Nothing else counts, and a head that is not covered fails with the reason read
+from the log (the pruning cap, the swallowed traceback, or the last thing the
+bot said). The failure direction is deliberate: a miss costs a red gate on a
+reviewed PR, never a green gate on an unreviewed one — which is why every
+comparison here errs toward failing.
 """
 
 import json
-from collections.abc import Mapping
-from typing import Any
 import os
 import re
 import sys
 import urllib.request
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
@@ -57,7 +44,9 @@ _SIZE_RE = re.compile(r"Tokens:\s*(\d+),\s*total tokens over limit:\s*(\d+)")
 class _ApiRequest(urllib.request.Request):
     """A GitHub API request: the two headers every call carries."""
 
-    def __init__(self, url: str, token: str, accept: str = "application/vnd.github+json"):
+    def __init__(
+        self, url: str, token: str, accept: str = "application/vnd.github+json"
+    ):
         super().__init__(url)
         self.add_header("Authorization", f"Bearer {token}")
         self.add_header("Accept", accept)
@@ -67,23 +56,38 @@ def _get(url: str, token: str, accept: str = "application/vnd.github+json") -> b
     return urllib.request.urlopen(_ApiRequest(url, token, accept)).read()
 
 
-class _ApiFailure(Exception):
+class _ApiError(Exception):
     """The API did not give a usable answer: the request failed on the way
     (refused, timed out), it came back non-2xx, or the body is not the JSON it
     promised — a proxy's error page, a truncated read."""
 
 
-def _get_json(url: str, token: str):
+class _NoLogError(Exception):
+    """There is no log to read, and the message names which of the ways it is
+    missing: no run to read, no jobs listed yet, no job carrying the review's
+    name, no download URL. The caller repeats it, so the failure names the
+    cause it observed instead of guessing at one."""
+
+
+def _get_json(url: str, token: str, get: Callable[[str, str], bytes] | None = None):
+    """Fetch and parse one API response. The transport is the optional seam
+    (the repo's DI convention): tests inject a fake, production uses ``_get``.
+
+    The default is resolved per call, not at definition time, so replacing the
+    transport module-wide reaches every caller — a bound default silently
+    ignores the replacement and the test then talks to the real API.
+    """
+    get = get or _get
     try:
-        body = _get(url, token)
+        body = get(url, token)
     except HTTPError as e:  # a URLError subclass: check it first
-        raise _ApiFailure(f"HTTP {e.code}") from e
+        raise _ApiError(f"HTTP {e.code}") from e
     except URLError as e:
-        raise _ApiFailure(f"{e.reason}") from e
+        raise _ApiError(f"{e.reason}") from e
     try:
         return json.loads(body)
     except ValueError as e:
-        raise _ApiFailure(f"the body is not JSON ({e})") from e
+        raise _ApiError(f"the body is not JSON ({e})") from e
 
 
 # The log endpoint 302s to a signed blob URL; urllib's auto-follow forwards
@@ -92,8 +96,12 @@ def _get_json(url: str, token: str):
 # stops at the 302 — HTTPErrorProcessor hands it to HTTPDefaultErrorHandler,
 # which raises HTTPError, and the caller fetches the signed Location bare.
 _OPENER = urllib.request.OpenerDirector()
-for _handler in (urllib.request.HTTPHandler(), urllib.request.HTTPSHandler(),
-                 urllib.request.HTTPErrorProcessor(), urllib.request.HTTPDefaultErrorHandler()):
+for _handler in (
+    urllib.request.HTTPHandler(),
+    urllib.request.HTTPSHandler(),
+    urllib.request.HTTPErrorProcessor(),
+    urllib.request.HTTPDefaultErrorHandler(),
+):
     _OPENER.add_handler(_handler)
 
 
@@ -108,133 +116,223 @@ class _ReviewGate:
     """Review coverage for one repository: what it fetches, and what the bot's
     own log says when a review did not post."""
 
-    def __init__(self, repo: str, token: str):
+    def __init__(
+        self,
+        repo: str,
+        token: str,
+        get_json: Callable[[str, str], Any] | None = None,
+    ):
         self.repo = repo
         self.token = token
+        # late-bound on purpose: the default has to be looked up when a gate is
+        # made, not when the function was defined, or a test (or a caller) that
+        # replaces the transport module-wide is silently ignored.
+        self.get_json = get_json or _get_json
 
     def api(self, path: str):
         """GET a repository-relative API path."""
-        return _get_json(f"https://api.github.com/repos/{self.repo}/{path}", self.token)
+        return self.get_json(
+            f"https://api.github.com/repos/{self.repo}/{path}", self.token
+        )
 
-    def job_log(self) -> str | None:
-        """The running job's own accumulated log (the bot step's output), or
-        None when there is no log to read: no run id, no jobs yet, no job by
-        that name. A fetch that fails raises, so the caller can say which
-        failure it was. Requires the workflow's ``actions: read``."""
-        run_id = os.environ.get("GITHUB_RUN_ID")
+    def job_log(self, run_id: str | None = None, wanted: str | None = None) -> str:
+        """The review job's accumulated log (the bot step's output). Requires
+        the workflow's ``actions: read``.
+
+        ``run_id`` and ``wanted`` default to this workflow's own environment
+        (``GITHUB_RUN_ID``, ``REVIEW_JOB_NAME``); passing them is the test seam.
+
+        A log that is not there raises ``_NoLogError`` naming which way it is not
+        there; a fetch that fails raises its own error. Nothing is returned to
+        stand for "no log": a caller that conflated the two would report a
+        cause it never observed.
+        """
+        run_id = run_id or os.environ.get("GITHUB_RUN_ID")
         if not run_id:
-            return None
+            raise _NoLogError("GITHUB_RUN_ID is not set, so there is no run to read")
         jobs = self.api(f"actions/runs/{run_id}/jobs")
         if not jobs.get("jobs"):
-            return None
+            raise _NoLogError(f"run {run_id} lists no jobs")
         # The reason we want lives in the REVIEW job's log, not in whichever job
         # the API happens to list first — this runs from a second job in the
         # same run, and listing order is not the workflow's order.
-        wanted = os.environ.get("REVIEW_JOB_NAME", "pr-review")
-        matches = [j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)]
+        wanted = wanted or os.environ.get("REVIEW_JOB_NAME", "pr-review")
+        matches = [
+            j for j in jobs["jobs"] if _job_name_matches(j.get("name", ""), wanted)
+        ]
         if not matches:
-            return None
+            raise _NoLogError(
+                f"the run lists no job named {wanted!r} (set REVIEW_JOB_NAME)"
+            )
         req = _ApiRequest(
-            f"https://api.github.com/repos/{self.repo}/actions/jobs/{matches[0]['id']}/logs", self.token)
+            f"https://api.github.com/repos/{self.repo}/actions/jobs/{matches[0]['id']}/logs",
+            self.token,
+        )
         try:
             resp = _OPENER.open(req)
-            # GitHub answers the log endpoint with a redirect to blob storage.
-            # Whether the custom opener raises on that or hands the response
-            # back depends on its handler set, so handle both: follow the
-            # Location ourselves, WITHOUT the token — the redirect target is a
-            # third-party host and must not receive it.
-            if getattr(resp, "status", 200) in (301, 302, 303, 307, 308):
-                location = resp.headers.get("Location")
-                if not location:
-                    return None
-                return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-            return resp.read().decode("utf-8", errors="replace")
         except HTTPError as e:
+            # GitHub answers the log endpoint with a redirect to blob storage, and
+            # this opener's error handler is what raises on it — that is how the
+            # redirect is stopped from being followed WITH our token. Follow the
+            # signed URL ourselves, without it: the target is a third-party host
+            # that must never receive a token.
             if e.code not in (301, 302, 303, 307, 308):
                 raise
             location = e.headers.get("Location")
             if not location:
-                return None
-            return urllib.request.urlopen(location, timeout=30).read().decode("utf-8", errors="replace")
-
-
-
-
-def _bot_failure_reason(log: str | None) -> str:
-    """The bot's own words about its failure, from the run log — the reason
-    the review died, instead of a guess. Falls back to the last thing the
-    bot said."""
-    if log is None:
-        # the fail-loud step runs inside the bot's OWN job — GitHub does not
-        # serve a job's log until the job completes, so the reason extractor
-        # can never see it here. Run this check from a SEPARATE job (needs:
-        # the bot job) for the real reason; this fallback is the honest
-        # admission that the review did not post.
-        return "the bot's job log is not served while the job is still running (run this check from a separate job)"
-    # The raw job blob is TIMESTAMPZ + message lines with no step prefixes
-    # (the runner's processed view adds them); the bot's own records are the
-    # structured JSON lines with a "text" field — those carry the markers.
-    bot_lines = [ln for ln in log.splitlines() if '"text"' in ln]
-    if not bot_lines:
-        return "the bot's step produced no log output"
-
-    return _failure_reason(bot_lines)
-
-
-def _failure_reason(
-    bot_lines: list[str],
-    markers: tuple[str, ...] = ("Failed to process the command.", "Traceback (most recent call last)"),
-    tail_lines: int = 12,  # lines after a failure marker worth reporting
-) -> str:
-    """Why the bot died, from its own log lines: the diff-token cap (the
-    size signal that precedes a died model call), the swallowed traceback
-    seam, or the last thing it said.
-
-    The markers and the tail are parameters because they describe this log's
-    shape, not the module's state."""
-    for ln in bot_lines:
-        m = _SIZE_RE.search(ln)
-        if m:
+                raise _NoLogError(
+                    "the log download answered a redirect with no Location"
+                ) from e
             return (
-                f"the PR's cumulative diff is {m.group(1)} tokens — over the bot's "
-                f"{m.group(2)}-token review cap; the review died after pruning the diff"
+                urllib.request.urlopen(location, timeout=30)
+                .read()
+                .decode("utf-8", errors="replace")
             )
-    for i, ln in enumerate(bot_lines):
-        if any(mark in ln for mark in markers):
-            tail = [line for line in bot_lines[i : i + tail_lines] if line.strip()]
-            snippet = " | ".join(line.split("\t")[-1][:200] for line in tail[:4])
-            return f"the bot logged an error before dying: {snippet}"
-    last = next((line for line in reversed(bot_lines) if line.strip()), "")
-    return f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
+        return resp.read().decode("utf-8", errors="replace")
 
 
-def _review_skipped(
-    log: str | None,
-    failure_markers: tuple[str, ...] = ("Failed to process the command.", "Traceback (most recent call last)"),
-    skip_markers: tuple[str, ...] = ("PR has no analyzable files", "skipping review", "skipping describe"),
-) -> bool:
-    """True when the bot examined the PR and deliberately reviewed nothing.
+@dataclass(frozen=True)
+class _SizeLimit:
+    """The two numbers pr-agent's pruning line carries: the diff's size and the
+    cap it overran — separate fields, because a swapped pair would read as a
+    review that died for the wrong reason."""
 
-    pr-agent skips a PR it has no analyzable files for — a lone CSV diff, say
-    — logs why, and posts no comment. That is a verdict, not a failure. The
-    run log is its only record, so the marker counts ONLY when the same log
-    carries no traceback and no token-cap line: a run that died cannot hide
-    behind a skip line it logged before dying."""
-    if not log:
-        return False
-    if any(mark in log for mark in failure_markers) or _SIZE_RE.search(log):
-        return False
-    return any(marker in log for marker in skip_markers)
+    tokens: str
+    limit: str
 
 
+class _BotLog:
+    """The bot's run log, read once into the facts the gate asks about.
+
+    The log is a third party's prose, so it is read here and nowhere else: every
+    later question is about a fact, never about a substring. Three facts, and
+    each is a field so the answer cannot drift from the reading:
+
+    * ``over_size`` — the pruning line, present when the diff was cut past the
+      review's token cap;
+    * ``failure`` — the first line that shows the run died;
+    * ``skip`` — the line naming a deliberate skip (nothing to analyse).
+
+    All three are read from the **whole** log, so a marker logged as plain text
+    still counts: a run that died cannot be read as a clean skip. Only
+    ``reason``'s quote narrows to the bot's structured lines (``"text"``),
+    because those carry the words worth repeating.
+    """
+
+    FAILURE_MARKERS = (
+        "Failed to process the command.",
+        "Traceback (most recent call last)",
+    )
+    # pr-agent logs this when a review ran and found nothing to publish: the
+    # increment was examined and came back clean, which is a verdict, not silence.
+    REVIEWED_NOTHING = "Review output is not published: no major issues detected."
+
+    SKIP_MARKERS = (
+        "PR has no analyzable files",
+        "skipping review",
+        "skipping describe",
+    )
+    TAIL_LINES = 12  # lines after a failure marker worth quoting
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.structured = tuple(line for line in text.splitlines() if '"text"' in line)
+        self.over_size = self._first(_SIZE_RE)
+        self.failure = self._first_line(self.FAILURE_MARKERS)
+        self.skip = self._first_line(self.SKIP_MARKERS)
+        self.nothing_to_publish = self.REVIEWED_NOTHING in text
+
+    def _first(self, pattern: re.Pattern[str]) -> _SizeLimit | None:
+        """The two numbers on the first line that carries the size marker."""
+        for line in self.text.splitlines():
+            match = pattern.search(line)
+            if match:
+                return _SizeLimit(tokens=match.group(1), limit=match.group(2))
+        return None
+
+    def _first_line(self, markers: tuple[str, ...]) -> str | None:
+        for line in self.text.splitlines():
+            if any(marker in line for marker in markers):
+                return line
+        return None
+
+    @property
+    def failed(self) -> bool:
+        """The review died: the diff was pruned past the cap, or the bot logged a failure."""
+        return self.over_size is not None or self.failure is not None
+
+    @property
+    def skipped(self) -> bool:
+        """The bot examined the PR and deliberately reviewed nothing.
+
+        pr-agent skips a PR it has no analyzable files for — a lone CSV diff,
+        say — logs why, and posts no comment. That is a verdict, not a failure,
+        so it holds only when the log names no failure.
+        """
+        return self.skip is not None and not self.failed
+
+    @property
+    def reason(self) -> str:
+        """Why the review did not post, from the fact that is present.
+
+        An empty log is one that was served and said nothing; a log with no
+        structured lines is one the step wrote as plain text. The two are
+        different witnesses and get different sentences — neither stands for a
+        log that could not be read at all, which arrives as `_NoLogError`.
+        """
+        if not self.text:
+            return "the bot's job log is empty: the step produced no output at all"
+        if self.over_size is not None:
+            return (
+                f"the PR's cumulative diff is {self.over_size.tokens} tokens — over the bot's "
+                f"{self.over_size.limit}-token review cap; the review died after pruning the diff"
+            )
+        if self.failure is not None:
+            return f"the bot logged an error before dying: {self._quote(self.failure)}"
+        if not self.structured:
+            return (
+                "the bot's step wrote no structured output — every line was plain text"
+            )
+        last = next((line for line in reversed(self.structured) if line.strip()), "")
+        return (
+            f"the bot's last output before going silent: {last.split(chr(9))[-1][:200]}"
+        )
+
+    def _quote(self, marker_line: str) -> str:
+        """The error and the lines after it, joined for one sentence.
+
+        The marker can arrive as plain text, outside the structured lines —
+        ``failure`` is read from the whole log — and then the marker line itself
+        is the quote. Falling back to the start of ``structured`` would print
+        whichever lines happened to come first, which is somebody else's words.
+        """
+        start = next(
+            (
+                index
+                for index, line in enumerate(self.structured)
+                if marker_line in line
+            ),
+            None,
+        )
+        if start is None:
+            return marker_line.split("\t")[-1][:200]
+        tail = [
+            line
+            for line in self.structured[start : start + self.TAIL_LINES]
+            if line.strip()
+        ]
+        return " | ".join(line.split("\t")[-1][:200] for line in tail[:4])
+
+
+@dataclass(frozen=True)
 class _Comment:
     """One issue comment, in the shape the API returns it."""
 
-    def __init__(self, body: str, created_at: str, updated_at: str = "", user_type: str = "Bot"):
-        self.body = body
-        self.created_at = created_at
-        self.updated_at = updated_at
-        self.user_type = user_type
+    body: str
+    created_at: str
+    updated_at: str = ""
+    user_type: str = "Bot"
+    commit_id: str = ""  # an inline finding names the commit it was made against
 
     @classmethod
     def from_json(cls, node: "Mapping[str, Any]") -> "_Comment":
@@ -244,34 +342,202 @@ class _Comment:
             node.get("created_at") or "",
             node.get("updated_at") or "",
             (node.get("user") or {}).get("type", ""),
+            node.get("original_commit_id") or node.get("commit_id") or "",
         )
 
 
-def _review_covers(comments: list[_Comment], sha: str, reviewed_after: str) -> bool:
-    """Does any comment cover the head commit? A human /skip opt-out (applies
-    to the whole PR), a posted guide (regular or incremental, referencing the
-    sha, created or edited after the head was received), or the bot's own
-    incremental-skip verdict (created after the head was received — the diff
-    was examined and found empty, so the skip is the review, not a
-    failure)."""
-    if any(c.body.strip() == "/skip" for c in comments):
-        return True
+class _BotComment:
+    """The bot's own comment formats — the gate's whole vocabulary.
+
+    These strings are the bot's output, not our preference: if one changes, this
+    file must change with it. A miss fails the gate on a review that did post,
+    which is the safe direction — the gate never passes a review that did not
+    happen. A looser match would trade that for the opposite risk.
+    """
+
+    GUIDE = ("## PR Reviewer Guide", "## Incremental PR Reviewer Guide")
+    SKIPPED = "Incremental Review Skipped"
+    SKIP = "/skip"
+
+
+def _opening(body: str) -> str:
+    """The body as a format match sees it: no leading whitespace, no byte-order mark."""
+    return body.lstrip().removeprefix("\ufeff").lstrip()
+
+
+def _from_a_machine(user_type: str) -> bool:
+    """Whether the comment came from a machine rather than a human.
+
+    The bot's empty-increment skip counts only when the bot posted it: a human
+    can paste the same words, and a human's paste is not a review. GitHub
+    reports machine accounts as ``Bot`` (github-actions) or ``App`` (an App's
+    own comment) and people as ``User``, so the test is "not a person" rather
+    than a list of the machine spellings the API happens to use today.
+    """
+    return user_type != "User"
+
+
+def _moment(stamp: str) -> datetime | None:
+    """One of GitHub's ISO-8601 stamps as a datetime, or None when it is not one."""
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).astimezone(UTC)
+    except (ValueError, AttributeError):
+        return None
+
+
+@dataclass(frozen=True)
+class _Coverage:
+    """One comment's claim to cover the head commit, judged against this run.
+
+    A review reaches the PR in one of three forms — a human's skip, a posted
+    guide, or the bot's empty-increment skip — and each is one property here so
+    ``covers`` reads as the three ways a head can be covered.
+    """
+
+    comment: _Comment
+    run_started: str
+
+    @property
+    def posted_after(self) -> bool:
+        """Whether the comment is this run's, by time.
+
+        The stamps are compared as MOMENTS, not as text: ``_moment`` reads
+        GitHub's ISO-8601 UTC stamp into a datetime, so the comparison cannot be
+        wrong about an offset or a fraction no matter what the API writes. An
+        unreadable stamp is not coverage — the direction this checks fails in.
+
+        An edit counts as well as a new comment because the guide is EDITED in
+        place — its ``created_at`` never advances, so an edit after the head
+        arrived is the only sign of a new review. A stamp equal to the run start
+        counts: two runs in the same second on one PR review the same push.
+        """
+        started = _moment(self.run_started)
+        if started is None:
+            return False
+        return any(
+            moment is not None and moment >= started
+            for moment in (_moment(self.comment.created_at), _moment(self.comment.updated_at))
+        )
+
+    @property
+    def a_human_skip(self) -> bool:
+        """A human's ``/skip`` opts the whole PR out of review, by deliberate choice."""
+        return self.comment.body.strip() == _BotComment.SKIP
+
+    def a_guide_for(self, sha: str) -> bool:
+        """A posted review, either form, for this head: it names the head sha or it
+        arrived during this run.
+
+        The incremental body names the range's FIRST new commit, not the head — so
+        coverage for an incremental review falls to the posted-during-this-run rule,
+        and the explicit form is belt-and-braces for reviews that embed the head.
+        """
+        if not _opening(self.comment.body).startswith(_BotComment.GUIDE):
+            return False
+        return self.names_head(sha) or self.posted_after
+
+    def names_head(self, sha: str) -> bool:
+        """Whether the guide names this head — the re-run of the same head posts a
+        guide this run did not create, and a guide that names the head is evidence
+        for this head whatever run posted it."""
+        return f"commit/{sha}" in self.comment.body
+
+    @property
+    def a_bot_skip(self) -> bool:
+        """The bot's own "no new files since the last review" verdict.
+
+        An incremental review whose increment is empty posts this instead of a
+        guide: the diff since the last review was examined and found empty, so the
+        skip IS the review, not a failure. It covers only when the bot posted it
+        during this run.
+        """
+        return (
+            _opening(self.comment.body).startswith(_BotComment.SKIPPED)
+            and _from_a_machine(self.comment.user_type)
+            and self.comment.created_at >= self.run_started
+        )
+
+    def covers(self, sha: str) -> bool:
+        """One of the three forms covers this head."""
+        return self.a_human_skip or self.a_guide_for(sha) or self.a_bot_skip
+
+
+def _a_finding_posted(inline: list[_Comment], run_started: str) -> bool:
+    """Whether the review posted findings this run.
+
+    The incremental path publishes each finding as an inline review comment and
+    no guide (measured 2026-11-25 on the pinned action: four findings, no guide,
+    no check run). An inline comment from a machine, created during this run, is
+    therefore the review's own verdict — the same evidence as a guide, in the
+    only form this path produces.
+    """
     return any(
-        (
-            c.body.startswith(("## PR Reviewer Guide", "## Incremental PR Reviewer Guide"))
-            and (
-                f"commit/{sha}" in c.body  # the incremental "Starting from commit .../<SHA>" form
-                or c.created_at >= reviewed_after
-                or c.updated_at >= reviewed_after  # the guide is EDITED in place, so created_at never advances and pr-agent's persistent-state read can fail without a SHA footer — an edit after the head arrived is coverage
-            )
-        )
-        or (
-            c.body.startswith("Incremental Review Skipped")
-            and c.user_type == "Bot"
-            and c.created_at >= reviewed_after
-        )
-        for c in comments
+        _from_a_machine(c.user_type) and c.created_at >= run_started for c in inline
     )
+
+
+def _reviewed_since_unchanged(
+    api: Callable[[str], Any], reviewed: list[str], head: str
+) -> str | None:
+    """The reviewed commit whose review still covers this head, if any.
+
+    Exists for the merge of a base branch: it changes none of the PR's files, so
+    the reviewer returns without publishing anything (no guide, no findings, no
+    log line) and a gate that only ever asks "did a review post for this head"
+    calls that unreviewed. If the tree has not moved since a commit that WAS
+    reviewed, that review still covers it — and the comparison is of files, not
+    of commit ids, so a rebase of identical content also holds.
+    """
+    for reviewed_sha in reviewed:
+        if not reviewed_sha or reviewed_sha == head:
+            continue
+        try:
+            compared = api(f"compare/{reviewed_sha}...{head}")
+        except _ApiError:
+            continue
+        # A body that is not an object — `null`, a list, a proxy's page — says
+        # nothing about the two trees either, so it is not coverage. And an
+        # EMPTY list, not merely a falsy value: only the API's own "no
+        # differences" statement counts, or an unreadable compare would pass a
+        # head nobody reviewed.
+        if isinstance(compared, dict) and compared.get("files") == []:
+            return reviewed_sha
+    return None
+
+
+def _review_covers(comments: list[_Comment], sha: str, run_started: str) -> bool:
+    """Does any comment cover the head commit? Three forms count, one property each:
+    a human skip, a guide for this head, or the bot's empty-increment skip."""
+    return any(_Coverage(comment, run_started).covers(sha) for comment in comments)
+
+
+def _coverage_notice(
+    comments: list[_Comment],
+    inline: list[_Comment],
+    sha: str,
+    run_started: str,
+    api: Callable[[str], Any],
+) -> str | None:
+    """What covers this head, if anything: None when nothing does.
+
+    The three comment forms, the findings this run posted inline, or a review of
+    a commit the head has not changed away from. The string is the sentence to
+    print — empty for a plain cover, a reason for the unchanged case.
+    """
+    if _review_covers(comments, sha, run_started) or _a_finding_posted(
+        inline, run_started
+    ):
+        return ""
+    reviewed = [
+        c.commit_id for c in inline if c.commit_id and _from_a_machine(c.user_type)
+    ]
+    unchanged = _reviewed_since_unchanged(api, reviewed, sha)
+    if unchanged:
+        return (
+            f"no review posted for {sha} — nothing has changed since the review of "
+            f"{unchanged[:8]}, so that review covers this head."
+        )
+    return None
 
 
 def main() -> int:
@@ -280,10 +546,12 @@ def main() -> int:
     gate = _ReviewGate(os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_TOKEN"])
 
     try:
-        commit = gate.api(f"commits/{sha}")
-    except _ApiFailure as e:
+        gate.api(f"commits/{sha}")
+    except _ApiError as e:
         # surfaces via the ::error line + the non-zero exit — not a swallow
-        print(f"::error::commit {sha} is not fetchable ({e}) — the review cannot cover it.")
+        print(
+            f"::error::commit {sha} is not fetchable ({e}) — the review cannot cover it."
+        )
         return 1
 
     # "Reviewed after" is anchored to the workflow run's start, not the
@@ -293,8 +561,10 @@ def main() -> int:
     # push must post after the run that checks it started.
     run_id = os.environ.get("GITHUB_RUN_ID")
     if not run_id:
-        print("::error::GITHUB_RUN_ID is not set — the coverage anchor cannot be determined, "
-              "and a guess here would pass a review that does not cover this commit.")
+        print(
+            "::error::GITHUB_RUN_ID is not set — the coverage anchor cannot be determined, "
+            "and a guess here would pass a review that does not cover this commit."
+        )
         return 1
     try:
         run = gate.api(f"actions/runs/{run_id}")
@@ -302,35 +572,60 @@ def main() -> int:
     # No fallback is deliberate: the anchor IS the check. With no run start
     # there is no conservative guess, because the committer date predates the
     # push and an earlier head's review can land inside that window.
-    except (_ApiFailure, KeyError) as e:
+    except (_ApiError, KeyError) as e:
         # NO fallback to the committer date. It predates the push, so a review
         # of an earlier head, posted after the commit was authored but before
         # it was pushed, would count as covering this one. Failing is the
         # honest answer: the anchor is unknown, so coverage is unproven.
-        print(f"::error::run_started_at unavailable ({type(e).__name__}: {e}) — "
-              "cannot determine whether a review covers this commit.")
+        print(
+            f"::error::run_started_at unavailable ({type(e).__name__}: {e}) — "
+            "cannot determine whether a review covers this commit."
+        )
         return 1
 
     try:
-        comments = [_Comment.from_json(c) for c in gate.api(f"issues/{pr_number}/comments?per_page=100")]
-    except _ApiFailure as e:
-        print(f"::error::PR comments are not fetchable ({e}) — the review coverage cannot be checked.")
+        comments = [
+            _Comment.from_json(c)
+            for c in gate.api(f"issues/{pr_number}/comments?per_page=100")
+        ]
+        inline = [
+            _Comment.from_json(c)
+            for c in gate.api(f"pulls/{pr_number}/comments?per_page=100")
+        ]
+    except _ApiError as e:
+        print(
+            f"::error::PR comments are not fetchable ({e}) — the review coverage cannot be checked."
+        )
         return 1
-    if not _review_covers(comments, sha, reviewed_after):
-        try:
-            log = gate.job_log()
-        except (_ApiFailure, KeyError, URLError) as e:
-            print(f"::error::AI review did not post for commit {sha} — the job log could not be "
-                  f"read ({type(e).__name__}: {e}), so the reason is unknown.")
-            return 1
-        if _review_skipped(log):
-            print(f"::notice::no review posted for {sha} — the reviewer found nothing it can "
-                  "analyse in this PR. A clean skip, not a failure.")
-            return 0
-        reason = _bot_failure_reason(log)
-        print(f"::error::AI review did not post for commit {sha} — {reason}.")
+    notice = _coverage_notice(comments, inline, sha, reviewed_after, gate.api)
+    if notice is not None:
+        if notice:
+            print(f"::notice::{notice}")
+        return 0
+    try:
+        log = gate.job_log()
+    except (_ApiError, _NoLogError, KeyError, URLError) as e:
+        print(
+            f"::error::AI review did not post for commit {sha} — the job log could not be "
+            f"read ({type(e).__name__}: {e}), so the reason is unknown."
+        )
         return 1
-    return 0
+    log_read = _BotLog(log)
+    if log_read.nothing_to_publish:
+        print(
+            f"::notice::no review posted for {sha} — the reviewer examined the increment and "
+            "found nothing to publish. A clean review, not a failure."
+        )
+        return 0
+    if log_read.skipped:
+        print(
+            f"::notice::no review posted for {sha} — the reviewer found nothing it can "
+            "analyse in this PR. A clean skip, not a failure."
+        )
+        return 0
+    reason = log_read.reason
+    print(f"::error::AI review did not post for commit {sha} — {reason}.")
+    return 1
 
 
 if __name__ == "__main__":

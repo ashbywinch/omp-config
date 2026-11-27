@@ -98,7 +98,9 @@ class Fake:
         )
         threads = self.bin / "pr-threads"
         threads.write_text(
-            '#!/bin/bash\ncat "$FAKE_ROOT/threads.txt"\n', encoding="utf-8"
+            '#!/bin/bash\ncat "$FAKE_ROOT/threads.txt"\nexit %d\n'
+            % self.scenario.get("threads_rc", 0),
+            encoding="utf-8",
         )
         ready = self.bin / "pr-ready"
         ready.write_text(
@@ -199,11 +201,18 @@ class NoticeTest(unittest.TestCase):
         self.assertIn("https://github.com/owner/name/pull/1", notices)
 
     def test_an_unanswered_thread_is_reported_with_the_command(self):
-        self.fake = self.fake_for(threads=["PRRC_1", "PRRC_2"])
+        """Exit 1 from pr-threads is a verdict: work remains, so report it."""
+        self.fake = self.fake_for(threads=["PRRC_1", "PRRC_2"], threads_rc=1)
         self.fake.run()
         notices = self.fake.notices()
         self.assertIn("2 unanswered review thread(s)", notices)
         self.assertIn("pr-threads 1 --repo owner/name", notices)
+
+    def test_a_failing_pr_threads_is_unknown_not_empty(self):
+        self.fake = self.fake_for(threads=["PRRC_1"], threads_rc=2)
+        result = self.fake.run()
+        self.assertNotIn("unanswered review thread(s)", self.fake.notices())
+        self.assertIn("thread state unknown", result.stderr)
 
 
 def load_module():

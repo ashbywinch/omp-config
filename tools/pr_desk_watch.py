@@ -284,11 +284,17 @@ class Github:
         return latest_by_name(checks)
 
     def unanswered_threads(self) -> list[str] | None:
+        """The unanswered thread ids, or None when pr-threads could not answer.
+
+        Exit 1 is a verdict, not a failure: `pr-threads --ids` prints the ids it
+        found and exits 1 because work remains. Anything above 1 is the tool
+        failing, which is the only case that leaves the state unknown.
+        """
         result = run(
             ["pr-threads", str(self.settings.pr), "--repo", self.settings.repo, "--ids"],
             self.settings.timeout,
         )
-        if result.returncode != 0:
+        if result.returncode > 1:
             warn("pr-threads did not answer — thread state unknown")
             return None
         return sorted(line.strip() for line in result.stdout.splitlines() if line.strip())
