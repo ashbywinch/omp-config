@@ -290,6 +290,13 @@ class MergeTest(ReaderTest):
         with self.assertRaises(SourceUnknown):
             Merge("owner/name", timeout=5).state(pull)
 
+    def test_a_missing_base_is_unknown_not_origin_dash(self):
+        self.fake(base="-")
+        pull = PullRequests("owner/name", timeout=5).view(1)
+        with self.assertRaises(SourceUnknown) as caught:
+            Merge("owner/name", timeout=5).state(pull)
+        self.assertIn("no base branch", str(caught.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

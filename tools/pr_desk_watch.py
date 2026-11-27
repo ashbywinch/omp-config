@@ -234,9 +234,11 @@ class Watcher:
             return
         if contexts is None:
             considered = checks
+            label = "failing check(s)"
         else:
             wanted = set(contexts)
             considered = [check for check in checks if check.name in wanted]
+            label = "failing required check(s)"
         failing = sorted({check.name for check in considered if check.failed})
         if not failing:
             self.notices.rearm("checks")
@@ -244,7 +246,7 @@ class Watcher:
         self.notices.announce(
             "checks",
             f"{pull.head} {', '.join(failing)}",
-            f"PR {self.settings.slug}: failing required check(s) on "
+            f"PR {self.settings.slug}: {label} on "
             f"{pull.head[:7]}: {', '.join(failing)}. Read the failing step, fix the "
             "cause, push once.",
         )

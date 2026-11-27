@@ -32,6 +32,8 @@ class Merge(Github):
         It takes the record the caller already read, so the pull is not read
         twice for the same pass.
         """
+        if not pull.base or pull.base == "-":
+            raise SourceUnknown(f"no base branch to prove {pull.slug} against")
         if pull.merge_state not in (self._UNKNOWN, "-"):
             return MergeState(
                 merges=pull.merge_state != self._CONFLICT,
@@ -80,7 +82,8 @@ class Merge(Github):
             )
         if not self._has_commit(pull.head):
             raise SourceUnknown(
-                f"git fetch did not deliver {pull.head[:7]} to prove {pull.slug}"
+                f"git fetch did not deliver a commit for {pull.head[:7]} "
+                f"to prove {pull.slug}"
             )
 
     def _ask(self, args: list[str], reason: str) -> int:

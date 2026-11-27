@@ -44,6 +44,16 @@ class NoticeTest(unittest.TestCase):
         self.fake.run()
         self.assertIn("failing required check(s)", self.fake.notices())
 
+    def test_a_failing_check_with_an_unknown_required_list_is_not_called_required(self):
+        self.fake = self.fake_for(
+            contexts_rc=1,
+            checks=[check("lint", "completed", "failure", "2026-01-01T00:00:00Z")],
+        )
+        self.fake.run()
+        notices = self.fake.notices()
+        self.assertIn("failing check(s)", notices)
+        self.assertNotIn("failing required check(s)", notices)
+
     def test_one_run_per_name_is_kept_and_the_newest_wins(self):
         """A re-run supersedes the run before it; the old failure is not news."""
         self.fake = self.fake_for(
