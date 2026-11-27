@@ -69,7 +69,6 @@ install:
 	ln -sf $(CURDIR)/lexicon/central.lexicon $(LEXICON_DST)
 	ln -sf $(CURDIR)/tools/pr_threads.py $(PR_THREADS_DST)
 	ln -sf $(CURDIR)/tools/pr_desk.py $(PR_DESK_DST)
-	ln -sf $(CURDIR)/skills/pr-workflow/scripts/watch-pr.sh $(WATCH_PR_DST)
 	ln -sf $(CURDIR)/tools/pr_watch.sh $(PR_WATCH_DST)
 	ln -sf $(CURDIR)/tools/pr_desk_watch.py $(PR_DESK_WATCH_DST)
 	ln -sf $(CURDIR)/tools/repeat_findings.py $(REPEAT_FINDINGS_DST)
@@ -81,7 +80,8 @@ install:
 	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
-# The shims are INSTALLED COPIES, not symlinks into this checkout.
+# The three shims (gh, git, the credential helper) are INSTALLED COPIES; every
+# other tool above stays a symlink into this checkout.
 #
 # A symlink makes the installed `gh` behave as whichever branch this checkout
 # happens to be on: measured 2026-11-25, a two-day-old branch's shim still keyed
@@ -108,7 +108,6 @@ install-gh-shim: stamp-shims
 	else \
 		echo "~/.secrets exists — leaving it alone."; \
 	fi
-	@chmod 700 $(GH_SHIM_DST)
 	@echo "gh shim installed -> $(GH_SHIM_DST)"
 
 install-git-shim: stamp-shims
