@@ -106,8 +106,11 @@ class Fake:
             encoding="utf-8",
         )
         paseo = self.bin / "paseo"
+        hang = self.scenario.get("send_hang", 0)
         paseo.write_text(
-            '#!/bin/bash\nprintf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n',
+            "#!/bin/bash\n"
+            'printf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n'
+            f"sleep {hang}\n",
             encoding="utf-8",
         )
         for tool in (gh, threads, ready, paseo):
@@ -222,7 +225,11 @@ class NoRepeatTest(unittest.TestCase):
                 pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
                 send_timeout=5, root=Path("."),
             )
-            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                channel=module.Channel(agent=AGENT, timeout=settings.send_timeout),
+            )
             for _ in range(count):
                 watcher.pass_once()
         return self.fake.notices()
@@ -231,6 +238,25 @@ class NoRepeatTest(unittest.TestCase):
         notices = self.passes(3)
         self.assertEqual(notices.count("ready for the person's review"), 1)
 
+    def test_a_slow_send_is_delivered_once(self):
+        """The message lands before the command returns; do not send it again."""
+        module = load_module()
+        fake = Fake(ready="READY: hand it over", ready_rc=0, send_hang=3)
+        self.addCleanup(fake.close)
+        with mock.patch.dict(os.environ, fake.env()):
+            settings = module.Settings(
+                pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
+                send_timeout=1, root=Path("."),
+            )
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                channel=module.Channel(agent=AGENT, timeout=settings.send_timeout),
+            )
+            watcher.pass_once()
+            watcher.pass_once()
+        self.assertEqual(fake.notices().count("ready for the person's review"), 1)
+
     def test_a_new_head_is_announced_again(self):
         module = load_module()
         with mock.patch.dict(os.environ, self.fake.env()):
@@ -238,7 +264,11 @@ class NoRepeatTest(unittest.TestCase):
                 pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
                 send_timeout=5, root=Path("."),
             )
-            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher = module.Watcher(
+                settings=settings,
+                gh=module.Github(settings),
+                channel=module.Channel(agent=AGENT, timeout=settings.send_timeout),
+            )
             watcher.pass_once()
             moved = json.loads((self.fake.root / "pr.json").read_text(encoding="utf-8"))
             moved["headRefOid"] = "b" * 40

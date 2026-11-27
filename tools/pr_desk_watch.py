@@ -320,34 +320,59 @@ class Keys:
     ready: str = ""
 
 
+class Channel:
+    """Delivery to the one session that owns the PR."""
+
+    def __init__(self, agent: str, timeout: int) -> None:
+        self.agent = agent
+        self.timeout = timeout
+
+    def send(self, body: str) -> bool:
+        """Send one notice; a failure leaves the caller's key unset.
+
+        `paseo send` delivers quickly and then sits waiting on the relay; it has
+        been measured well past two minutes. Waiting for it to return therefore
+        duplicates the message: the person has it, the command is killed, the key
+        stays unset, the next pass sends it again. A send that outlives its bound
+        is recorded as delivered, with a warning; a send that exits non-zero is
+        still a failure and is retried.
+        """
+        try:
+            result = subprocess.run(
+                ["paseo", "send", self.agent, body],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=self.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            warn(
+                f"paseo send did not return within {self.timeout}s "
+                "— recording the notice as delivered, since the message is on its way"
+            )
+            return True
+        except OSError as exc:
+            warn(f"paseo send could not run — {exc} — retrying next pass")
+            return False
+        if result.returncode == 0:
+            return True
+        said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")
+        warn(f"send to {self.agent} failed — {said} — retrying next pass")
+        return False
+
+
 @dataclass
 class Watcher:
     """The notices, their keys, and the one session that receives them."""
 
     settings: Settings
     gh: Github
+    channel: Channel
     keys: Keys = field(default_factory=Keys)
     required: list[str] = field(default_factory=list)
     required_for: str = ""
 
     # ---- sending ---------------------------------------------------------
-
-    def notify(self, body: str) -> bool:
-        """Send one notice; a failure leaves the caller's key unset.
-
-        A send gets its own, longer bound: `paseo send` waits on the relay, and a
-        message that took longer than a read timeout was being killed after the
-        person had already received it — so the key stayed unset and every pass
-        sent it again.
-        """
-        result = run(
-            ["paseo", "send", self.settings.agent, body], self.settings.send_timeout
-        )
-        if result.returncode == 0:
-            return True
-        said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")
-        warn(f"send to {self.settings.agent} failed — {said} — retrying next pass")
-        return False
 
     def rearm(self, kind: str) -> None:
         """Forget the last notice of this kind.
@@ -362,7 +387,7 @@ class Watcher:
     def announce(self, kind: str, key: str, body: str) -> None:
         if getattr(self.keys, kind) == key:
             return
-        if self.notify(body):
+        if self.channel.send(body):
             setattr(self.keys, kind, key)
 
     # ---- one pass --------------------------------------------------------
@@ -513,7 +538,11 @@ def settings_from(pr_arg: str, repo_arg: str | None, interval_arg: str) -> Setti
 
 
 def watch(settings: Settings, once: bool) -> int:
-    watcher = Watcher(settings=settings, gh=Github(settings))
+    watcher = Watcher(
+        settings=settings,
+        gh=Github(settings),
+        channel=Channel(agent=settings.agent, timeout=settings.send_timeout),
+    )
     while True:
         if not watcher.pass_once():
             return 0
