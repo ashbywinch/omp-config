@@ -64,6 +64,11 @@ class PullRequestTest(ReaderTest):
         self.fake(base="refs/heads/main")
         self.assertEqual(PullRequests("owner/name", timeout=5).view(1).base, "main")
 
+    def test_a_missing_draft_state_is_unknown(self):
+        self.fake(omit_draft=True)
+        with self.assertRaises(SourceUnknown):
+            PullRequests("owner/name", timeout=5).view(1)
+
 
 class ThreadTest(ReaderTest):
     def test_threads_carry_their_last_author(self):

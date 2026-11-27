@@ -114,6 +114,11 @@ class ChecksTest(unittest.TestCase):
 
 
 class MergeTest(unittest.TestCase):
+    def test_a_missing_base_is_named(self):
+        result = verdict(the_pull=pull(base="-"))
+        self.assertIn("no base branch", fact(result, "merge").detail)
+        self.assertFalse(result.ready)
+
     def test_a_conflict_blocks(self):
         result = verdict(merge_state=MergeState(merges=False, behind=False))
         self.assertIn("conflicts with origin/main", fact(result, "merge").detail)

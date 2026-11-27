@@ -34,6 +34,13 @@ class PullRequests(Github):
             ) from exc
         if not isinstance(node, dict):
             raise SourceUnknown(f"GitHub returned no pull request for {self.repo}#{number}")
+        draft = node.get("isDraft")
+        if not isinstance(draft, bool):
+            # A missing draft state is no answer, not "not a draft": reading it
+            # as False would let a draft PR report ready.
+            raise SourceUnknown(
+                f"GitHub returned no draft state for {self.repo}#{number}"
+            )
         return PullRequest(
             number=number,
             repo=self.repo,
@@ -43,5 +50,5 @@ class PullRequests(Github):
             url=_text(node, "url"),
             decision=_text(node, "reviewDecision"),
             merge_state=_text(node, "mergeStateStatus"),
-            draft=bool(node.get("isDraft")),
+            draft=draft,
         )

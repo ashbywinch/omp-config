@@ -61,6 +61,8 @@ class Fake:
             "mergeStateStatus": self.scenario.get("merge_state", "CLEAN"),
             "isDraft": self.scenario.get("draft", False),
         }
+        if self.scenario.get("omit_draft"):
+            del pr["isDraft"]
         (self.root / "pr.json").write_text(json.dumps(pr), encoding="utf-8")
         checks = self.scenario.get(
             "checks",
