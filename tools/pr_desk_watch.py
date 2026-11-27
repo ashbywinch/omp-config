@@ -328,14 +328,11 @@ class Owner:
         self.timeout = timeout
 
     def send(self, body: str) -> bool:
-        """Queue one notice; a failure leaves the caller's key unset.
+        """Queue one notice. A failure leaves the caller's key unset.
 
-        `--no-wait` is what makes this a send and not a wait: without it,
-        `paseo send` blocks until the receiving agent finishes its turn, which
-        has been measured past two minutes. The watcher killed that wait, the
-        notice stayed unset, and the next pass sent it again — three times for
-        one head. With `--no-wait` the command returns as soon as the message is
-        queued, so its exit status is about delivery again.
+        `--no-wait` makes this a send rather than a wait: without it the command
+        blocks until the receiving agent finishes its turn, so a slow turn reads
+        as a failed send and the notice repeats.
         """
         try:
             result = subprocess.run(
