@@ -80,18 +80,8 @@ install:
 	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
-# The three shims (gh, git, the credential helper) are INSTALLED COPIES; every
-# other tool above stays a symlink into this checkout.
-#
-# A symlink makes the installed `gh` behave as whichever branch this checkout
-# happens to be on: measured 2026-11-25, a two-day-old branch's shim still keyed
-# on PASEO_AGENT_ID, so a subagent (which carries none) fell through to the
-# human's account and a PR was authored by them — unapprovable by that human and
-# invisible to every check that assumes the bot authors. A copy is whatever
-# `main` was when you last ran `make install`; drift is then a thing you did,
-# and `.installed-commit` records which commit that was.
-# The commit the copies came from, written once: both shim targets depend on
-# this, so `make -j2` still produces one write and one value.
+# Copies, not symlinks: an installed tool must not change when this checkout
+# changes branch. `.installed-commit` names the commit the copies came from.
 stamp-shims:
 	@mkdir -p $(dir $(SHIMS_COMMIT))
 	@sha=$$(git -C $(CURDIR) rev-parse --short HEAD) || { echo "stamp-shims: cannot read HEAD — write no stamp at all" >&2; exit 1; }; \
