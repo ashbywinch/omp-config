@@ -3,9 +3,9 @@
 """What the watcher tells the session that owns a PR, and when.
 
 Each test runs the real script in a PATH holding stand-ins for `gh`,
-`pr-threads`, `pr-ready` and `paseo`, one pass at a time (`--once`). The fake
-`paseo` records what it was asked to send, so a test asserts on the notice
-itself rather than on a log line about it.
+`pr-ready` and `paseo`, one pass at a time (`--once`). The fake `paseo`
+records what it was asked to send, so a test asserts on the notice itself
+rather than on a log line about it. The harness is `desk_fakes.Fake`.
 """
 
 import importlib.util
@@ -13,127 +13,14 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools.tests.desk_fakes import AGENT, Fake
+
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "tools" / "pr_desk_watch.py"
-AGENT = "agent-1"
-
-
-class Fake:
-    """A PATH whose tools answer from one scenario, recording what was sent."""
-
-    def __init__(self, **scenario) -> None:
-        self.dir = tempfile.TemporaryDirectory()
-        self.root = Path(self.dir.name)
-        self.bin = self.root / "bin"
-        self.bin.mkdir()
-        self.sent = self.root / "sent.txt"
-        self.scenario = scenario
-        self.write_tools()
-
-    def close(self) -> None:
-        self.dir.cleanup()
-
-    def write_tools(self) -> None:
-        pr = {
-            "state": self.scenario.get("state", "OPEN"),
-            "headRefOid": self.scenario.get("head", "a" * 40),
-            "reviewDecision": self.scenario.get("decision", ""),
-            "baseRefName": "main",
-            "url": "https://github.com/owner/name/pull/1",
-            "mergeStateStatus": self.scenario.get("merge_state", "CLEAN"),
-        }
-        (self.root / "pr.json").write_text(json.dumps(pr), encoding="utf-8")
-        checks = self.scenario.get(
-            "checks",
-            [{"name": "self-check", "status": "completed", "conclusion": "success",
-              "started_at": "2026-01-01T00:00:00Z"}],
-        )
-        (self.root / "checks.json").write_text(
-            json.dumps({"check_runs": checks}), encoding="utf-8"
-        )
-        (self.root / "contexts.json").write_text(
-            json.dumps(
-                {
-                    "data": {
-                        "repository": {
-                            "ref": {
-                                "branchProtectionRule": {
-                                    "requiredStatusCheckContexts": self.scenario.get(
-                                        "required", []
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            ),
-            encoding="utf-8",
-        )
-        (self.root / "threads.txt").write_text(
-            "\n".join(self.scenario.get("threads", [])) + "\n", encoding="utf-8"
-        )
-        (self.root / "ready.txt").write_text(
-            self.scenario.get("ready", "BLOCKED: nothing to report"), encoding="utf-8"
-        )
-        checks_rc = self.scenario.get("checks_rc", 0)
-        ready_rc = self.scenario.get("ready_rc", 1)
-
-        gh = self.bin / "gh"
-        gh.write_text(
-            "#!/bin/bash\n"
-            'root="$FAKE_ROOT"\n'
-            'case "$*" in\n'
-            '  "pr view"*) cat "$root/pr.json" ;;\n'
-            '  *check-runs*) if [ %d -ne 0 ]; then exit %d; fi; cat "$root/checks.json" ;;\n'
-            '  "api graphql"*) cat "$root/contexts.json" ;;\n'
-            '  "api repos"*) echo "[]" ;;\n'
-            '  *) echo "unexpected gh call: $*" >&2; exit 9 ;;\n'
-            "esac\n" % (checks_rc, checks_rc),
-            encoding="utf-8",
-        )
-        threads = self.bin / "pr-threads"
-        threads.write_text(
-            '#!/bin/bash\ncat "$FAKE_ROOT/threads.txt"\n', encoding="utf-8"
-        )
-        ready = self.bin / "pr-ready"
-        ready.write_text(
-            '#!/bin/bash\ncat "$FAKE_ROOT/ready.txt"\nexit %d\n' % ready_rc,
-            encoding="utf-8",
-        )
-        paseo = self.bin / "paseo"
-        paseo.write_text(
-            '#!/bin/bash\nprintf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n',
-            encoding="utf-8",
-        )
-        for tool in (gh, threads, ready, paseo):
-            tool.chmod(0o755)
-
-    def env(self, **extra: str) -> dict[str, str]:
-        base = {
-            "PATH": f"{self.bin}:/usr/bin:/bin",
-            "FAKE_ROOT": str(self.root),
-            "PR_DESK_AGENT": AGENT,
-            "PYTHONPATH": str(REPO),
-        }
-        base.update(extra)
-        return base
-
-    def run(self, *extra: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [sys.executable, str(SCRIPT), "1", "owner/name", "1", "--once", *extra],
-            env=self.env(),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-    def notices(self) -> str:
-        return self.sent.read_text(encoding="utf-8") if self.sent.exists() else ""
 
 
 def check(name: str, status: str, conclusion: str | None, started: str) -> dict:
@@ -222,7 +109,7 @@ class NoRepeatTest(unittest.TestCase):
                 pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
                 send_timeout=5, root=Path("."),
             )
-            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher = module.Watcher(settings=settings)
             for _ in range(count):
                 watcher.pass_once()
         return self.fake.notices()
@@ -238,7 +125,7 @@ class NoRepeatTest(unittest.TestCase):
                 pr=1, repo="owner/name", agent=AGENT, interval=1, timeout=5,
                 send_timeout=5, root=Path("."),
             )
-            watcher = module.Watcher(settings=settings, gh=module.Github(settings))
+            watcher = module.Watcher(settings=settings)
             watcher.pass_once()
             moved = json.loads((self.fake.root / "pr.json").read_text(encoding="utf-8"))
             moved["headRefOid"] = "b" * 40

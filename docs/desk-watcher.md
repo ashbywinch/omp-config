@@ -2,6 +2,8 @@
 
 `tools/pr_desk_watch.py` is read alongside this file. Every apparent defect below
 is a decision, and the reason is stated so a reader does not have to infer it.
+The GitHub reads live in `tools/desk/` — one reader per concern — and the
+notices are decided in the watcher.
 
 ## It reports, it never acts
 
@@ -42,12 +44,12 @@ A read that fails is reported on stderr and treated as unknown:
 The cheap gate is never more permissive than `pr-ready`, which repeats the
 checks as the authority.
 
-## Why the check list is reduced here
+## Why the check list is reduced in the reader
 
 `filter=latest` on the check-runs endpoint does not reliably return one run per
-name — a reusable workflow's job appears twice in practice. The watcher keeps
-the newest run per name itself (`group_by(.name)` then `sort_by(.started_at)`),
-so a superseded or in-flight duplicate cannot be judged as the check.
+name — a reusable workflow's job appears twice in practice. `Checks.on` keeps
+the newest run per name itself (`latest_by_name`), so a superseded or in-flight
+duplicate cannot be judged as the check.
 
 ## Why both send streams are captured
 

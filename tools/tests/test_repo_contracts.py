@@ -8,6 +8,7 @@ unittest suite, so a contract that stops being true stops the build.
 """
 
 import subprocess
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -51,6 +52,20 @@ class RepoContractsTest(unittest.TestCase):
                 example.read_text(encoding="utf-8"),
                 f"{name} twins diverged — run 'make sync-examples' (tools/ is canonical)",
             )
+
+    def test_the_pr_tools_install_as_console_scripts(self):
+        """`make install` relies on these names resolving to these entry points."""
+        project = tomllib.loads(
+            (REPO / "pyproject.toml").read_text(encoding="utf-8")
+        )["project"]
+        self.assertEqual(
+            project["scripts"],
+            {
+                "pr-threads": "tools.pr_threads:main",
+                "pr-ready": "tools.pr_ready:main",
+                "pr-desk-watch": "tools.pr_desk_watch:main",
+            },
+        )
 
 
 if __name__ == "__main__":
