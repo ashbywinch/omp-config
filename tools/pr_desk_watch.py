@@ -328,18 +328,18 @@ class Owner:
         self.timeout = timeout
 
     def send(self, body: str) -> bool:
-        """Send one notice; a failure leaves the caller's key unset.
+        """Queue one notice; a failure leaves the caller's key unset.
 
-        `paseo send` delivers quickly and then sits waiting on the relay; it has
-        been measured well past two minutes. Waiting for it to return therefore
-        duplicates the message: the person has it, the command is killed, the key
-        stays unset, the next pass sends it again. A send that outlives its bound
-        is recorded as delivered, with a warning; a send that exits non-zero is
-        still a failure and is retried.
+        `--no-wait` is what makes this a send and not a wait: without it,
+        `paseo send` blocks until the receiving agent finishes its turn, which
+        has been measured past two minutes. The watcher killed that wait, the
+        notice stayed unset, and the next pass sent it again — three times for
+        one head. With `--no-wait` the command returns as soon as the message is
+        queued, so its exit status is about delivery again.
         """
         try:
             result = subprocess.run(
-                ["paseo", "send", self.agent, body],
+                ["paseo", "send", "--no-wait", self.agent, body],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -347,10 +347,9 @@ class Owner:
             )
         except subprocess.TimeoutExpired:
             warn(
-                f"paseo send did not return within {self.timeout}s "
-                "— recording the notice as delivered, since the message is on its way"
+                f"paseo send did not return within {self.timeout}s — retrying next pass"
             )
-            return True
+            return False
         except OSError as exc:
             warn(f"paseo send could not run — {exc} — retrying next pass")
             return False

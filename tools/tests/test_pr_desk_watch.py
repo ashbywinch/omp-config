@@ -109,7 +109,8 @@ class Fake:
         hang = self.scenario.get("send_hang", 0)
         paseo.write_text(
             "#!/bin/bash\n"
-            'printf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n'
+            'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n'
+            'printf "%s\\n" "$*" >> "$FAKE_ROOT/args.txt"\n'
             f"sleep {hang}\n",
             encoding="utf-8",
         )
@@ -238,8 +239,15 @@ class NoRepeatTest(unittest.TestCase):
         notices = self.passes(3)
         self.assertEqual(notices.count("ready for the person's review"), 1)
 
-    def test_a_slow_send_is_delivered_once(self):
-        """The message lands before the command returns; do not send it again."""
+    def test_the_send_is_queued_without_waiting(self):
+        """`--no-wait` is what keeps a send from blocking on the agent's turn."""
+        self.passes(1)
+        args = (self.fake.root / "args.txt").read_text(encoding="utf-8")
+        self.assertIn("send --no-wait", args)
+        self.assertIn(f"--no-wait {AGENT}", args)
+
+    def test_a_send_that_never_returns_is_retried(self):
+        """With `--no-wait` a hung send queued nothing, so retrying is right."""
         module = load_module()
         fake = Fake(ready="READY: hand it over", ready_rc=0, send_hang=3)
         self.addCleanup(fake.close)
@@ -255,7 +263,7 @@ class NoRepeatTest(unittest.TestCase):
             )
             watcher.pass_once()
             watcher.pass_once()
-        self.assertEqual(fake.notices().count("ready for the person's review"), 1)
+        self.assertEqual(fake.notices().count("ready for the person's review"), 2)
 
     def test_a_new_head_is_announced_again(self):
         module = load_module()
