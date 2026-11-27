@@ -80,8 +80,8 @@ install:
 	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
-# Copies, not symlinks: an installed tool must not change when this checkout
-# changes branch. `.installed-commit` names the commit the copies came from.
+# The shims are copies, not symlinks, so an installed tool cannot follow this
+# checkout onto another branch; `.installed-commit` names the commit they came from.
 stamp-shims:
 	@mkdir -p $(dir $(SHIMS_COMMIT))
 	@sha=$$(git -C $(CURDIR) rev-parse --short HEAD) || { echo "stamp-shims: cannot read HEAD — write no stamp at all" >&2; exit 1; }; \
