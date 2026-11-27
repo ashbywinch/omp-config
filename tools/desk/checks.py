@@ -50,15 +50,21 @@ def latest_by_name(checks: list[Check]) -> list[Check]:
     """One check per name, the newest run.
 
     ``filter=latest`` is not reliable — a reusable workflow's job comes back
-    twice — so the reduction happens here, ordered by ``started_at``, which a
-    run that never started leaves empty.
+    twice — so the reduction happens here. A queued run has no ``started_at``
+    and is the one that supersedes the run before it, so it orders newest;
+    keeping the older, finished run would report a re-run as already passed.
     """
     latest: dict[str, Check] = {}
     for check in checks:
         held = latest.get(check.name)
-        if held is None or check.started >= held.started:
+        if held is None or _newer(check, held):
             latest[check.name] = check
     return list(latest.values())
+
+
+def _newer(check: Check, held: Check) -> bool:
+    """Whether ``check`` supersedes ``held``: a queued run, or a later start."""
+    return (not check.started, check.started) >= (not held.started, held.started)
 
 
 class Checks(Github):

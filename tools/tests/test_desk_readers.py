@@ -116,6 +116,18 @@ class CheckTest(ReaderTest):
         self.assertEqual([(c.name, c.conclusion) for c in checks], [("arm", "success")])
         self.assertTrue(checks[0].passed)
 
+    def test_a_queued_rerun_supersedes_the_run_it_replaces(self):
+        """A re-run has no start yet, and is the run that decides the head."""
+        self.fake(checks=[
+            {"name": "arm", "status": "completed", "conclusion": "success",
+             "started_at": "2026-01-01T00:05:00Z"},
+            {"name": "arm", "status": "queued", "conclusion": None,
+             "started_at": None},
+        ])
+        checks = Checks("owner/name", timeout=5).on("a" * 40)
+        self.assertEqual([c.status for c in checks], ["queued"])
+        self.assertFalse(checks[0].passed)
+
     def test_no_check_runs_is_an_empty_answer(self):
         self.fake(checks=[])
         self.assertEqual(Checks("owner/name", timeout=5).on("a" * 40), [])
