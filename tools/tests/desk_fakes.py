@@ -143,7 +143,14 @@ class Fake:
         )
         paseo = self.bin / "paseo"
         paseo.write_text(
-            '#!/bin/bash\nprintf "%s\\n" "$3" >> "$FAKE_ROOT/sent.txt"\n',
+            "#!/bin/bash\n"
+            "# A send without --no-wait waits for the recipient's turn, and a slow\n"
+            "# turn reads as a failed send: refuse it so the tests pin the flag.\n"
+            'case "$*" in\n'
+            "  *--no-wait*) ;;\n"
+            '  *) echo "paseo send was not given --no-wait" >&2; exit 2 ;;\n'
+            "esac\n"
+            'printf "%s\\n" "${@: -1}" >> "$FAKE_ROOT/sent.txt"\n',
             encoding="utf-8",
         )
         for tool in (gh, paseo):

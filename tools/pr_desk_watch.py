@@ -87,7 +87,9 @@ class Notices:
         person had already received it — so the key stayed unset and every pass
         sent it again.
         """
-        result = run(["paseo", "send", self.agent, body], self.send_timeout)
+        result = run(
+            ["paseo", "send", "--no-wait", self.agent, body], self.send_timeout
+        )
         if result.returncode == 0:
             return True
         said = (result.stderr or result.stdout or "no message").strip().replace("\n", " ")

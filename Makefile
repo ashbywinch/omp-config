@@ -24,7 +24,6 @@ LEXICON_DST       := $(H)/.paseo/lexicon.central
 PR_THREADS_DST := $(H)/.local/bin/pr-threads
 PR_DESK_DST := $(H)/.local/bin/pr-desk
 WATCH_PR_DST := $(H)/.local/bin/watch-pr.sh
-PR_WATCH_DST := $(H)/.local/bin/pr-watch.sh
 PR_DESK_WATCH_DST := $(H)/.local/bin/pr-desk-watch
 REPEAT_FINDINGS_DST := $(H)/.local/bin/repeat-findings
 PR_READY_DST := $(H)/.local/bin/pr-ready
@@ -70,13 +69,12 @@ install:
 	ln -sf $(CURDIR)/lexicon/central.lexicon $(LEXICON_DST)
 	ln -sf $(CURDIR)/tools/pr_desk.py $(PR_DESK_DST)
 	ln -sf $(CURDIR)/skills/pr-workflow/scripts/watch-pr.sh $(WATCH_PR_DST)
-	ln -sf $(CURDIR)/tools/pr_watch.sh $(PR_WATCH_DST)
 	ln -sf $(CURDIR)/tools/repeat_findings.py $(REPEAT_FINDINGS_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
 	ln -sf $(CURDIR)/tools/wait-for.sh $(WAIT_FOR_DST)
 	ln -sf $(CURDIR)/tools/notion-write.sh $(NOTION_WRITE_DST)
 	ln -sf $(CURDIR)/tools/gcalcli-token.py $(GCALCLI_TOKEN_DST)
-	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST)
 	# The three PR tools are console scripts over `tools/desk/`, not symlinks:
 	# `uv tool install --editable` links this checkout into the tool's own venv,
 	# so an edit to the library is live without reinstalling, and no tool seeks
@@ -124,7 +122,7 @@ uninstall:
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
 	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG)
-	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
+	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
 	@$(UV) tool uninstall omp-config 2>/dev/null || echo "omp-config is not installed as a uv tool."
 	@echo "Removed omp-config symlinks."
 
