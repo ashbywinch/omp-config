@@ -53,6 +53,12 @@ repo_context_files = [
     "docs/UX.md",
 ]
 
+[github]
+# The review is published as its guide COMMENT. A check run REPLACES the comment
+# rather than joining it, so switching this on leaves the coverage gate — which
+# reads comments — nothing to see on exactly the reviews that were published.
+publish_as_check_run = false
+
 [pr_reviewer]
 require_tests_review = true
 require_security_review = true
