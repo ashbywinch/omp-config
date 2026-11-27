@@ -334,7 +334,7 @@ class Owner:
         self.timeout = timeout
 
     def send(self, body: str) -> bool:
-        """Queue the notice; never wait on the recipient's turn."""
+        """Queue the notice. The timeout bounds the command, not the recipient's turn."""
         try:
             result = subprocess.run(
                 ["paseo", "send", "--no-wait", self.agent, body],

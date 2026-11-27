@@ -258,8 +258,8 @@ class NoRepeatTest(unittest.TestCase):
     def test_the_send_is_queued_without_waiting(self):
         self.passes(1)
         args = (self.fake.root / "args.txt").read_text(encoding="utf-8")
-        self.assertIn("send --no-wait", args)
-        self.assertIn(f"--no-wait {AGENT}", args)
+        # The agent follows --no-wait, so this one assertion carries both facts.
+        self.assertIn(f"send --no-wait {AGENT}", args)
 
     def test_a_send_that_never_returns_is_retried(self):
         module = load_module()
