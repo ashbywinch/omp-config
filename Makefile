@@ -1,8 +1,9 @@
 # omp-config — the house conventions repo (skills, rules, standards).
 # Single dev entry point per the house standard: every check goes through
 # make. The repo carries a few tools under `tools/` (self-checks, the tree
-# generator, the gh shim) — they are make-adjacent, not a product; there is
-# no lint/typecheck/coverage pipeline here. `test` is the repo's self-check
+# generator, the gh shim, and the three PR tools over the `tools/desk/`
+# library) — they are make-adjacent, not a product; there is no
+# lint/typecheck/coverage pipeline here. `test` is the repo's self-check
 # (docs links + lucidlint gate + skill well-formedness).
 
 .PHONY: help setup install uninstall install-gh-shim install-git-shim install-lucidlint test test-unit uv-sync
@@ -23,7 +24,6 @@ LEXICON_DST       := $(H)/.paseo/lexicon.central
 PR_THREADS_DST := $(H)/.local/bin/pr-threads
 PR_DESK_DST := $(H)/.local/bin/pr-desk
 WATCH_PR_DST := $(H)/.local/bin/watch-pr.sh
-PR_WATCH_DST := $(H)/.local/bin/pr-watch.sh
 PR_DESK_WATCH_DST := $(H)/.local/bin/pr-desk-watch
 REPEAT_FINDINGS_DST := $(H)/.local/bin/repeat-findings
 PR_READY_DST := $(H)/.local/bin/pr-ready
@@ -35,7 +35,7 @@ GCALCLI_TOKEN_DST := $(H)/.local/bin/gcalcli-token.py
 help:
 	@echo "omp-config — available commands:"
 	@echo "  ${GREEN}make setup${NC}          Symlink rules/skills/APPEND_SYSTEM + install git hooks + gh/git shims"
-	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM"
+	@echo "  ${GREEN}make install${NC}        Symlink rules/skills/APPEND_SYSTEM; install the PR tools as uv console scripts"
 	@echo "  ${GREEN}make install-gh-shim${NC} Install tools/gh-app-shim as ~/.local/bin/gh (a copy, not a link); create ~/.secrets from template if missing"
 	@echo "  ${GREEN}make install-git-shim${NC} Install tools/git-app-shim as ~/.local/bin/git (a copy, not a link) + bot credential helper (agents auth as omp-harness[bot])"
 	@echo "  ${GREEN}make uninstall${NC}      Remove the symlinks"
@@ -67,17 +67,20 @@ install:
 	ln -sf $(CURDIR)/skills/pr-workflow/scripts/watch-pr.sh $(WATCH_PR_DST)
 	mkdir -p $(dir $(LEXICON_DST))
 	ln -sf $(CURDIR)/lexicon/central.lexicon $(LEXICON_DST)
-	ln -sf $(CURDIR)/tools/pr_threads.py $(PR_THREADS_DST)
 	ln -sf $(CURDIR)/tools/pr_desk.py $(PR_DESK_DST)
-	ln -sf $(CURDIR)/tools/pr_watch.sh $(PR_WATCH_DST)
-	ln -sf $(CURDIR)/tools/pr_desk_watch.py $(PR_DESK_WATCH_DST)
 	ln -sf $(CURDIR)/tools/repeat_findings.py $(REPEAT_FINDINGS_DST)
-	ln -sf $(CURDIR)/tools/pr_ready.py $(PR_READY_DST)
 	ln -sf $(CURDIR)/tools/lucidlint-lsp-update.sh $(LSP_UPDATE_DST)
 	ln -sf $(CURDIR)/tools/wait-for.sh $(WAIT_FOR_DST)
 	ln -sf $(CURDIR)/tools/notion-write.sh $(NOTION_WRITE_DST)
 	ln -sf $(CURDIR)/tools/gcalcli-token.py $(GCALCLI_TOKEN_DST)
-	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
+	chmod +x $(FETCH_FINDINGS_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(NOTION_WRITE_DST) $(GCALCLI_TOKEN_DST) $(REPEAT_FINDINGS_DST)
+	# The three PR tools are console scripts over `tools/desk/`, not symlinks:
+	# `uv tool install --editable` links this checkout into the tool's own venv,
+	# so an edit to the library is live without reinstalling, and no tool seeks
+	# another by path. Remove the old symlinks first — uv does not adopt a file
+	# it does not own.
+	rm -f $(PR_THREADS_DST) $(PR_READY_DST) $(PR_DESK_WATCH_DST)
+	$(UV) tool install --editable $(CURDIR)
 	@echo "Installed omp-config. OpenCode picks the changes up without a restart; if a skill does not appear, restart it."
 
 # Both shim targets below install copies, not links: an installed tool must not
@@ -129,7 +132,8 @@ uninstall:
 		rmdir $(SKILLS_DIR)/$$name 2>/dev/null || true; \
 	done
 	rm -f $(GH_SHIM_DST) $(GIT_SHIM_DST) $(GIT_HELPER_DST) $(GIT_AGENT_CFG) $(SHIMS_COMMIT)
-	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_WATCH_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
+	rm -f $(FETCH_FINDINGS_DST) $(LEXICON_DST) $(LSP_UPDATE_DST) $(WAIT_FOR_DST) $(PR_THREADS_DST) $(PR_DESK_DST) $(WATCH_PR_DST) $(PR_DESK_WATCH_DST) $(NOTION_WRITE_DST) $(REPEAT_FINDINGS_DST) $(PR_READY_DST)
+	@$(UV) tool uninstall omp-config 2>/dev/null || echo "omp-config is not installed as a uv tool."
 	@echo "Removed omp-config symlinks."
 
 # lucidlint consumption per the bundle's own README: unpack to .tools/lucidlint

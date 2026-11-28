@@ -73,8 +73,9 @@ If that workflow is absent or not firing, report it as a bug.
 
 ## Readiness is pr-ready's verdict
 
-`pr-ready <n> --repo <owner/name> --no-wait` decides it. `pr-threads <n>` says
-what is still unanswered.
+`pr-ready <n> --repo <owner/name>` decides it; `pr-threads <n>` says what is
+still unanswered. Both exit like `grep`: 0 the condition holds, 1 it does not,
+2 the read failed — retry a 2, and never report it as a verdict.
 
 Do not report against it: "inherited", "the same on main" and "someone else's
 failure" never turn a red required check green.

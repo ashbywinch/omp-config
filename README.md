@@ -34,9 +34,26 @@ make test       # repo self-check: every doc link resolves, every skill is well-
 | `APPEND_SYSTEM.md` | The system-prompt append |
 | `tools/check_docs_links.py` | Contract checks, asserted by `tools/tests/` |
 | `tools/generate_tree.py` | Notion structure tree generator (mirror-safe, superseded section) |
+| `tools/desk/` | The PR library: the records, and one reader per GitHub concern |
+| `tools/pr_threads.py` | `pr-threads` — the unanswered review threads; a console script |
+| `tools/pr_ready.py` | `pr-ready` — the facts a ready PR must hold; a console script |
+| `tools/pr_desk_watch.py` | `pr-desk-watch` — what the session owning a PR is told; a console script |
+| `docs/desk-watcher.md` | How the watcher decides what to send |
 | `tools/gh-app-shim` | GitHub App auth shim for `gh` — omp uses the app token, your terminal uses your creds (`make install-gh-shim`) |
 | `tools/secrets.template` | Template for `~/.secrets` — copy, fill, `chmod 600`; never commit values |
 | `.pr_agent.toml` | The review bot's context (`repo_context_files`) and instructions |
+
+## The PR tools install as console scripts
+
+`make install` installs `pr-threads`, `pr-ready` and `pr-desk-watch` with
+`uv tool install --editable .`, not as symlinks. Each is a console script over
+`tools/desk/`, and the editable install links this checkout into the tool's own
+venv: an edit to the library is live for the installed tool without
+reinstalling, and no tool imports another by path. Every other tool in `tools/`
+still installs as a symlink to its file.
+
+`uv` must be on PATH. Run a PR tool from any directory:
+`pr-ready <number> --repo <owner/name>`.
 
 ## GitHub App auth for gh (omp vs your terminal)
 

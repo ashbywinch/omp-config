@@ -12,13 +12,21 @@ someone else's next action.
 
 ## Always use the script
 
-Run `pr-ready <pr>` and report what it printed. Do not summarise an earlier run:
-the user's last message can have changed the answer.
+Run `pr-threads --wait <pr>` first: it blocks until the reviewer has finished
+the current head, so the state is a settled one. Then run `pr-ready <pr>` and
+report what it printed. Do not summarise an earlier run: the user's last
+message can have changed the answer.
 
-## Four facts, each its own failure
+Both tools exit like `grep`: 0 the condition holds (no unanswered thread;
+READY), 1 it does not (threads to answer; BLOCKED), 2 the read failed. Treat a 2
+as a retry — never report it as blocked or clean.
 
-A clean merge, a current base, a green head and answered threads are separate
-claims. One failing blocks the PR whatever the others say.
+## Five facts, each its own failure
+
+A head that is a commit, required checks green, a merge that is clean and
+current, answered threads and a non-draft PR are separate claims. One failing
+blocks the PR whatever the others say. An empty required-check list passes: no
+check was asked for.
 
 **Behind the base is not ready.** The base is `origin/<base>`, never a local
 branch of that name. A PR behind its base is not ready: merging it drops the

@@ -1,8 +1,21 @@
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
 [project]
 name = "omp-config"
 version = "0.0.0"
 description = "Agent configuration: skills, rules, and the tools that check them"
 requires-python = ">=3.14"
 
-[tool.uv]
-package = false
+# The PR tools install as console scripts over `tools/desk/` (`uv tool install
+# --editable .`), so an edit to the library is live without reinstalling. Every
+# other tool installs as a symlink to its file.
+[project.scripts]
+pr-threads = "tools.pr_threads:main"
+pr-ready = "tools.pr_ready:main"
+pr-desk-watch = "tools.pr_desk_watch:main"
+
+[tool.uv.build-backend]
+module-name = "tools"
+module-root = ""
