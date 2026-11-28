@@ -44,7 +44,7 @@ class ReadyTest(unittest.TestCase):
         """A merged head is behind main by definition; that is not a defect."""
         self.fake(state="MERGED", required=["self-check"])
         result = self.run_cli()
-        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.returncode, 3)
         self.assertIn("is MERGED — nothing to ready", result.stdout)
         self.assertNotIn("BLOCKED", result.stdout)
 

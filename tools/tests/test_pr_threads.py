@@ -39,6 +39,20 @@ class ThreadsCommandTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("0 unanswered", result.stdout)
 
+    def test_a_finished_pr_is_named_and_exits_three(self):
+        self.fake(state="MERGED", threads=["PRRC_1"])
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 3)
+        self.assertIn("is MERGED — nothing to answer", result.stdout)
+        self.assertNotIn("UNANSWERED", result.stdout)
+
+    def test_a_finished_pr_keeps_the_ids_stream_clean(self):
+        self.fake(state="CLOSED", threads=["PRRC_1"])
+        result = self.run_cli("--ids")
+        self.assertEqual(result.returncode, 3)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("is CLOSED — nothing to answer", result.stderr)
+
     def test_an_unanswered_thread_exits_one_and_names_it(self):
         self.fake(threads=["PRRC_1"])
         result = self.run_cli()

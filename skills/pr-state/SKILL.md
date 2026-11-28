@@ -18,12 +18,13 @@ report what it printed. Do not summarise an earlier run: the user's last
 message can have changed the answer.
 
 Both tools exit like `grep`: 0 the condition holds (no unanswered thread;
-READY), 1 it does not (threads to answer; BLOCKED), 2 the read failed. Treat a 2
-as a retry — never report it as blocked or clean.
+READY), 1 it does not (threads to answer; BLOCKED), 2 the read failed, 3 the PR
+is merged or closed. Treat a 2 as a retry — never report it as blocked or clean.
 
-A PR that is already merged or closed is named in one line and exits 1: its head
-is behind its base by definition, so printing the five facts would report a
-defect that is not one.
+A merged or closed PR is named in one line and exits 3, because it is finished
+rather than blocked: its head is behind its base by definition, so printing the
+five facts would report a defect that is not one, and a caller reading the code
+alone must be able to tell the two apart.
 
 ## Five facts, each its own failure
 
