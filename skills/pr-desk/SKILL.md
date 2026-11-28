@@ -75,7 +75,8 @@ If that workflow is absent or not firing, report it as a bug.
 
 `pr-ready <n> --repo <owner/name>` decides it; `pr-threads <n>` says what is
 still unanswered. Both exit like `grep`: 0 the condition holds, 1 it does not,
-2 the read failed — retry a 2, and never report it as a verdict.
+2 the read failed, 3 the PR is finished — retry a 2, never report it as a
+verdict, and treat a 3 as nothing left to do on that PR.
 
 Do not report against it: "inherited", "the same on main" and "someone else's
 failure" never turn a red required check green.

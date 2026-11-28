@@ -4,7 +4,7 @@
     pr-ready <pr> [--repo owner/name] [--root path] [--me login]
 
 Exit status follows `grep`: 0 the PR is ready, 1 it is blocked, 2 the read
-failed. `readiness.evaluate` decides from records; this file only gathers them
+failed, 3 the PR is merged or closed — there is nothing left to ready. `readiness.evaluate` decides from records; this file only gathers them
 and prints the verdict.
 
 Procedure: `skill://pr-state`.
@@ -83,6 +83,13 @@ def main() -> int:
     except SourceUnknown as exc:
         print(f"pr-ready: {exc}", file=sys.stderr)
         return 2
+
+    if reading.pull.finished:
+        # Facts about a merged PR are noise: its head is behind main by
+        # definition, so the merge fact would report a defect that is not one.
+        print(f"PR {reading.pull.number} ({reading.pull.repo}) is "
+              f"{reading.pull.state} — nothing to ready")
+        return 3
 
     verdict = evaluate(reading)
     print(report(reading.pull, verdict))

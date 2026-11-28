@@ -40,6 +40,14 @@ class ReadyTest(unittest.TestCase):
         self.assertIn("READY:", result.stdout)
         self.assertIn("no unanswered threads", result.stdout)
 
+    def test_a_finished_pr_is_named_instead_of_judged(self):
+        """A merged head is behind main by definition; that is not a defect."""
+        self.fake(state="MERGED", required=["self-check"])
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 3)
+        self.assertIn("is MERGED — nothing to ready", result.stdout)
+        self.assertNotIn("BLOCKED", result.stdout)
+
     def test_a_failing_required_check_blocks_with_the_check_named(self):
         self.fake(
             required=["self-check"],

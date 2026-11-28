@@ -8,7 +8,7 @@ A thread is answered when its **last** comment is authored by `--me` — not
 `--me` defaults to `PR_THREADS_ME`, then to `omp-harness[bot]`.
 
 Exit status follows `grep`: 0 no thread is unanswered, 1 some are, 2 the read
-failed. `--wait` blocks until the checks on the head have finished, so the
+failed, 3 the PR is merged or closed — there is nothing left to answer. `--wait` blocks until the checks on the head have finished, so the
 listing is the reviewer's answer rather than a snapshot mid-review. `--ids`
 prints only each unanswered thread's id — a debugging view of the key a
 watcher de-duplicates on.
@@ -85,13 +85,21 @@ def main() -> int:
     try:
         repo = args.repo or Repository().current()
         pulls = PullRequests(repo)
-        if args.wait:
-            pulls.view(args.pr)
-            _ReviewWait(pulls, Checks(repo), args.pr).run()
-        threads = Threads(repo).all(args.pr)
+        pull = pulls.view(args.pr)
+        if not pull.finished:
+            if args.wait:
+                _ReviewWait(pulls, Checks(repo), args.pr).run()
+            threads = Threads(repo).all(args.pr)
     except SourceUnknown as exc:
         print(f"pr-threads: {exc}", file=sys.stderr)
         return 2
+
+    if pull.finished:
+        notice = f"PR {pull.number} ({pull.repo}) is {pull.state} — nothing to answer"
+        # `--ids` is read by machines: the notice goes to stderr so it cannot
+        # be mistaken for a thread id.
+        print(notice, file=sys.stderr if args.ids else sys.stdout)
+        return 3
 
     pending = unanswered(threads, me)
     if args.ids:
