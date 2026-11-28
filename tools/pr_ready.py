@@ -84,6 +84,13 @@ def main() -> int:
         print(f"pr-ready: {exc}", file=sys.stderr)
         return 2
 
+    if reading.pull.finished:
+        # Facts about a merged PR are noise: its head is behind main by
+        # definition, so the merge fact would report a defect that is not one.
+        print(f"PR {reading.pull.number} ({reading.pull.repo}) is "
+              f"{reading.pull.state} — nothing to ready")
+        return 1
+
     verdict = evaluate(reading)
     print(report(reading.pull, verdict))
     return 0 if verdict.ready else 1

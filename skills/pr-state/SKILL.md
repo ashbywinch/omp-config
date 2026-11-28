@@ -21,6 +21,10 @@ Both tools exit like `grep`: 0 the condition holds (no unanswered thread;
 READY), 1 it does not (threads to answer; BLOCKED), 2 the read failed. Treat a 2
 as a retry — never report it as blocked or clean.
 
+A PR that is already merged or closed is named in one line and exits 1: its head
+is behind its base by definition, so printing the five facts would report a
+defect that is not one.
+
 ## Five facts, each its own failure
 
 A head that is a commit, required checks green, a merge that is clean and
